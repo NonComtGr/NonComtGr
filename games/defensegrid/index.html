@@ -39,36 +39,9 @@
         .tower-tip tr.cur td { color: #ffe9a8; }
         .tower-tip .tt-note { margin-top: 6px; padding-top: 5px; border-top: 1px solid #2e4a6e; font-size: 11px; color: #7a9ac0; text-align: center; }
         .tower-tip .rogue-note { white-space: normal; word-break: break-word; max-width: 100%; line-height: 1.55; text-align: center; }
-        .back-home {
-        position: fixed;
-        top: 14px;
-        left: 14px;
-        z-index: 1000;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        border-radius: 10px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none;
-        color: #b0d0ff;
-        background: rgba(10, 15, 30, 0.82);
-        border: 1px solid rgba(126, 200, 255, 0.35);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        transition: background .2s, border-color .2s, transform .2s;
-        }
-        .back-home:hover {
-        color: #ffffff;
-        background: rgba(74, 158, 255, 0.22);
-        border-color: rgba(126, 200, 255, 0.7);
-        transform: translateX(-2px);
-        }
     </style>
 </head>
 <body>
-    <a class="back-home" href="../../index.html" target="_top">← 返回主页</a>
 <div class="game-wrapper">
     <h1 id="gameTitle" class="hidden">⚡ 防御阵型 · 觉醒 ⚡</h1>
     <canvas id="gameCanvas" width="1480" height="1000"></canvas>
