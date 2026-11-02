@@ -324,6 +324,12 @@
             { id:'priceDown', name:'成本削减', rarity:'uncommon', icon:'💲', desc:'建造与升级花费 -10%（非线性叠加）', apply:(s)=>{ s.bonus.priceMul *= 0.9; } },
             { id:'reveal',    name:'雷达升级', rarity:'uncommon', icon:'📡', desc:'隐形发现范围 +50%',       apply:(s)=>{ s.bonus.revealRange *= 1.5; } },
             { id:'slowAura',  name:'时间扭曲', rarity:'uncommon', icon:'🕸️', desc:'所有敌人移速 -10%',       apply:(s)=>{ s.bonus.enemySlow *= 0.90; } },
+            { id:'coreSpeed',    name:'核心回收', rarity:'uncommon', icon:'💨',
+  desc:'核心返回基地速度 +20%（非线性叠加）',
+  apply:(s)=>{ s.bonus.coreReturnSpeed *= 1.20; } },
+{ id:'jammerReduce', name:'信号屏蔽', rarity:'common',   icon:'📶',
+  desc:'干扰者干扰范围 -15%（非线性叠加）',
+  apply:(s)=>{ s.bonus.jammerRangeMul *= 0.85; } },
             { id:'sellPlus',  name:'回收专家', rarity:'uncommon', icon:'♻️', desc:'出售返还比例 +25%',       apply:(s)=>{ s.bonus.sellMul = Math.min(1.0, s.bonus.sellMul + 0.25); } },
             { id:'freeUp',    name:'免费升级', rarity:'uncommon', icon:'⬆️', desc:'随机一座塔免费升 1 级',    apply:(s)=>{ s._pendingFreeUp = true; } },
             { id:'coreRepair',name:'核心修复', rarity:'rare',     icon:'💠', desc:'恢复 1 枚核心到基地',     apply:(s)=>{ s._pendingCoreRepair = true; } },
@@ -490,7 +496,7 @@
     ]
 },
 {
-    name: '风暴要塞', startMoney: 500,
+    name: '风暴要塞', startMoney: 1500,
     cols: 21, rows: 13,
     map: [
         "#####################",
@@ -509,7 +515,7 @@
     ]
 },
     {
-    name: '地下电站', startMoney: 500, 
+    name: '地下电站', startMoney: 450, 
     cols: 15, rows: 13,
     map: [
         "###############",
@@ -528,7 +534,7 @@
     ]
 },
     {
-    name: '星界秘境', startMoney: 500, 
+    name: '星界秘境', startMoney: 480, 
     cols: 21, rows: 13,
     map: [
         "#####################",
@@ -547,7 +553,7 @@
     ]
 },
     {
-    name: '深渊回响', startMoney: 500, 
+    name: '深渊回响', startMoney: 480, 
     cols: 17, rows: 13,
     map: [
         "#################",
@@ -2274,7 +2280,8 @@ function makeSeededRng(seed) {
                         critChance:0, critDmgMul:2, enemySlow:1, killBonus:0,
                         rewardMul:1, revealRange:1, sellMul:0.5,
                         ignoreShield:false, doubleShotChance:0, poisonBoost:false,
-                        currentHpDamage:0, charmStacks:0, charmChance:0
+                        currentHpDamage:0, charmStacks:0, charmChance:0,
+                        coreReturnSpeed: 1, jammerRangeMul: 1 
                     },
                     moneyBonus: 0, upgrades: [], moneyPicks: 0,
                     enemyMods: {
@@ -2684,6 +2691,8 @@ function pickSummonType(selfType, waveId) {
             if (rb.doubleShotChance > 0) parts.push(`弹射率 ${Math.round(rb.doubleShotChance*100)}%`);
             if (rb.currentHpDamage > 0) parts.push(`生命附加 ${Math.round(rb.currentHpDamage*100)}%`);
             if (rb.charmChance > 0) parts.push(`魅惑率 ${Math.round(rb.charmChance*100)}%`);
+            if (rb.coreReturnSpeed > 1.0001) parts.push(`核心回收 +${Math.round((rb.coreReturnSpeed - 1) * 100)}%`);
+            if (rb.jammerRangeMul < 0.9999)  parts.push(`干扰范围 -${Math.round((1 - rb.jammerRangeMul) * 100)}%`);
             if (rb.ignoreShield) parts.push('无视护盾');
             if (rb.poisonBoost) parts.push('毒伤强化');
             if (parts.length === 0) return '';
@@ -4946,6 +4955,8 @@ function drawRogueToggle() {
                 case 'priceDown': return `建造与升级花费 -${Math.round((1 - Math.pow(0.9, count)) * 100)}%`;
                 case 'reveal':    return `隐形发现 +${Math.round((Math.pow(1.5, count) - 1) * 100)}%`;
                 case 'slowAura':  return `敌人移速 -${Math.round((1 - Math.pow(0.9, count)) * 100)}%`;
+                case 'coreSpeed':    return `核心返回速度 +${Math.round((Math.pow(1.20, count) - 1) * 100)}%`;
+                case 'jammerReduce': return `干扰者干扰范围 -${Math.round((1 - Math.pow(0.85, count)) * 100)}%`;
                 case 'sellPlus':  return `出售返还 +${Math.min(50, 25 * count)}%`;
                 case 'crit':      return `暴击率 ${Math.round((1 - Math.pow(0.88, count)) * 100)}%（倍率 ×${((rogueState && rogueState.bonus.critDmgMul) || 2).toFixed(1)}）`;
                 case 'critDmg':   return `暴击伤害倍率 ×${((rogueState && rogueState.bonus.critDmgMul) || 2).toFixed(1)}`;
@@ -7527,7 +7538,8 @@ function drawRogueToggle() {
                 }
                 if (gameOver) return;
                 if (ENEMY_TYPES[e.type].jammer) {
-    const jamR = 2.5 * CELL; // 干扰半径，可调
+    const jamRangeMul = (rogueState && rogueState.bonus && rogueState.bonus.jammerRangeMul) || 1;
+    const jamR = 2.5 * CELL * jamRangeMul;
     for (const t of towers) {
         const d = Math.hypot(
             cellCenterX(t.col) - e.x,
@@ -7559,7 +7571,10 @@ function drawRogueToggle() {
                     continue;
                 }
                 let step = 0.5 * 60 * dt * (CELL / baseCellPx);
-                if (ascensionState && ascensionState.coreNoReturn) step *= 0.5; 
+if (ascensionState && ascensionState.coreNoReturn) step *= 0.5;
+if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
+    step *= rogueState.bonus.coreReturnSpeed;
+}
                 let guard = 0, gone = false;
                 while (step > 0 && guard++ < 8) {
                     if (core.nextC === null) {
