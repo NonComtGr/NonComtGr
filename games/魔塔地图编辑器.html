@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>魔塔 · 地图编辑器</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;min-height:100vh;
+    background:radial-gradient(circle at 50% 0%,#232a42,#131724 70%);
+    color:#e6e8f2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:16px;
+  }
+  .wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  header h1{font-size:20px;margin:0;letter-spacing:3px;color:#dfe4ff}
+  header p{margin:4px 0 0;font-size:12px;color:#7c86ad}
+
+  .main{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .side{width:340px;display:flex;flex-direction:column;gap:12px;flex:1 1 320px}
+
+  .panel{background:#212840;border:1px solid #3a4360;border-radius:10px;padding:12px 14px}
+  .panel h3{
+    margin:0 0 10px;font-size:12px;letter-spacing:2px;color:#8e98bd;font-weight:600;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .curTag{font-size:11px;letter-spacing:0;color:#6c7fc4;font-weight:400;
+          text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #grid{
+    --cs: clamp(18px, 3.2vw, 34px);
+    display:grid;
+    grid-template-columns:repeat(13, var(--cs));
+    grid-auto-rows:var(--cs);
+    gap:2px;
+    background:#161b2b;padding:8px;border-radius:10px;
+    touch-action:none;user-select:none;
+    width:max-content;
+  }
+  .cell{
+    position:relative;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:calc(var(--cs) * 0.52);
+    cursor:pointer;transition:outline-color .08s;
+    outline:2px solid transparent;outline-offset:-2px;
+  }
+  .cell.wall{background:#4a5474;box-shadow:inset 0 2px 0 #5f6b8f,inset 0 -2px 0 #3b4460}
+  .cell.floor{background:#2a3149;box-shadow:inset 0 0 0 1px #343d5a}
+  .cell:hover{outline-color:#7c8fd6}
+  .cell .stair{
+    position:absolute;font-size:calc(var(--cs) * 0.32);line-height:1;font-weight:700;
+    background:rgba(10,14,25,.82);border-radius:3px;padding:1px 2px;pointer-events:none;
+  }
+  .cell .stair.up{top:1px;right:1px;color:#3ddc84}
+  .cell .stair.dn{bottom:1px;left:1px;color:#5ab0ff}
+
+  .legend{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:#7c86ad;
+    align-items:center;
+  }
+  .legend .coord{margin-left:auto;color:#6c7fc4;font-variant-numeric:tabular-nums}
+  .legend i.ti{font-size:14px;vertical-align:-2px;margin-right:2px}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:150px;overflow-y:auto}
+  .tab{
+    padding:6px 11px;font-size:13px;border-radius:6px;
+    background:#2a3149;border:1px solid #3a4360;color:#aab2d4;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:.12s;
+  }
+  .tab:hover{background:#33406a}
+  .tab.on{background:#3b4a78;border-color:#6c7fc4;color:#fff}
+
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tools button{
+    padding:9px 6px;font-size:13px;border-radius:6px;cursor:pointer;transition:.12s;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;
+  }
+  .tools button:hover{background:#33406a}
+  .tools button.on{background:#3b4a78;border-color:#6c7fc4;color:#fff;
+                   box-shadow:0 0 0 1px #6c7fc4 inset}
+
+  .mini{
+    padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;transition:.12s;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;
+  }
+  .mini:hover{background:#33406a}
+  .mini.gen{color:#8affc0;border-color:#2f6a52;background:#102018}
+  .mini.gen:hover{background:#143024;border-color:#4adf9a;color:#c6ffe0}
+  .row2{display:flex;gap:6px;flex-wrap:wrap}
+  .row2.align{align-items:center}
+
+  .pick{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .pick-item{grid-template-columns:repeat(5,1fr)}
+
+  #monsterPick{
+    grid-template-columns:repeat(auto-fill,minmax(42px,1fr));
+    max-height:330px;overflow-y:auto;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:#3a4360 #1b2135;
+  }
+  #monsterPick::-webkit-scrollbar{width:8px}
+  #monsterPick::-webkit-scrollbar-track{background:#1b2135;border-radius:4px}
+  #monsterPick::-webkit-scrollbar-thumb{background:#3a4360;border-radius:4px}
+  #monsterPick::-webkit-scrollbar-thumb:hover{background:#4a5474}
+
+  .pick button{
+    padding:5px 0 3px;border-radius:6px;cursor:pointer;transition:.12s;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+    font-size:15px;line-height:1.05;
+  }
+  .pick button small{font-size:9px;color:#7c86ad;letter-spacing:0}
+  .pick button:hover{background:#33406a}
+  .pick button.on{background:#3b4a78;border-color:#6c7fc4;color:#fff}
+  .pick button.on small{color:#c3cdf5}
+
+  .pick button[data-kind="elite"]:not(.on){border-color:#8a5ad6;background:#271f3f;color:#d9c4ff}
+  .pick button[data-kind="elite"]:not(.on) small{color:#9d86cc}
+  .pick button[data-kind="elite"]:not(.on):hover{background:#332a52}
+  .pick button[data-kind="boss"]:not(.on){border-color:#ff6a4d;background:#3a1f1a;color:#ffcdc2;
+    box-shadow:0 0 6px rgba(255,106,77,.25)}
+  .pick button[data-kind="boss"]:not(.on) small{color:#d08b78}
+  .pick button[data-kind="boss"]:not(.on):hover{background:#4d2820}
+
+  .irow{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;
+        border-bottom:1px dashed #2e3752}
+  .irow:last-child{border-bottom:none}
+  .irow b{color:#9fb4ff;font-variant-numeric:tabular-nums;font-weight:600}
+
+  pre#code{
+    margin:0;padding:12px;background:#161b2b;border:1px solid #2e3752;border-radius:8px;
+    font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#b7c4e8;
+    max-height:380px;overflow:auto;white-space:pre;
+  }
+  .warn{margin-bottom:8px;display:flex;flex-direction:column;gap:4px}
+  .warn div{
+    font-size:12px;color:#ffc27a;background:rgba(180,120,40,.13);
+    border:1px solid rgba(200,140,60,.35);border-radius:6px;padding:5px 10px;
+  }
+  .warn:empty{display:none}
+
+  #toast{
+    position:fixed;left:50%;top:18px;transform:translate(-50%,-20px);
+    background:#26374f;border:1px solid #4b6f9c;color:#cfe4ff;
+    padding:8px 18px;border-radius:8px;font-size:14px;
+    opacity:0;transition:.22s;pointer-events:none;z-index:99;
+    max-width:70vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .count-input{
+    width:82px;background:#1b2135;border:1px solid #3a4360;border-radius:5px;
+    color:#dfe4ff;padding:3px 6px;font-size:12px;
+  }
+  .no-limit-hint{font-size:11px;color:#8affc0;margin-left:4px}
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px; width: 16px;
+    border-radius: 50%;
+    background: #8affc0;
+    box-shadow: 0 0 8px rgba(138,255,192,0.6);
+    cursor: pointer;
+    margin-top: -5px;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px;
+    background: #1b2135;
+    border-radius: 3px;
+    border: 1px solid #3a4360;
+  }
+  input[type=range]:focus { outline: none; }
+
+  /* ---- 双端滑块（怪物区间 / 楼层区间共用） ---- */
+  .dual{position:relative;height:30px;margin:8px 0 4px;touch-action:none;cursor:pointer}
+  .dual-track{position:absolute;left:0;right:0;top:12px;height:6px;border-radius:3px;
+              background:#1b2135;border:1px solid #3a4360;pointer-events:none}
+  .dual-fill{position:absolute;top:12px;height:6px;border-radius:3px;
+             background:linear-gradient(90deg,#3dbf85,#8affc0);opacity:.85;pointer-events:none}
+  .dual-thumb{position:absolute;top:7px;width:16px;height:16px;margin-left:-8px;border-radius:50%;
+              background:#8affc0;border:2px solid #101a14;
+              box-shadow:0 0 8px rgba(138,255,192,.6);pointer-events:none}
+  .dual-hint{font-size:11px;color:#7c86ad;text-align:right;margin-top:2px}
+
+  #modal{
+    position:fixed;inset:0;background:rgba(8,10,18,.65);
+    display:none;align-items:center;justify-content:center;z-index:200;
+    padding:16px;
+  }
+  #modal.show{display:flex}
+  #modal .box{
+    background:#212840;border:1px solid #3a4360;border-radius:12px;
+    padding:18px 20px;max-width:360px;width:100%;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+  }
+  #modal .msg{font-size:14px;color:#dfe4ff;line-height:1.6;margin-bottom:14px}
+  #modal .acts{display:flex;gap:8px;justify-content:flex-end}
+  #modal button{
+    padding:7px 16px;font-size:13px;border-radius:6px;cursor:pointer;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;transition:.12s;
+  }
+  #modal button:hover{background:#33406a}
+  #modal button.primary{background:#3b4a78;border-color:#6c7fc4;color:#fff}
+  #modal button.primary:hover{background:#485a8f}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>魔塔 · 地图编辑器</h1>
+    <p>左键绘制 · 右键擦除 · 拖拽连续绘制 · 实时生成 HAND_FLOORS 代码</p>
+  </header>
+
+  <div class="main">
+    <div class="panel">
+      <h3>地 图</h3>
+      <div id="grid"></div>
+      <div class="legend">
+        <span>🧱 墙</span><span>⬜ 地面</span>
+        <span><i class="ti ti-door" style="color:#e8c14a"></i>黄门</span>
+        <span><i class="ti ti-door" style="color:#4d9aff"></i>蓝门</span>
+        <span><i class="ti ti-door" style="color:#ff4d5e"></i>红门</span>
+        <span>⬇️ 下楼</span><span>⬆️ 上楼</span>
+        <span class="coord" id="coord">(-, -)</span>
+      </div>
+    </div>
+
+    <div class="side">
+
+      <div class="panel">
+        <h3>楼 层</h3>
+        <div id="tabs" class="tabs"></div>
+        <div class="row2 align" style="margin-bottom:8px">
+          <label style="font-size:12px;color:#8e98bd;display:flex;align-items:center;gap:6px">
+            楼层数
+            <input id="floorCountIn" class="count-input" type="number" min="1" value="10">
+            <span class="no-limit-hint">（无上限，回车生效）</span>
+          </label>
+        </div>
+
+        <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;
+                      font-size:12px;color:#8e98bd;margin:0">
+          <span style="white-space:nowrap">生成区间</span>
+          <b id="floorRangeVal" style="color:#8affc0;font-size:12px;font-weight:600;
+             overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">第 1 层 ~ 第 10 层</b>
+        </label>
+        <div class="dual" id="floorRange">
+          <div class="dual-track"></div>
+          <div class="dual-fill" id="floorFill"></div>
+          <div class="dual-thumb" id="floorThumbMin"></div>
+          <div class="dual-thumb" id="floorThumbMax"></div>
+        </div>
+        <div class="dual-hint">「生成区间」只重刷该范围内的楼层</div>
+
+        <div class="row2" style="margin-top:8px">
+          <button id="addFloor" class="mini">+ 添加</button>
+          <button id="delFloor" class="mini">− 删除</button>
+          <button id="clearFloor" class="mini">清空本层</button>
+        </div>
+        <div class="row2" style="margin-top:6px">
+          <button id="genFloor" class="mini gen">🎲 生成本层</button>
+          <button id="genRange" class="mini gen">🎲 生成区间</button>
+          <button id="genAll" class="mini gen">🎲 生成全部</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>生 成 参 数</h3>
+
+        <label style="display:flex;justify-content:space-between;font-size:12px;color:#8e98bd;margin-bottom:6px">
+          <span>事件密度（怪物+物品+门 ÷ 空地）</span>
+          <b id="densityPct" style="color:#8affc0;font-size:13px">30%</b>
+        </label>
+        <input id="densityIn" type="range" min="0" max="100" value="30" step="5">
+        <div style="font-size:11px;color:#7c86ad;text-align:right;margin:4px 0 12px">
+          0% = 空地全空 · 100% = 每块空地都放满
+        </div>
+
+        <label style="display:flex;justify-content:space-between;font-size:12px;color:#8e98bd;margin-bottom:6px">
+          <span>其他物品占比（0% = 全怪物）</span>
+          <b id="otherRatioPct" style="color:#8affc0;font-size:13px">45%</b>
+        </label>
+        <input id="otherRatioIn" type="range" min="0" max="100" value="45" step="5">
+        <div style="font-size:11px;color:#7c86ad;text-align:right;margin-top:4px">
+          0% = 全是怪物 · 100% = 全是物品 / 门
+        </div>
+
+        <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;
+                      font-size:12px;color:#8e98bd;margin:16px 0 0">
+          <span style="white-space:nowrap">怪物区间</span>
+          <b id="monsterRangeVal" style="color:#8affc0;font-size:12px;font-weight:600;
+             overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">#0 ~ #199</b>
+        </label>
+        <div class="dual" id="monsterRange">
+          <div class="dual-track"></div>
+          <div class="dual-fill" id="monsterFill"></div>
+          <div class="dual-thumb" id="monsterThumbMin"></div>
+          <div class="dual-thumb" id="monsterThumbMax"></div>
+        </div>
+        <div class="dual-hint">拖动两端手柄 · 一键生成只会使用该区间内的怪物（含端点）</div>
+      </div>
+
+      <div class="panel">
+        <h3>工 具 <span class="curTag" id="curTool"></span></h3>
+        <div id="tools" class="tools"></div>
+      </div>
+
+      <div class="panel">
+        <h3>怪 物 <span class="curTag" id="curMonster"></span></h3>
+        <div id="monsterPick" class="pick"></div>
+      </div>
+
+      <div class="panel">
+        <h3>物 品 / 门 <span class="curTag" id="curItem"></span></h3>
+        <div id="itemPick" class="pick pick-item"></div>
+      </div>
+
+      <div class="panel">
+        <h3>本 层 信 息</h3>
+        <div id="info"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>生 成 的 代 码 <button id="copyBtn" class="mini">复制</button></h3>
+    <div id="warn" class="warn"></div>
+    <pre id="code"></pre>
+  </div>
+
+</div>
+
+<div id="modal">
+  <div class="box">
+    <div class="msg" id="modalMsg"></div>
+    <div class="acts">
+      <button id="modalCancel">取消</button>
+      <button id="modalOk" class="primary">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+const GW = 13, GH = 13;
+
+/* ==================================================================
+   怪物表：共 200 个
+     · 0-124    普通 125 个
+     · 125-174  精英 50 个
+     · 175-199  BOSS 25 个
+   比例 5:2:1（125:50:25）
+   ================================================================== */
+const MONSTER_DEFS = [];
+
+(function buildMonsters(){
+  /* ---- 原有 20 种普通（0-19），数值保持原公式 ---- */
+  const base = [
+    ['绿头怪','🐛'], ['红头怪','🦀'],
+    ['小蝙蝠','🦇'], ['骷髅人','💀'],
+    ['兽人','👹'],   ['石头人','🗿'],
+    ['麻衣法师','🧙'],['骷髅队长','☠️'],
+    ['双手剑士','🤺'],['暗黑骑士','🦹'],
+    ['兽人武士','🦍'],['恶魔战士','😈'],
+    ['幽灵','👻'],   ['血影','👤'],
+    ['冥灵魔王','👽'],['红衣魔王','🧛'],
+    ['白衣武士','🥷'],['黄衣魔王','👺'],
+    ['魔龙','🐉'],   ['冥王','👑']
+  ];
+  base.forEach(([name, emoji], i) => {
+    const tier   = Math.floor(i / 2) + 1;
+    const strong = i % 2 === 1;
+    MONSTER_DEFS.push({
+      name, emoji, kind: 'normal',
+      hp : Math.round((strong ? 32 : 20) * Math.pow(1.42, tier - 1)),
+      atk: (strong ? 20 : 16) + 4 * (tier - 1),
+      def: (strong ? 2 : 1) + 2 * (tier - 1)
+    });
+  });
+
+  /* ---- 原有 30 种新增普通（20-49），仅修图标 ---- */
+  const normals1 = [
+    ['铁甲虫','🐞',        800,  58, 21],
+    ['腐化史莱姆','🦠',     860,  59, 21],
+    ['毒蜘蛛','🕷️',        920,  60, 22],
+    ['沼泽巨鳄','🐊',       990,  62, 22],
+    ['岩石守卫','🐘',      1060,  63, 23],
+    ['荒野狼王','🐺',      1140,  65, 24],
+    ['暗影刺客','🕵️',      1220,  66, 24],
+    ['沼泽巨蟒','🐍',      1310,  68, 25],
+    ['荒野狂猪','🐗',      1400,  69, 26],
+    ['食人花','🦑',        1500,  71, 26],
+    ['腐骨弓手','🧝',      1610,  73, 27],
+    ['洞穴巨蜥','🦎',      1720,  74, 28],
+    ['熔岩虫','🪱',        1840,  76, 28],
+    ['冰霜蝙蝠','🐦‍⬛',    1970,  78, 29],
+    ['岩壳蟹','🦞',        2110,  80, 30],
+    ['毒刺蜂','🐝',        2260,  82, 30],
+    ['亡灵法师','🧙‍♀️',    2410,  84, 31],
+    ['白骨战士','🧟',      2580,  86, 32],
+    ['沼地蟾蜍','🐸',      2760,  88, 33],
+    ['铁笼囚徒','🤡',      2950,  90, 33],
+    ['烈焰蜥蜴','🦖',      3160,  92, 34],
+    ['寒风幽灵','🎃',      3380,  95, 35],
+    ['沙暴蝎','🦂',        3610,  97, 36],
+    ['深海章鱼','🐙',      3870, 100, 37],
+    ['血蝠','🐭',          4140, 102, 38],
+    ['石像鬼','🧌',        4430, 105, 39],
+    ['疯狂矿工','🧔',      4740, 108, 40],
+    ['腐肉秃鹫','🦅',      5070, 110, 41],
+    ['淤泥怪','💩',        5430, 113, 42],
+    ['钢甲犀','🦏',        5810, 116, 43]
+  ];
+  normals1.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'normal' });
+  });
+
+  /* ---- 新增 75 种普通（50-124） ---- */
+  const normals2 = [
+    ['铁甲龟','🐢',          6200, 122, 44],
+    ['荒漠沙鼠','🐁',        6560, 124, 45],
+    ['腐化鼠王','🐀',        6940, 126, 46],
+    ['地穴仓鼠','🐹',        7340, 128, 46],
+    ['荒野兔怪','🐰',        7760, 130, 47],
+    ['腐化兔王','🐇',        8200, 132, 48],
+    ['刺猬怪','🦔',          8660, 134, 48],
+    ['洞穴獾','🦡',          9150, 136, 49],
+    ['臭鼬妖','🦨',          9660, 138, 50],
+    ['水獭怪','🦦',         10200, 140, 51],
+    ['河狸怪','🦫',         10770, 142, 51],
+    ['沙袋鼠','🦘',         11370, 144, 52],
+    ['羊驼怪','🦙',         12000, 146, 53],
+    ['驯鹿怪','🦌',         12660, 148, 54],
+    ['山羊怪','🐐',         13360, 150, 54],
+    ['绵羊怪','🐏',         14100, 152, 55],
+    ['松鼠怪','🐿️',         14880, 154, 56],
+    ['牛头怪','🐄',         15700, 156, 57],
+    ['公牛怪','🐂',         16560, 158, 57],
+    ['野牛怪','🐃',         17470, 160, 58],
+    ['野马怪','🐎',         18430, 162, 59],
+    ['铁甲马','🐴',         19440, 164, 60],
+    ['斑马怪','🦓',         20500, 166, 60],
+    ['独角兽','🦄',         21620, 168, 61],
+    ['猪怪','🐖',           22800, 170, 62],
+    ['小猪怪','🐷',         24040, 172, 63],
+    ['骆驼怪','🐪',         25350, 174, 63],
+    ['双峰骆驼','🐫',       26730, 176, 64],
+    ['长颈鹿怪','🦒',       28180, 178, 65],
+    ['树懒怪','🦥',         29710, 180, 66],
+    ['猎豹怪','🐆',         31320, 182, 66],
+    ['老虎怪','🐅',         33020, 184, 67],
+    ['狮子怪','🦁',         34810, 186, 68],
+    ['剑齿虎','🐯',         36700, 188, 69],
+    ['熊怪','🐻',           38690, 190, 69],
+    ['熊猫怪','🐼',         40790, 192, 70],
+    ['考拉怪','🐨',         43000, 194, 71],
+    ['猴子怪','🐵',         45330, 196, 72],
+    ['蒙眼猴','🙈',         47790, 198, 72],
+    ['捂耳猴','🙉',         50380, 200, 73],
+    ['闭嘴猴','🙊',         53120, 202, 74],
+    ['长臂猴','🐒',         56000, 204, 75],
+    ['猩猩怪','🦧',         59040, 206, 75],
+    ['狗怪','🐶',           62250, 208, 76],
+    ['猎犬','🐕',           65630, 210, 77],
+    ['军犬','🐕‍🦺',        69190, 212, 78],
+    ['贵宾犬','🐩',         72940, 214, 78],
+    ['猫怪','🐈',           76890, 216, 79],
+    ['黑猫怪','🐈‍⬛',       81040, 218, 80],
+    ['公鸡怪','🐓',         85420, 220, 81],
+    ['母鸡怪','🐔',         90040, 222, 81],
+    ['雏鸡怪','🐣',         94900, 224, 82],
+    ['小鸡怪','🐤',        100030, 226, 83],
+    ['幼鸡怪','🐥',        105430, 228, 84],
+    ['鸭子怪','🦆',        111120, 230, 84],
+    ['猫头鹰怪','🦉',      117120, 232, 85],
+    ['鸟怪','🐦',          123440, 234, 86],
+    ['企鹅怪','🐧',        130100, 236, 87],
+    ['鸽子怪','🕊️',        137120, 238, 87],
+    ['火烈鸟怪','🦩',      144500, 240, 88],
+    ['孔雀怪','🦚',        152280, 242, 89],
+    ['鹦鹉怪','🦜',        160460, 244, 90],
+    ['火鸡怪','🦃',        169080, 246, 90],
+    ['腕龙怪','🦕',        178160, 248, 91],
+    ['海豹怪','🦭',        187740, 250, 92],
+    ['猛犸象','🦣',        197820, 252, 93],
+    ['河马怪','🦛',        208440, 254, 93],
+    ['鱼怪','🐟',          219620, 256, 94],
+    ['河豚怪','🐡',        231400, 258, 95],
+    ['热带鱼怪','🐠',      243830, 260, 96],
+    ['鲨鱼怪','🦈',        256940, 262, 96],
+    ['虾怪','🦐',          270780, 264, 97],
+    ['贝壳怪','🐚',        285360, 266, 98],
+    ['甲虫怪','🪲',        300740, 268, 99],
+    ['蝴蝶怪','🦋',        316940, 270, 99]
+  ];
+  normals2.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'normal' });
+  });
+
+  /* ---- 精英 50 个（125-174） ---- */
+  const elites = [
+    ['精英·黑铁骑士','🦹‍♂️',   8000, 130,  50],
+    ['精英·烈焰法师','🧙‍♂️',   8800, 135,  52],
+    ['精英·寒霜巨魔','🧝‍♂️',   9700, 140,  54],
+    ['精英·雷霆战将','🧞‍♂️',  10700, 146,  56],
+    ['精英·剧毒巫医','🧞‍♀️',  11800, 152,  58],
+    ['精英·钢甲卫士','🦸‍♂️',  13000, 158,  60],
+    ['精英·暗影游侠','🧝‍♀️',  14300, 165,  63],
+    ['精英·血怒狂战','👿',    15700, 172,  66],
+    ['精英·圣殿审判','🦸',    17300, 179,  69],
+    ['精英·深渊术士','🧜‍♂️',  19000, 187,  72],
+    ['精英·熔岩巨人','🧜‍♀️',  21000, 195,  75],
+    ['精英·冰封巨兽','🧟‍♀️',  23100, 203,  79],
+    ['精英·雷霆领主','🤖',    25400, 212,  83],
+    ['精英·腐化树精','🧚',    27900, 221,  87],
+    ['精英·噬魂幽灵','🧚‍♂️',  30700, 231,  91],
+    ['精英·赤炎狮王','🧛‍♂️',  33800, 241,  95],
+    ['精英·黑曜石像','🧜',    37200, 252, 100],
+    ['精英·血族伯爵','🧛‍♀️',  40900, 263, 105],
+    ['精英·狂沙刺客','👾',    45000, 275, 110],
+    ['精英·星陨哨兵','🦹‍♀️',  49500, 287, 115],
+    ['精英·月光祭司','🧚‍♀️',  54500, 300, 120],
+    ['精英·沙漠法王','🧞',    60000, 314, 126],
+    ['精英·光辉骑士','🦸‍♀️',  66000, 328, 132],
+    ['精英·腐化骑士','🧟',    72600, 343, 138],
+    ['精英·不眠守卫','🧟‍♂️',  79900, 359, 145],
+    ['精英·幻影刺客','🎭',    87900, 375, 152],
+    ['精英·铁蹄魔兽','🦬',    96700, 392, 160],
+    ['精英·烈焰凤凰','🐦‍🔥', 106400, 410, 168],
+    ['精英·暗夜蝠王','🦇',   117000, 429, 176],
+    ['精英·蛛后','🕷️',       128700, 449, 184],
+    ['精英·蝎王','🦂',       141600, 470, 194],
+    ['精英·巨蜥王','🦎',     155800, 491, 203],
+    ['精英·沼泽霸主','🐊',   171400, 514, 213],
+    ['精英·蛇王','🐍',       188500, 537, 223],
+    ['精英·狼王','🐺',       207400, 562, 234],
+    ['精英·狐妖','🦊',       228100, 588, 246],
+    ['精英·狮王','🦁',       250900, 615, 258],
+    ['精英·虎王','🐯',       276000, 643, 270],
+    ['精英·熊王','🐻',       303600, 673, 284],
+    ['精英·象王','🐘',       334000, 704, 298],
+    ['精英·犀王','🦏',       367400, 736, 313],
+    ['精英·河马巨兽','🦛',   404100, 770, 328],
+    ['精英·猩猩王','🦍',     444500, 806, 345],
+    ['精英·森林巨猿','🦧',   489000, 843, 362],
+    ['精英·猎豹王','🐆',     537900, 882, 380],
+    ['精英·鹰王','🦅',       591700, 923, 399],
+    ['精英·夜枭','🦉',       650900, 966, 419],
+    ['精英·深海巨妖','🐙',   716000, 1011, 440],
+    ['精英·乌贼领主','🦑',   787600, 1058, 462],
+    ['精英·鲨鱼王','🦈',     866400, 1107, 485]
+  ];
+  elites.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'elite' });
+  });
+
+  /* ---- BOSS 25 个（175-199） ---- */
+  const bosses = [
+    ['BOSS·炎狱魔君','🐲',      70000, 350, 150],
+    ['BOSS·寒霜之母','🐻‍❄️',    82000, 375, 160],
+    ['BOSS·深渊领主','🪼',      96000, 400, 170],
+    ['BOSS·雷霆战神','🦄',     112000, 430, 182],
+    ['BOSS·剧毒女王','🐍',     131000, 460, 195],
+    ['BOSS·不灭骸王','🦴',     153000, 495, 208],
+    ['BOSS·苍穹巨鹰','🦅',     179000, 530, 222],
+    ['BOSS·混沌妖龙','🐉',     209000, 570, 237],
+    ['BOSS·虚无吞噬者','🌀',   244000, 615, 253],
+    ['BOSS·终焉神谕','🧿',     285000, 660, 270],
+    ['BOSS·深海霸主','🐋',     332000, 709, 288],
+    ['BOSS·汪洋巨兽','🐳',     388000, 762, 308],
+    ['BOSS·幽林鹿神','🫎',     453000, 820, 329],
+    ['BOSS·血蚊女皇','🦟',     529000, 881, 351],
+    ['BOSS·蟑螂母皇','🪳',     618000, 947, 375],
+    ['BOSS·蝗灾之王','🦗',     721000, 1018, 400],
+    ['BOSS·瘟疫蝇王','🪰',     842000, 1094, 427],
+    ['BOSS·远古龙帝','🦖',     983000, 1176, 456],
+    ['BOSS·虚空行者','🕳️',    1148000, 1264, 487],
+    ['BOSS·终焉之眼','👁️',    1340000, 1359, 520],
+    ['BOSS·蝎皇','🦂',        1565000, 1461, 555],
+    ['BOSS·蝠帝','🦇',        1827000, 1570, 593],
+    ['BOSS·深海巨妖王','🐙',  2133000, 1688, 633],
+    ['BOSS·苍穹鹰皇','🦅',    2490000, 1815, 676],
+    ['BOSS·混沌龙帝','🐲',    2908000, 1951, 722]
+  ];
+  bosses.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'boss' });
+  });
+})();
+
+const MONSTER_LAST = MONSTER_DEFS.length - 1;   // 199
+
+/* ---- 物品定义 ---- */
+const ITEMS = {
+  atk  : {emoji:'⚔️', name:'攻击宝石', color:'#ff5252', icon:'ti-diamond'},
+  def  : {emoji:'🛡️', name:'防御宝石', color:'#4d9aff', icon:'ti-diamond'},
+  hp1  : {emoji:'❤️', name:'红药水',  color:'#ff5c7a', icon:'ti-flask-2'},
+  hp2  : {emoji:'💙', name:'蓝药水',  color:'#4dd2ff', icon:'ti-flask-2'},
+  ykey : {emoji:'🗝️', name:'黄钥匙',  color:'#e8c14a'},
+  bkey : {emoji:'🔑', name:'蓝钥匙',  color:'#4d9aff', icon:'ti-key'},
+  rkey : {emoji:'🔐', name:'红钥匙',  color:'#ff4d5e', icon:'ti-key', bold:true},
+  doorY: {emoji:'🚪', name:'黄门',    color:'#e8c14a', door:'Y', icon:'ti-door'},
+  doorB: {emoji:'🚪', name:'蓝门',    color:'#4d9aff', door:'B', icon:'ti-door'},
+  doorR: {emoji:'🚪', name:'红门',    color:'#ff4d5e', door:'R', icon:'ti-door'}
+};
+const ITEM_ORDER = ['atk','def','hp1','hp2','ykey','bkey','rkey','doorY','doorB','doorR'];
+
+function itemGlyph(item){
+  if (item.icon){
+    const bold = item.bold ? ';-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill' : '';
+    return '<i class="ti ' + item.icon + '" style="color:' + item.color +
+           ';font-size:1.1em;line-height:1;vertical-align:-0.12em' + bold + '"></i>';
+  }
+  return '<span style="color:' + item.color + '">' + item.emoji + '</span>';
+}
+
+/* ---- 预置楼层 ---- */
+const PRESET_FLOORS = [
+  {
+    grid: [
+      "#############","#...........#","#...........#","#...........#",
+      "#...........#","#...........#","#...........#","#...........#",
+      "#...........#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:1, y:11}, exit: {x:11, y:1},
+    monsters: { "3,9":0, "9,3":0, "6,6":1 },
+    items:    { "2,9":"hp1", "10,3":"atk", "6,10":"ykey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#..#######..#",
+      "#..#.....#..#","#..#.....#..#","#..#.....#..#","#..#.....#..#",
+      "#..###Y###..#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:11, y:1}, exit: {x:1, y:1},
+    monsters: { "2,6":2, "10,6":2, "6,10":3 },
+    items: { "1,10":"ykey", "11,10":"hp1", "5,4":"atk", "7,4":"def", "4,6":"hp2", "8,6":"bkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#.######....#","#.#....#....#",
+      "#.#....#....#","#.#....#....#","#.#....#....#","#.#....#....#",
+      "#.####Y#....#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:1, y:1}, exit: {x:11, y:11},
+    monsters: { "10,10":4, "10,2":4, "1,5":5 },
+    items: { "1,10":"ykey", "11,10":"hp1", "3,3":"atk", "6,3":"def", "3,7":"hp2", "6,7":"bkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#...........#",
+      "#...........#","#...........#","#...........#","#...........#",
+      "#....######.#","#....#....#.#","#....B....#.#","#....######.#",
+      "#############"
+    ],
+    entry: {x:11, y:11}, exit: {x:1, y:11},
+    monsters: { "11,9":6, "2,9":6, "10,4":7, "1,5":7 },
+    items: { "2,10":"bkey", "10,2":"hp2", "6,9":"atk", "9,9":"def", "6,10":"hp2", "9,10":"rkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#..#######..#",
+      "#..#.....#..#","#..#.....#..#","#..#.....#..#","#..#.....#..#",
+      "#..###R###..#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:1, y:11}, exit: {x:11, y:1},
+    monsters: { "2,6":8, "10,6":8, "6,10":9 },
+    items: { "10,10":"rkey", "1,10":"hp2", "5,4":"atk", "7,4":"def", "4,6":"hp2", "8,6":"rkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#.######....#","#.#....#....#",
+      "#.#....#....#","#.#....#....#","#.#....#....#","#.#....#....#",
+      "#.####B#....#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:11, y:1}, exit: {x:1, y:1},
+    monsters: { "10,10":10, "1,6":10, "1,5":11 },
+    items: { "11,10":"bkey", "2,10":"hp1", "3,3":"atk", "6,3":"def", "3,7":"hp2", "6,7":"rkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#...........#",
+      "#...........#","#...........#","#...........#","#...........#",
+      "#....######.#","#....#....#.#","#....R....#.#","#....######.#",
+      "#############"
+    ],
+    entry: {x:1, y:1}, exit: {x:11, y:11},
+    monsters: { "11,9":12, "2,9":12, "10,4":13, "1,5":13 },
+    items: { "2,10":"rkey", "10,2":"hp2", "6,9":"atk", "9,9":"def", "6,10":"hp2", "9,10":"bkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#..#######..#",
+      "#..#.....#..#","#..#.....#..#","#..#.....#..#","#..#.....#..#",
+      "#..###B###..#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:11, y:11}, exit: {x:1, y:11},
+    monsters: { "2,6":14, "10,6":14, "6,10":15 },
+    items: { "10,10":"bkey", "1,10":"hp2", "5,4":"atk", "7,4":"def", "4,6":"hp2", "8,6":"rkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#.######....#","#.#....#....#",
+      "#.#....#....#","#.#....#....#","#.#....#....#","#.#....#....#",
+      "#.####R#....#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:1, y:11}, exit: {x:11, y:1},
+    monsters: { "10,10":16, "1,5":16, "10,2":17 },
+    items: { "11,10":"rkey", "2,10":"hp2", "3,3":"atk", "6,3":"def", "3,7":"hp2", "6,7":"bkey" }
+  },
+  {
+    grid: [
+      "#############","#...........#","#...........#","#..#######..#",
+      "#...........#","#..##...##..#","#...........#","#...........#",
+      "#..#######..#","#...........#","#...........#","#...........#",
+      "#############"
+    ],
+    entry: {x:11, y:1}, exit: {x:1, y:1},
+    monsters: { "1,1":19, "6,5":18, "6,9":18, "2,6":17, "10,6":17 },
+    items: { "2,10":"hp2", "10,10":"atk", "5,1":"def", "7,1":"hp2" }
+  }
+];
+
+function cloneFloor(def){
+  return {
+    grid: def.grid.map(r => r.split('')),
+    entry: def.entry ? {x: def.entry.x, y: def.entry.y} : null,
+    exit : def.exit  ? {x: def.exit.x,  y: def.exit.y } : null,
+    monsters: Object.assign({}, def.monsters),
+    items:    Object.assign({}, def.items)
+  };
+}
+
+function blankFloor(entry){
+  const grid = [];
+  for (let y = 0; y < GH; y++){
+    const row = [];
+    for (let x = 0; x < GW; x++){
+      row.push((x === 0 || y === 0 || x === GW - 1 || y === GH - 1) ? '#' : '.');
+    }
+    grid.push(row);
+  }
+  return {
+    grid,
+    entry: entry ? {x: entry.x, y: entry.y} : null,
+    exit : null,
+    monsters: {},
+    items: {}
+  };
+}
+
+const E = {
+  floors: PRESET_FLOORS.map(cloneFloor),
+  cur: 0,
+  tool: 'wall',
+  mIdx: 0,
+  iType: 'atk',
+  mRange: { min: 0, max: MONSTER_LAST },             // 怪物编号区间（含端点）
+  fRange: { min: 0, max: PRESET_FLOORS.length - 1 }  // 楼层区间（0 基索引，含端点）
+};
+
+const TOOLS = [
+  ['wall',  '🧱 墙'],
+  ['floor', '⬜ 地面'],
+  ['entry', '⬇️ 下楼'],
+  ['exit',  '⬆️ 上楼']
+];
+
+const gridEl   = document.getElementById('grid');
+const tabsEl   = document.getElementById('tabs');
+const toolsEl  = document.getElementById('tools');
+const mpickEl  = document.getElementById('monsterPick');
+const ipickEl  = document.getElementById('itemPick');
+const infoEl   = document.getElementById('info');
+const codeEl   = document.getElementById('code');
+const warnEl   = document.getElementById('warn');
+const coordEl  = document.getElementById('coord');
+
+function isDoorSpot(grid, x, y){
+  if (x < 1 || x > GW - 2 || y < 1 || y > GH - 2) return false;
+  const up = grid[y-1][x], dn = grid[y+1][x], lf = grid[y][x-1], rt = grid[y][x+1];
+  if (up === '#' && dn === '#' && lf === '.' && rt === '.') return true;
+  if (lf === '#' && rt === '#' && up === '.' && dn === '.') return true;
+  return false;
+}
+
+function cellHTML(fl, x, y){
+  const t   = fl.grid[y][x];
+  const key = x + ',' + y;
+
+  let cls = 'cell ';
+  if (t === '#')       cls += 'wall';
+  else if (t === '.')  cls += 'floor';
+  else                 cls += 'floor';
+
+  let inner = '';
+  if (fl.monsters[key] !== undefined){
+    const m = MONSTER_DEFS[fl.monsters[key]];
+    if (m && m.kind !== 'normal'){
+      const c = (m.kind === 'boss') ? '#ff6a4d' : '#a86bff';
+      inner = '<span style="color:' + c + ';text-shadow:0 0 6px ' + c + '99">' + m.emoji + '</span>';
+    } else {
+      inner = m ? m.emoji : '';
+    }
+  } else if (fl.items[key]){
+    inner = itemGlyph(ITEMS[fl.items[key]]);
+  } else if (t === 'Y' || t === 'B' || t === 'R'){
+    inner = itemGlyph(ITEMS['door' + t]);
+  }
+
+  let stairs = '';
+  if (fl.entry && fl.entry.x === x && fl.entry.y === y) stairs += '<span class="stair dn">↓</span>';
+  if (fl.exit  && fl.exit.x  === x && fl.exit.y  === y) stairs += '<span class="stair up">↑</span>';
+
+  return '<div class="' + cls + '" data-x="' + x + '" data-y="' + y + '">' +
+         inner + stairs + '</div>';
+}
+
+function renderGrid(){
+  const fl = E.floors[E.cur];
+  if (!fl) return;
+  let html = '';
+  for (let y = 0; y < GH; y++)
+    for (let x = 0; x < GW; x++)
+      html += cellHTML(fl, x, y);
+  gridEl.innerHTML = html;
+}
+
+function renderTabs(){
+  tabsEl.innerHTML = E.floors.map((f, i) =>
+    '<button class="tab' + (i === E.cur ? ' on' : '') + '" data-i="' + i + '">' + (i + 1) + '</button>'
+  ).join('');
+}
+
+function toolLabel(){
+  if (E.tool === 'monster') return '怪物 #' + E.mIdx + ' ' + MONSTER_DEFS[E.mIdx].name;
+  if (E.tool === 'item')    return ITEMS[E.iType].name;
+  if (E.tool === 'erase')   return '擦除';
+  const t = TOOLS.find(x => x[0] === E.tool);
+  return t ? t[1] : E.tool;
+}
+function updateCurTool(){
+  const el = document.getElementById('curTool');
+  if (el) el.textContent = toolLabel();
+}
+
+function renderTools(){
+  toolsEl.innerHTML = TOOLS.map(([k, label]) =>
+    '<button data-tool="' + k + '" class="' + (E.tool === k ? 'on' : '') + '">' + label + '</button>'
+  ).join('');
+  updateCurTool();
+}
+
+function renderPickers(){
+  mpickEl.innerHTML = MONSTER_DEFS.map((m, i) => {
+    const kindTxt = m.kind === 'boss' ? '【BOSS】' : (m.kind === 'elite' ? '【精英】' : '');
+    const tip = m.name + kindTxt + '  HP' + m.hp + ' ATK' + m.atk + ' DEF' + m.def;
+    return '<button data-mi="' + i + '" data-kind="' + m.kind + '" title="' + tip + '"' +
+           (i === E.mIdx ? ' class="on"' : '') + '>' + m.emoji + '<small>' + i + '</small></button>';
+  }).join('');
+
+  ipickEl.innerHTML = ITEM_ORDER.map(k => {
+    const item = ITEMS[k];
+    return '<button data-it="' + k + '" title="' + item.name + '"' +
+    (k === E.iType ? ' class="on"' : '') +
+    ' style="border-color:' + item.color + '88">' +
+    itemGlyph(item) +
+    '<small>' + item.name + '</small></button>';
+  }).join('');
+
+  document.getElementById('curMonster').textContent = '#' + E.mIdx + ' ' + MONSTER_DEFS[E.mIdx].name;
+  document.getElementById('curItem').textContent    = ITEMS[E.iType].name;
+  updateCurTool();
+}
+
+function renderInfo(){
+  const fl = E.floors[E.cur];
+  if (!fl) return;
+  const mn = Object.keys(fl.monsters).length;
+  const it = Object.keys(fl.items).length;
+  let doorCnt = 0;
+  fl.grid.forEach(row => row.forEach(c => { if (c === 'Y' || c === 'B' || c === 'R') doorCnt++; }));
+  infoEl.innerHTML =
+    '<div class="irow"><span>下楼 entry</span><b>' +
+      (fl.entry ? '(' + fl.entry.x + ', ' + fl.entry.y + ')' : '未设置') + '</b></div>' +
+    '<div class="irow"><span>上楼 exit</span><b>' +
+      (fl.exit ? '(' + fl.exit.x + ', ' + fl.exit.y + ')' : '未设置') + '</b></div>' +
+    '<div class="irow"><span>怪物数量</span><b>' + mn + '</b></div>' +
+    '<div class="irow"><span>物品数量</span><b>' + it + '</b></div>' +
+    '<div class="irow"><span>门数量</span><b>' + doorCnt + '</b></div>';
+}
+
+function syncFloorCountInput(){
+  const el = document.getElementById('floorCountIn');
+  if (el) el.value = E.floors.length;
+}
+
+let needRender = false;
+function scheduleRender(){
+  if (needRender) return;
+  needRender = true;
+  requestAnimationFrame(() => {
+    needRender = false;
+    renderGrid();
+    renderTabs();
+    renderInfo();
+    syncFloorCountInput();
+    drawFloorRange();
+    genCode();
+  });
+}
+
+/* ==================================================================
+   怪物区间 · 双端滑块
+   ------------------------------------------------------------------ */
+const rngEl      = document.getElementById('monsterRange');
+const rngFill    = document.getElementById('monsterFill');
+const rngThumbLo = document.getElementById('monsterThumbMin');
+const rngThumbHi = document.getElementById('monsterThumbMax');
+const rngLabel   = document.getElementById('monsterRangeVal');
+
+const RNG_LO = 0, RNG_HI = MONSTER_LAST, RNG_PAD = 8;
+
+function rngPos(v){
+  const w = rngEl.clientWidth || 0;
+  const inner = Math.max(1, w - RNG_PAD * 2);
+  return RNG_PAD + (v - RNG_LO) / (RNG_HI - RNG_LO) * inner;
+}
+
+function rngValueAt(clientX){
+  const r = rngEl.getBoundingClientRect();
+  const inner = Math.max(1, r.width - RNG_PAD * 2);
+  const t = (clientX - r.left - RNG_PAD) / inner;
+  const v = Math.round(RNG_LO + Math.max(0, Math.min(1, t)) * (RNG_HI - RNG_LO));
+  return Math.max(RNG_LO, Math.min(RNG_HI, v));
+}
+
+function drawRange(){
+  if (!rngEl.clientWidth){ requestAnimationFrame(drawRange); return; }
+
+  const a = rngPos(E.mRange.min);
+  const b = rngPos(E.mRange.max);
+  rngThumbLo.style.left = a + 'px';
+  rngThumbHi.style.left = b + 'px';
+  rngFill.style.left  = Math.min(a, b) + 'px';
+  rngFill.style.width = Math.abs(b - a) + 'px';
+
+  const ml = MONSTER_DEFS[E.mRange.min] || {};
+  const mh = MONSTER_DEFS[E.mRange.max] || {};
+  const txt = '#' + E.mRange.min + ' ' + (ml.name || '') +
+              '  ~  #' + E.mRange.max + ' ' + (mh.name || '');
+  rngLabel.textContent = txt;
+  rngLabel.title = txt;
+}
+
+let rngActive = false, rngWhich = null, rngDownX = 0;
+
+function applyRangePointer(clientX){
+  const v = rngValueAt(clientX);
+  if (rngWhich === 'min')      E.mRange.min = Math.min(v, E.mRange.max);
+  else if (rngWhich === 'max') E.mRange.max = Math.max(v, E.mRange.min);
+  drawRange();
+}
+
+rngEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const r = rngEl.getBoundingClientRect();
+  const px = e.clientX - r.left;
+  const a = rngPos(E.mRange.min), b = rngPos(E.mRange.max);
+  const dMin = Math.abs(px - a), dMax = Math.abs(px - b);
+
+  rngActive = true;
+  rngDownX  = e.clientX;
+
+  if (Math.abs(dMin - dMax) < 1){
+    rngWhich = null;                 // 两端重合：等拖动方向再决定
+  } else {
+    rngWhich = dMin < dMax ? 'min' : 'max';
+    applyRangePointer(e.clientX);
+  }
+  try { rngEl.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+rngEl.addEventListener('pointermove', e => {
+  if (!rngActive) return;
+  if (rngWhich === null){
+    const dx = e.clientX - rngDownX;
+    if (Math.abs(dx) < 3) return;    // 方向未明，先不动
+    rngWhich = dx > 0 ? 'max' : 'min';
+  }
+  applyRangePointer(e.clientX);
+});
+
+function endRangeDrag(){ rngActive = false; rngWhich = null; }
+rngEl.addEventListener('pointerup',     endRangeDrag);
+rngEl.addEventListener('pointercancel', endRangeDrag);
+
+/* ==================================================================
+   楼层区间 · 双端滑块（配合「生成区间」按钮）
+   ------------------------------------------------------------------ */
+const frEl      = document.getElementById('floorRange');
+const frFill    = document.getElementById('floorFill');
+const frThumbLo = document.getElementById('floorThumbMin');
+const frThumbHi = document.getElementById('floorThumbMax');
+const frLabel   = document.getElementById('floorRangeVal');
+
+const FR_PAD = 8;
+
+function frMaxIdx(){ return Math.max(0, E.floors.length - 1); }
+
+function frPos(v){
+  const w = frEl.clientWidth || 0;
+  const inner = Math.max(1, w - FR_PAD * 2);
+  const mx = frMaxIdx();
+  if (mx <= 0) return FR_PAD;
+  const t = Math.max(0, Math.min(mx, v)) / mx;
+  return FR_PAD + t * inner;
+}
+
+function frValueAt(clientX){
+  const mx = frMaxIdx();
+  if (mx <= 0) return 0;
+  const r = frEl.getBoundingClientRect();
+  const inner = Math.max(1, r.width - FR_PAD * 2);
+  const t = (clientX - r.left - FR_PAD) / inner;
+  return Math.max(0, Math.min(mx, Math.round(Math.max(0, Math.min(1, t)) * mx)));
+}
+
+function drawFloorRange(){
+  if (!frEl) return;
+
+  const mx = frMaxIdx();
+  E.fRange.min = Math.max(0, Math.min(mx, E.fRange.min));
+  E.fRange.max = Math.max(E.fRange.min, Math.min(mx, E.fRange.max));
+
+  if (!frEl.clientWidth){ requestAnimationFrame(drawFloorRange); return; }
+
+  const a = frPos(E.fRange.min);
+  const b = frPos(E.fRange.max);
+  frThumbLo.style.left = a + 'px';
+  frThumbHi.style.left = b + 'px';
+  frFill.style.left  = Math.min(a, b) + 'px';
+  frFill.style.width = Math.abs(b - a) + 'px';
+
+  const txt = '第 ' + (E.fRange.min + 1) + ' 层 ~ 第 ' + (E.fRange.max + 1) + ' 层';
+  frLabel.textContent = txt;
+  frLabel.title = txt;
+}
+
+let frActive = false, frWhich = null, frDownX = 0;
+
+function applyFloorRangePointer(clientX){
+  const v = frValueAt(clientX);
+  if (frWhich === 'min')      E.fRange.min = Math.min(v, E.fRange.max);
+  else if (frWhich === 'max') E.fRange.max = Math.max(v, E.fRange.min);
+  drawFloorRange();
+}
+
+frEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const r = frEl.getBoundingClientRect();
+  const px = e.clientX - r.left;
+  const a = frPos(E.fRange.min), b = frPos(E.fRange.max);
+  const dMin = Math.abs(px - a), dMax = Math.abs(px - b);
+
+  frActive = true;
+  frDownX  = e.clientX;
+
+  if (Math.abs(dMin - dMax) < 1){
+    frWhich = null;                 // 两端重合：等拖动方向再决定
+  } else {
+    frWhich = dMin < dMax ? 'min' : 'max';
+    applyFloorRangePointer(e.clientX);
+  }
+  try { frEl.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+frEl.addEventListener('pointermove', e => {
+  if (!frActive) return;
+  if (frWhich === null){
+    const dx = e.clientX - frDownX;
+    if (Math.abs(dx) < 3) return;
+    frWhich = dx > 0 ? 'max' : 'min';
+  }
+  applyFloorRangePointer(e.clientX);
+});
+
+function endFloorRangeDrag(){ frActive = false; frWhich = null; }
+frEl.addEventListener('pointerup',     endFloorRangeDrag);
+frEl.addEventListener('pointercancel', endFloorRangeDrag);
+
+window.addEventListener('resize', () => { drawRange(); drawFloorRange(); });
+
+function renderAll(){
+  renderTools();
+  renderPickers();
+  renderGrid();
+  renderTabs();
+  renderInfo();
+  syncFloorCountInput();
+  drawRange();
+  drawFloorRange();
+  genCode();
+}
+
+function applyTool(tool, x, y){
+  const fl  = E.floors[E.cur];
+  if (!fl) return;
+  const key = x + ',' + y;
+  const cur = fl.grid[y][x];
+
+  const clearOverlay = () => {
+    delete fl.monsters[key];
+    delete fl.items[key];
+    if (fl.entry && fl.entry.x === x && fl.entry.y === y) fl.entry = null;
+    if (fl.exit  && fl.exit.x  === x && fl.exit.y  === y) fl.exit  = null;
+  };
+
+  switch (tool){
+    case 'wall':
+      if (cur === '#' && !fl.monsters[key] && !fl.items[key]) return;
+      fl.grid[y][x] = '#';
+      clearOverlay();
+      break;
+
+    case 'floor':
+      if (cur === '.') return;
+      fl.grid[y][x] = '.';
+      break;
+
+    case 'entry':
+      if (fl.entry && fl.entry.x === x && fl.entry.y === y) return;
+      if (cur !== '.') fl.grid[y][x] = '.';
+      fl.entry = {x: x, y: y};
+      break;
+
+    case 'exit':
+      if (fl.exit && fl.exit.x === x && fl.exit.y === y) return;
+      if (cur !== '.') fl.grid[y][x] = '.';
+      fl.exit = {x: x, y: y};
+      break;
+
+    case 'monster':
+      if (fl.monsters[key] === E.mIdx && cur === '.') return;
+      if (cur !== '.') fl.grid[y][x] = '.';
+      delete fl.items[key];
+      fl.monsters[key] = E.mIdx;
+      break;
+
+    case 'item': {
+      const def = ITEMS[E.iType];
+      if (def.door){
+        const isExistingDoor = (cur === 'Y' || cur === 'B' || cur === 'R');
+        if (!isExistingDoor && !isDoorSpot(fl.grid, x, y)){
+          toast('门必须放在：左右为地面上下为墙，或上下为地面左右为墙');
+          return;
+        }
+        if (cur === def.door && !fl.monsters[key] && !fl.items[key]) return;
+        fl.grid[y][x] = def.door;
+        clearOverlay();
+      } else {
+        if (fl.items[key] === E.iType && cur === '.') return;
+        if (cur !== '.') fl.grid[y][x] = '.';
+        delete fl.monsters[key];
+        fl.items[key] = E.iType;
+      }
+      break;
+    }
+
+    case 'erase':
+      fl.grid[y][x] = '.';
+      clearOverlay();
+      break;
+  }
+  scheduleRender();
+}
+
+function cellFromPoint(cx, cy){
+  const el = document.elementFromPoint(cx, cy);
+  return el ? el.closest('.cell') : null;
+}
+
+let painting = false;
+let paintTool = 'wall';
+
+gridEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.button !== 2) return;
+  const cell = cellFromPoint(e.clientX, e.clientY);
+  if (!cell) return;
+  painting = true;
+  paintTool = (e.button === 2) ? 'erase' : E.tool;
+  try { gridEl.setPointerCapture(e.pointerId); } catch (err) {}
+  applyTool(paintTool, +cell.dataset.x, +cell.dataset.y);
+  e.preventDefault();
+});
+
+gridEl.addEventListener('pointermove', e => {
+  const cell = cellFromPoint(e.clientX, e.clientY);
+  if (cell) coordEl.textContent = '(' + cell.dataset.x + ', ' + cell.dataset.y + ')';
+  if (!painting || !cell) return;
+  applyTool(paintTool, +cell.dataset.x, +cell.dataset.y);
+});
+
+gridEl.addEventListener('pointerup',     () => { painting = false; });
+gridEl.addEventListener('pointercancel', () => { painting = false; });
+gridEl.addEventListener('pointerleave',  () => { coordEl.textContent = '(-, -)'; });
+gridEl.addEventListener('contextmenu',   e => e.preventDefault());
+
+function setFloorCount(n){
+  n = Math.max(1, parseInt(n, 10) || 1);
+  while (E.floors.length < n){
+    const last = E.floors[E.floors.length - 1];
+    E.floors.push(blankFloor(last && last.exit ? last.exit : null));
+  }
+  while (E.floors.length > n) E.floors.pop();
+  if (E.cur >= E.floors.length) E.cur = E.floors.length - 1;
+  scheduleRender();
+}
+
+tabsEl.addEventListener('click', e => {
+  const b = e.target.closest('.tab');
+  if (!b) return;
+  E.cur = +b.dataset.i;
+  scheduleRender();
+});
+
+document.getElementById('addFloor').addEventListener('click', () => {
+  setFloorCount(E.floors.length + 1);
+  E.cur = E.floors.length - 1;
+  scheduleRender();
+  toast('已添加第 ' + E.floors.length + ' 层');
+});
+
+document.getElementById('delFloor').addEventListener('click', () => {
+  if (E.floors.length <= 1){ toast('至少保留一层'); return; }
+  confirmDialog('确定删除第 ' + (E.cur + 1) + ' 层？', () => {
+    setFloorCount(E.floors.length - 1);
+    toast('已删除');
+  });
+});
+
+document.getElementById('clearFloor').addEventListener('click', () => {
+  confirmDialog('清空第 ' + (E.cur + 1) + ' 层的全部内容？', () => {
+    E.floors[E.cur] = blankFloor(null);
+    scheduleRender();
+    toast('已清空');
+  });
+});
+
+document.getElementById('floorCountIn').addEventListener('change', e => {
+  setFloorCount(e.target.value);
+  toast('楼层数：' + E.floors.length);
+});
+
+function randInt(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+
+function shuffleArr(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = randInt(0, i);
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function generateDFSLogicalMaze(mazeCols, mazeRows){
+  function MazeCell(x, y){
+    this.x = x; this.y = y;
+    this.walls = [true, true, true, true];
+    this.visited = false;
+  }
+  const cells = [];
+  for (let y = 0; y < mazeRows; y++)
+    for (let x = 0; x < mazeCols; x++)
+      cells.push(new MazeCell(x, y));
+
+  function idx(x, y){
+    if (x < 0 || y < 0 || x >= mazeCols || y >= mazeRows) return -1;
+    return y * mazeCols + x;
+  }
+
+  const stack = [];
+  const start = cells[0];
+  start.visited = true;
+  stack.push(start);
+
+  while (stack.length){
+    const cur = stack[stack.length - 1];
+    const dirs = [
+      { dx: 0, dy: -1, wa: 0, wb: 2 },
+      { dx: 1, dy: 0,  wa: 1, wb: 3 },
+      { dx: 0, dy: 1,  wa: 2, wb: 0 },
+      { dx: -1, dy: 0, wa: 3, wb: 1 }
+    ];
+    const nbs = [];
+    for (const d of dirs){
+      const i = idx(cur.x + d.dx, cur.y + d.dy);
+      if (i !== -1 && !cells[i].visited) nbs.push({ cell: cells[i], ...d });
+    }
+    if (nbs.length){
+      shuffleArr(nbs);
+      const n = nbs[0];
+      cur.walls[n.wa] = false;
+      n.cell.walls[n.wb] = false;
+      n.cell.visited = true;
+      stack.push(n.cell);
+    } else {
+      stack.pop();
+    }
+  }
+
+  const outH = mazeRows * 2 + 1;
+  const outW = mazeCols * 2 + 1;
+  const logical = Array.from({ length: outH }, () => Array(outW).fill(false));
+
+  for (let y = 0; y < mazeRows; y++){
+    for (let x = 0; x < mazeCols; x++){
+      const c = cells[idx(x, y)];
+      const py = y * 2 + 1;
+      const px = x * 2 + 1;
+      logical[py][px] = true;
+      if (!c.walls[0]) logical[py - 1][px] = true;
+      if (!c.walls[1]) logical[py][px + 1] = true;
+      if (!c.walls[2]) logical[py + 1][px] = true;
+      if (!c.walls[3]) logical[py][px - 1] = true;
+    }
+  }
+  return logical;
+}
+
+function genMazeTerrain(){
+  const mW = 6, mH = 6;
+  const logical = generateDFSLogicalMaze(mW, mH);
+
+  const holes = 16 + randInt(0, 6);
+  for (let i = 0; i < holes; i++){
+    const x = 1 + randInt(0, GW - 3);
+    const y = 1 + randInt(0, GH - 3);
+    logical[y][x] = true;
+  }
+
+  const g = [];
+  for (let y = 0; y < GH; y++){
+    const row = [];
+    for (let x = 0; x < GW; x++){
+      if (x === 0 || y === 0 || x === GW - 1 || y === GH - 1) row.push('#');
+      else row.push(logical[y][x] ? '.' : '#');
+    }
+    g.push(row);
+  }
+  return g;
+}
+
+function carveToPath(g, x, y){
+  if (x < 1 || x > GW - 2 || y < 1 || y > GH - 2) return { x, y };
+  if (g[y][x] === '.') return { x, y };
+
+  let best = null, bestD = 1e9;
+  for (let yy = 1; yy < GH - 1; yy++){
+    for (let xx = 1; xx < GW - 1; xx++){
+      if (g[yy][xx] !== '.') continue;
+      const d = Math.abs(xx - x) + Math.abs(yy - y);
+      if (d < bestD){ bestD = d; best = { x: xx, y: yy }; }
+    }
+  }
+  if (!best){ g[y][x] = '.'; return { x, y }; }
+
+  let cx = x, cy = y;
+  g[cy][cx] = '.';
+  while (cx !== best.x){ cx += Math.sign(best.x - cx); g[cy][cx] = '.'; }
+  while (cy !== best.y){ cy += Math.sign(best.y - cy); g[cy][cx] = '.'; }
+  return { x, y };
+}
+
+function pickRandomPath(g){
+  const ps = [];
+  for (let y = 1; y < GH - 1; y++)
+    for (let x = 1; x < GW - 1; x++)
+      if (g[y][x] === '.') ps.push({ x, y });
+  if (!ps.length) return { x: 1, y: 1 };
+  return ps[randInt(0, ps.length - 1)];
+}
+
+function pickFarthest(g, from){
+  let best = null, bestD = -1;
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === from.x && y === from.y) continue;
+      const d = Math.abs(x - from.x) + Math.abs(y - from.y);
+      if (d > bestD){ bestD = d; best = { x, y }; }
+    }
+  }
+  return best || from;
+}
+
+function pickRandomExit(g, entry, minDist){
+  minDist = minDist || 4;
+  function collect(min){
+    const ps = [];
+    for (let y = 1; y < GH - 1; y++){
+      for (let x = 1; x < GW - 1; x++){
+        if (g[y][x] !== '.') continue;
+        if (x === entry.x && y === entry.y) continue;
+        const d = Math.abs(x - entry.x) + Math.abs(y - entry.y);
+        if (d >= min) ps.push({ x, y });
+      }
+    }
+    return ps;
+  }
+  let ps = collect(minDist);
+  if (!ps.length) ps = collect(1);
+  if (!ps.length) return { x: entry.x, y: entry.y };
+  return ps[randInt(0, ps.length - 1)];
+}
+
+function pickItemType(floorIdx){
+  let pool;
+  if (floorIdx < 2){
+    pool = ['hp1','hp1','ykey','ykey','atk','def'];
+  } else if (floorIdx < 5){
+    pool = ['hp1','hp2','ykey','ykey','bkey','atk','def','def'];
+  } else if (floorIdx < 8){
+    pool = ['hp2','hp2','ykey','bkey','bkey','rkey','atk','def','def'];
+  } else {
+    pool = ['hp2','hp2','ykey','bkey','rkey','rkey','atk','def','atk','def'];
+  }
+  return pool[randInt(0, pool.length - 1)];
+}
+
+function pickDoorType(floorIdx){
+  const roll = Math.random();
+  if (floorIdx < 3) return roll < 0.70 ? 'Y' : (roll < 0.90 ? 'B' : 'R');
+  if (floorIdx < 6) return roll < 0.40 ? 'Y' : (roll < 0.80 ? 'B' : 'R');
+  return roll < 0.20 ? 'Y' : (roll < 0.60 ? 'B' : 'R');
+}
+
+/* 依据用户设定的双端区间返回怪物编号范围（含端点） */
+function monsterRangeFor(floorIdx){
+  const lo = Math.max(0, Math.min(MONSTER_LAST, Math.min(E.mRange.min, E.mRange.max)));
+  const hi = Math.max(0, Math.min(MONSTER_LAST, Math.max(E.mRange.min, E.mRange.max)));
+  return [lo, hi];
+}
+
+function populateFloor(g, entry, exit, floorIdx, density){
+  const initCells = [];
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === entry.x && y === entry.y) continue;
+      if (x === exit.x && y === exit.y) continue;
+      initCells.push({ x, y });
+    }
+  }
+  const N = initCells.length;
+  const target = Math.round(N * density);
+
+  const ratioIn = document.getElementById('otherRatioIn');
+  let otherPct = ratioIn ? parseInt(ratioIn.value, 10) : 45;
+  if (isNaN(otherPct)) otherPct = 45;
+  otherPct = Math.max(0, Math.min(100, otherPct));
+
+  const mCount   = Math.round(target * (100 - otherPct) / 100);
+  const otherCnt = Math.max(0, target - mCount);
+
+  // 门
+  const doorCands = initCells.filter(c => isDoorSpot(g, c.x, c.y));
+  shuffleArr(doorCands);
+
+  const wantDoors = Math.min(Math.round(otherCnt * 0.15), doorCands.length);
+  const placedDoorPos = new Set();
+  const doorCount = { Y: 0, B: 0, R: 0 };
+  let doorsPlaced = 0;
+
+  for (const c of doorCands){
+    if (doorsPlaced >= wantDoors) break;
+    if (!isDoorSpot(g, c.x, c.y)) continue;
+    let conflict = false;
+    for (let dy = -1; dy <= 1; dy++){
+      for (let dx = -1; dx <= 1; dx++){
+        if (placedDoorPos.has((c.x + dx) + ',' + (c.y + dy))){ conflict = true; break; }
+      }
+      if (conflict) break;
+    }
+    if (conflict) continue;
+
+    const d = pickDoorType(floorIdx);
+    g[c.y][c.x] = d;
+    doorCount[d]++;
+    placedDoorPos.add(c.x + ',' + c.y);
+    doorsPlaced++;
+  }
+
+  // 剩余空地
+  const cells = [];
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === entry.x && y === entry.y) continue;
+      if (x === exit.x && y === exit.y) continue;
+      cells.push({ x, y });
+    }
+  }
+  shuffleArr(cells);
+  const M = cells.length;
+
+  const itemCount = Math.max(0, otherCnt - doorsPlaced);
+  const actualM = Math.min(mCount, M);
+  const iSlots  = M - actualM;
+  const actualI = Math.min(itemCount, iSlots);
+
+  const monsters = {}, items = {};
+  const [minIdx, maxIdx] = monsterRangeFor(floorIdx);
+
+  let ptr = 0;
+
+  // 怪物
+  for (let i = 0; i < actualM && ptr < M; i++){
+    const c = cells[ptr++];
+    const idx = minIdx + randInt(0, maxIdx - minIdx);
+    monsters[c.x + ',' + c.y] = Math.min(MONSTER_LAST, idx);
+  }
+
+  // 补钥匙
+  const needKeys = [];
+  for (let i = 0; i < doorCount.Y; i++) needKeys.push('ykey');
+  for (let i = 0; i < doorCount.B; i++) needKeys.push('bkey');
+  for (let i = 0; i < doorCount.R; i++) needKeys.push('rkey');
+  shuffleArr(needKeys);
+
+  let keysPlaced = 0;
+  while (keysPlaced < needKeys.length && keysPlaced < actualI && ptr < M){
+    const c = cells[ptr++];
+    items[c.x + ',' + c.y] = needKeys[keysPlaced++];
+  }
+
+  while (keysPlaced < actualI && ptr < M){
+    const c = cells[ptr++];
+    items[c.x + ',' + c.y] = pickItemType(floorIdx);
+    keysPlaced++;
+  }
+
+  return { monsters, items };
+}
+
+function generateOneFloor(floorIdx, prevExit){
+  const g = genMazeTerrain();
+
+  let entry;
+  if (prevExit &&
+      prevExit.x >= 1 && prevExit.x <= GW - 2 &&
+      prevExit.y >= 1 && prevExit.y <= GH - 2){
+    carveToPath(g, prevExit.x, prevExit.y);
+    entry = { x: prevExit.x, y: prevExit.y };
+  } else {
+    entry = pickRandomPath(g);
+  }
+
+  let exit = pickRandomExit(g, entry, 4);
+  if (exit.x === entry.x && exit.y === entry.y){
+    exit = pickFarthest(g, entry);
+  }
+
+  const densityIn = document.getElementById('densityIn');
+  const density = densityIn ? (parseInt(densityIn.value, 10) / 100) : 0.3;
+
+  const { monsters, items } = populateFloor(g, entry, exit, floorIdx, density);
+
+  return {
+    grid: g,
+    entry: { x: entry.x, y: entry.y },
+    exit : { x: exit.x,  y: exit.y  },
+    monsters,
+    items
+  };
+}
+
+function generateCurrentFloor(){
+  const i = E.cur;
+  let prevExit = null;
+  if (i > 0 && E.floors[i - 1] && E.floors[i - 1].exit){
+    prevExit = E.floors[i - 1].exit;
+  }
+  try {
+    const f = generateOneFloor(i, prevExit);
+    E.floors[i] = f;
+
+    if (i < E.floors.length - 1 && f.exit && E.floors[i + 1]){
+      E.floors[i + 1].entry = { x: f.exit.x, y: f.exit.y };
+    }
+    scheduleRender();
+    toast('已生成第 ' + (i + 1) + ' 层');
+  } catch (e) {
+    console.error(e);
+    toast('生成本层失败：' + (e.message || e));
+  }
+}
+
+/* ---- 生成指定楼层区间 [lo, hi]（0 基，含端点） ---- */
+function generateFloorRange(){
+  const n = E.floors.length;
+  if (!n){ toast('没有可生成的楼层'); return; }
+
+  const lo = Math.max(0, Math.min(n - 1, Math.min(E.fRange.min, E.fRange.max)));
+  const hi = Math.max(0, Math.min(n - 1, Math.max(E.fRange.min, E.fRange.max)));
+
+  const doGenerate = () => {
+    let prevExit = null;
+    if (lo > 0 && E.floors[lo - 1] && E.floors[lo - 1].exit){
+      prevExit = E.floors[lo - 1].exit;
+    }
+
+    let okCount = 0;
+    const failed = [];
+
+    for (let i = lo; i <= hi; i++){
+      try {
+        const f = generateOneFloor(i, prevExit);
+        if (!f || !f.grid || !f.entry || !f.exit){
+          failed.push(i + 1);
+          const orig = E.floors[i];
+          if (orig && orig.exit) prevExit = orig.exit;
+          continue;
+        }
+        E.floors[i] = f;
+        prevExit = f.exit;
+        if (i + 1 < n && E.floors[i + 1]){
+          E.floors[i + 1].entry = { x: f.exit.x, y: f.exit.y };
+        }
+        okCount++;
+      } catch (e) {
+        console.error('第 ' + (i + 1) + ' 层生成失败:', e);
+        failed.push(i + 1);
+        const orig = E.floors[i];
+        if (orig && orig.exit) prevExit = orig.exit;
+      }
+    }
+
+    E.cur = lo;
+    scheduleRender();
+
+    const total = hi - lo + 1;
+    if (failed.length){
+      toast('完成 ' + okCount + '/' + total + ' 层，失败：第 ' + failed.join('、') + ' 层');
+    } else {
+      toast('已生成第 ' + (lo + 1) + ' ~ ' + (hi + 1) + ' 层');
+    }
+  };
+
+  const total = hi - lo + 1;
+  if (total === 1){
+    confirmDialog('将重新生成第 ' + (lo + 1) + ' 层，确定？', doGenerate);
+  } else {
+    confirmDialog('将重新生成第 ' + (lo + 1) + ' ~ ' + (hi + 1) + ' 层（共 ' + total + ' 层），确定？', doGenerate);
+  }
+}
+
+function generateAllFloors(){
+  const n = E.floors.length;
+  if (n <= 0){ toast('没有可生成的楼层'); return; }
+
+  const doGenerate = () => {
+    let prevExit = null;
+    let okCount = 0;
+    const failed = [];
+
+    for (let i = 0; i < n; i++){
+      try {
+        const f = generateOneFloor(i, prevExit);
+        if (!f || !f.grid || !f.entry || !f.exit){
+          failed.push(i + 1);
+          const orig = E.floors[i];
+          prevExit = (orig && orig.exit) ? orig.exit : prevExit;
+          continue;
+        }
+        E.floors[i] = f;
+        prevExit = f.exit;
+        if (i + 1 < n && E.floors[i + 1]){
+          E.floors[i + 1].entry = { x: f.exit.x, y: f.exit.y };
+        }
+        okCount++;
+      } catch (e) {
+        console.error('第 ' + (i + 1) + ' 层生成失败:', e);
+        failed.push(i + 1);
+        const orig = E.floors[i];
+        if (orig && orig.exit) prevExit = orig.exit;
+      }
+    }
+
+    E.cur = 0;
+    scheduleRender();
+
+    if (failed.length){
+      toast('完成 ' + okCount + '/' + n + ' 层，失败：第 ' + failed.join('、') + ' 层');
+    } else {
+      toast('已生成全部 ' + n + ' 层');
+    }
+  };
+
+  confirmDialog('将覆盖全部 ' + n + ' 层地图，确定生成？', doGenerate);
+}
+
+document.getElementById('genFloor').addEventListener('click', generateCurrentFloor);
+document.getElementById('genRange').addEventListener('click', generateFloorRange);
+document.getElementById('genAll').addEventListener('click', generateAllFloors);
+
+toolsEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  E.tool = b.dataset.tool;
+  renderTools();
+});
+
+mpickEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  E.mIdx = +b.dataset.mi;
+  E.tool = 'monster';
+  renderTools();
+  renderPickers();
+});
+
+ipickEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  E.iType = b.dataset.it;
+  E.tool = 'item';
+  renderTools();
+  renderPickers();
+});
+
+document.getElementById('densityIn').addEventListener('input', e => {
+  document.getElementById('densityPct').textContent = e.target.value + '%';
+});
+
+document.getElementById('otherRatioIn').addEventListener('input', e => {
+  document.getElementById('otherRatioPct').textContent = e.target.value + '%';
+});
+
+function genCode(){
+  const out = [];
+  const warns = [];
+
+  out.push('const HAND_FLOORS = [');
+
+  E.floors.forEach((fl, i) => {
+    if (i > 0) out.push('');
+    out.push('  /* ---------- 第 ' + (i + 1) + ' 层 ---------- */');
+    out.push('  {');
+
+    out.push('    grid: [');
+    fl.grid.forEach((row, ri) => {
+      out.push('      "' + row.join('') + '"' + (ri < GH - 1 ? ',' : ''));
+    });
+    out.push('    ],');
+
+    if (fl.entry){
+      out.push('    entry: {x:' + fl.entry.x + ', y:' + fl.entry.y + '},');
+    } else {
+      out.push('    entry: {x:1, y:11},          // ⚠ 未设置下楼位置');
+      warns.push('第 ' + (i + 1) + ' 层未设置下楼楼梯 entry');
+    }
+
+    if (fl.exit){
+      out.push('    exit:  {x:' + fl.exit.x + ', y:' + fl.exit.y + ' },');
+    } else {
+      out.push('    exit:  {x:11, y:1 },          // ⚠ 未设置上楼位置');
+      warns.push('第 ' + (i + 1) + ' 层未设置上楼楼梯 exit');
+    }
+
+    const mKeys = Object.keys(fl.monsters);
+    if (mKeys.length){
+      out.push('    monsters: {');
+      mKeys.forEach((k, ki) => {
+        const idx = fl.monsters[k];
+        const md = MONSTER_DEFS[idx] || { name: '?' };
+        out.push('      "' + k + '":' + idx +
+                 (ki < mKeys.length - 1 ? ',' : '') +
+                 '   // ' + md.name);
+      });
+      out.push('    },');
+    } else {
+      out.push('    monsters: {},');
+    }
+
+    const iKeys = Object.keys(fl.items);
+    if (iKeys.length){
+      out.push('    items: {');
+      iKeys.forEach((k, ki) => {
+        const t = fl.items[k];
+        out.push('      "' + k + '":"' + t + '"' +
+                 (ki < iKeys.length - 1 ? ',' : '') +
+                 '   // ' + ITEMS[t].name);
+      });
+      out.push('    }');
+    } else {
+      out.push('    items: {}');
+    }
+
+    out.push('  }' + (i < E.floors.length - 1 ? ',' : ''));
+  });
+
+  out.push('];');
+
+  for (let i = 0; i < E.floors.length - 1; i++){
+    const a = E.floors[i].exit;
+    const b = E.floors[i + 1].entry;
+    if (a && b && (a.x !== b.x || a.y !== b.y)){
+      warns.push('第 ' + (i + 1) + ' 层 exit(' + a.x + ',' + a.y + ') 与第 ' +
+                 (i + 2) + ' 层 entry(' + b.x + ',' + b.y + ') 不衔接');
+    }
+  }
+
+  codeEl.textContent = out.join('\n');
+  warnEl.innerHTML = warns.map(w => '<div>⚠ ' + w + '</div>').join('');
+}
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const txt = codeEl.textContent;
+  const done = () => toast('已复制到剪贴板');
+
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallback());
+  } else {
+    fallback();
+  }
+
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { toast('复制失败，请手动选择'); }
+    ta.remove();
+  }
+});
+
+let modalResolve = null;
+function confirmDialog(msg, onOk){
+  const modal = document.getElementById('modal');
+  const msgEl = document.getElementById('modalMsg');
+  msgEl.textContent = msg;
+  modal.classList.add('show');
+  modalResolve = onOk;
+}
+document.getElementById('modalOk').addEventListener('click', () => {
+  const fn = modalResolve;
+  document.getElementById('modal').classList.remove('show');
+  modalResolve = null;
+  if (typeof fn === 'function') fn();
+});
+document.getElementById('modalCancel').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('show');
+  modalResolve = null;
+});
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal'){
+    document.getElementById('modal').classList.remove('show');
+    modalResolve = null;
+  }
+});
+
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+renderAll();
+
+})();
+</script>
+</body>
+</html>
