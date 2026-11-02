@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迷宫地图编辑器 · 融合生成版</title>
+<style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        margin: 0; padding: 22px;
+        background: radial-gradient(1200px 700px at 50% 0%, #0d1526 0%, #060a11 70%);
+        color: #b0d0ff;
+        font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        display: flex; justify-content: center; align-items: flex-start;
+    }
+    .app { display: flex; gap: 16px; align-items: stretch; }
+    .left { display: flex; flex-direction: column; gap: 10px; }
+    .toolbar {
+        display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+        background: #0f1422;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid #22304a;
+        width: 720px;
+    }
+    .sep { width: 1px; height: 22px; background: #22304a; margin: 0 3px; }
+    .group-label {
+        font-size: 11.5px; color: #55718f; margin: 0 2px;
+        user-select: none; white-space: nowrap;
+    }
+    button.tool {
+        background: #141d2d;
+        border: 1px solid #2e4a6e;
+        color: #9fc0e0;
+        padding: 6px 11px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: .12s;
+        white-space: nowrap;
+    }
+    button.tool:hover { border-color: #4a7aaa; color: #d0e6ff; background: #182338; }
+    button.tool.active {
+        background: #1f4a7a;
+        border-color: #7ec8ff;
+        color: #fff;
+        box-shadow: 0 0 12px rgba(60, 140, 220, .45);
+    }
+    button.tool.danger { color: #ff8866; border-color: #5a2e2e; }
+    button.tool.danger:hover { border-color: #a05050; background: #241518; }
+    button.tool.gen { color: #8affc0; border-color: #2f6a52; background: #102018; }
+    button.tool.gen:hover {
+        color: #c6ffe0; border-color: #4adf9a; background: #143024;
+        box-shadow: 0 0 12px rgba(74, 223, 154, .30);
+    }
+    button.tool.mazebtn { color: #ffdd77; border-color: #705c28; background: #221c0f; }
+    button.tool.mazebtn:hover {
+        color: #ffeebb; border-color: #ffcc55; background: #2e2614;
+        box-shadow: 0 0 12px rgba(255,200,80,.30);
+    }
+    button.tool.hybridbtn { color: #c8a7ff; border-color: #5a4a8a; background: #1a1528; }
+    button.tool.hybridbtn:hover {
+        color: #e6d6ff; border-color: #b794ff; background: #251d3a;
+        box-shadow: 0 0 12px rgba(183, 148, 255, .30);
+    }
+    button.tool.chip {
+        padding: 4px 8px;
+        min-width: 30px;
+        text-align: center;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-weight: 700;
+        font-size: 13px;
+    }
+    button.tool.chip[data-char="#"] { color: #8fb8e0; border-color: #2e4a6e; }
+    button.tool.chip[data-char="X"] { color: #7ec8ff; border-color: #2f5f8a; }
+    button.tool.chip[data-char="."] { color: #9aa8b8; border-color: #2e4a6e; }
+    button.tool.chip[data-char="o"] { color: #88ffcc; border-color: #2f6a52; }
+    button.tool.chip[data-char="+"] { color: #c0a8ff; border-color: #4a3f7a; }
+    button.tool.chip[data-char="S"] { color: #4aff7a; border-color: #2f6a52; }
+    button.tool.chip[data-char="E"] { color: #ffaa44; border-color: #6a4a2f; }
+    button.tool.chip[data-char="C"] { color: #ff4466; border-color: #6a2f3f; }
+    button.tool.chip.active { color: #fff; border-color: #7ec8ff; }
+    canvas {
+        display: block;
+        border-radius: 10px;
+        box-shadow: 0 0 0 2px #2e4a6e, 0 0 34px rgba(0, 0, 0, .85);
+        background: #0a0f18;
+        cursor: crosshair;
+        touch-action: none;
+    }
+    .status {
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        background: #0f1422;
+        border: 1px solid #22304a;
+        border-radius: 10px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        color: #7a9ac0;
+        min-height: 36px;
+    }
+    .status b { color: #c0dcff; font-weight: 600; }
+    .status .warn { color: #ffb86b; }
+    .status .ok { color: #7adf9a; }
+    .right {
+        display: flex; flex-direction: column; gap: 8px;
+        width: 460px; min-width: 360px;
+    }
+    .panel-head {
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 12.5px; color: #7ec8ff; letter-spacing: .06em;
+        padding: 0 2px;
+    }
+    .opts {
+        display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+        background: #0f1422;
+        border: 1px solid #22304a;
+        border-radius: 10px;
+        padding: 9px 11px;
+        font-size: 12px;
+        color: #8fb0d0;
+    }
+    .opts label { display: flex; align-items: center; gap: 6px; }
+    .opts input {
+        background: #0a1220;
+        border: 1px solid #2e4a6e;
+        border-radius: 6px;
+        color: #ffd966;
+        font-family: inherit;
+        font-size: 12px;
+        padding: 4px 7px;
+        width: 92px;
+        outline: none;
+    }
+    .opts input:focus { border-color: #7ec8ff; }
+    .opts input[type=number] { width: 68px; }
+    .opts input[type=range] {
+        width: 170px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        accent-color: #4adf9a;
+        cursor: pointer;
+    }
+    .opts .hint { color: #55718f; font-size: 11.5px; }
+    .legend {
+        display: flex; gap: 12px; flex-wrap: wrap;
+        padding: 6px 11px;
+        font-size: 11.5px;
+        color: #55718f;
+        background: #0a1220;
+        border: 1px solid #1e2b40;
+        border-radius: 8px;
+    }
+    .legend .lg { display: flex; align-items: center; gap: 5px; }
+    .legend .sw {
+        display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+        border: 1px solid;
+    }
+    .legend .sw-wall { background: #1b2b45; border-color: #6ea0dc; }
+    .legend .sw-build { background: #283b56; border-color: #7ec8ff; }
+    .legend .sw-path { background: #0a0f18; border-color: #7ec8ff; }
+    .legend .sw-nobuild { background: #0a0f18; border-color: rgba(126, 200, 255, 0.4); border-style: dashed; }
+    .legend .sw-cross { background: rgba(167, 139, 250, 0.30); border-color: #a78bfa; }
+    .legend .sw-S { background: #4aff7a; border-color: #4aff7a; }
+    .legend .sw-E { background: #ffaa44; border-color: #ffaa44; }
+    .legend .sw-C { background: #ff4466; border-color: #ff4466; }
+    pre.code {
+        flex: 1 1 auto;
+        min-height: 0;
+        margin: 0;
+        background: #080d16;
+        border: 1px solid #22304a;
+        border-radius: 10px;
+        padding: 12px 14px;
+        overflow: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #8fb0d0;
+        white-space: pre;
+        tab-size: 4;
+    }
+    pre.code .str { color: #7adf9a; }
+    pre.code .num { color: #ffd966; }
+    pre.code .kw  { color: #7ec8ff; }
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #24405f; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #35618f; }
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="left">
+        <div class="toolbar">
+            <span class="group-label">图块</span>
+            <button class="tool chip" data-char="#" title="岩壁 #">#</button>
+            <button class="tool chip" data-char="X" title="炮台墙 X">X</button>
+            <button class="tool chip active" data-char="." title="禁建地 .">.</button>
+            <button class="tool chip" data-char="o" title="空地 o">o</button>
+            <button class="tool chip" data-char="+" title="十字路口 +">+</button>
+            <button class="tool chip" data-char="S" title="出怪点 S">S</button>
+            <button class="tool chip" data-char="E" title="出口 E">E</button>
+            <button class="tool chip" data-char="C" title="基地 C">C</button>
+            <span class="sep"></span>
+            <span class="group-label">模式</span>
+            <button class="tool active" data-mode="brush">✏ 笔刷</button>
+            <button class="tool" data-mode="line">📏 直线</button>
+            <button class="tool" data-mode="rect">▭ 矩形框</button>
+            <button class="tool" data-mode="fillrect">▬ 实心矩形</button>
+            <button class="tool" data-mode="flood">🪣 填充</button>
+            <button class="tool" data-mode="crop">✥ 区域平移</button>
+            <span class="sep"></span>
+            <button class="tool" id="undoBtn">↶ 撤销</button>
+            
+        
+            <button class="tool hybridbtn" id="hybridGenBtn">一键生成</button>
+            <button class="tool danger" id="clearBtn">清空</button>
+            <button class="tool danger" id="resetBtn">重置</button>
+        </div>
+        <canvas id="cv" width="720" height="468"></canvas>
+        <div class="status" id="status"></div>
+    </div>
+    <div class="right">
+        <div class="panel-head"><span>⚙ 关卡参数</span></div>
+        <div class="opts">
+            <label>名称 <input id="nameIn" value="自定义地图"></label>
+            <button class="tool" id="randNameBtn" title="随机生成 4 字地图名" style="padding:5px 10px;">🎲 随机</button>
+            <label>起始资金 <input id="moneyIn" type="number" value="1500" step="10"></label>
+        </div>
+        <div class="panel-head"><span>📐 地图尺寸</span></div>
+        <div class="opts">
+            <label>列 <input id="colsIn" type="number" value="21" min="5" max="50" step="1"></label>
+            <label>行 <input id="rowsIn" type="number" value="13" min="5" max="30" step="1"></label>
+            <span class="hint">修改后自动保留已有内容</span>
+        </div>
+
+        <div class="panel-head"><span>⬛ 空白矩形覆盖</span></div>
+        <div class="opts">
+            <label>数量 <input id="rectCountIn" type="number" value="0" min="0" max="20" step="1"></label>
+            <label>最小 <input id="rectMinIn" type="number" value="3" min="2" max="20" step="1"></label>
+            <label>最大 <input id="rectMaxIn" type="number" value="6" min="2" max="20" step="1"></label>
+            <span class="hint">生成时随机覆盖空白区域</span>
+        </div>
+        <div class="panel-head"><span>🎨 岩壁装饰权重</span></div>
+<div class="opts">
+    <label># <input id="wInpIn" type="number" value="10" min="0" max="100" step="1"></label>
+<label>X <input id="wXIn" type="number" value="10" min="0" max="100" step="1"></label>
+<label>o <input id="wOIn" type="number" value="5" min="0" max="100" step="1"></label>
+<label>. <input id="wDotIn" type="number" value="5" min="0" max="100" step="1"></label>
+    <span class="hint">数值越大出现越多</span>
+</div>
+
+        <div class="panel-head"><span>🟢 通路随机变 o</span></div>
+        <div class="opts">
+            <label style="flex:1; min-width:240px;">
+                <span style="white-space:nowrap;">比例</span>
+                <input id="pathOIn" type="range" min="0" max="90" step="5" value="0">
+                <b id="pathOPct" style="color:#88ffcc; min-width:40px; text-align:right;">0%</b>
+            </label>
+            <button class="tool" id="applyPathOBtn" style="color:#88ffcc; border-color:#2f6a52;">应用</button>
+            <span class="hint">生成时自动生效；也可对当前地图点“应用”</span>
+        </div>
+
+        <div class="legend">
+            <span class="lg"><span class="sw sw-wall"></span># 岩壁</span>
+            <span class="lg"><span class="sw sw-build"></span>X 炮台墙</span>
+            <span class="lg"><span class="sw sw-nobuild"></span>. 禁建地</span>
+            <span class="lg"><span class="sw sw-path"></span>o 空地</span>
+            <span class="lg"><span class="sw sw-cross"></span>+ 十字路口</span>
+            <span class="lg"><span class="sw sw-S"></span>S</span>
+            <span class="lg"><span class="sw sw-E"></span>E</span>
+            <span class="lg"><span class="sw sw-C"></span>C</span>
+        </div>
+        <div class="panel-head">
+            <span>JS 代码（实时）</span>
+            <button class="tool" id="copyBtn">📋 复制</button>
+        </div>
+        <pre class="code" id="code"></pre>
+    </div>
+</div>
+<script>
+(function () {
+    'use strict';
+
+    const CELL = 36;
+    const MIN_COLS = 5,  MAX_COLS = 50;
+    const MIN_ROWS = 5,  MAX_ROWS = 30;
+
+    let COLS = 21;
+    let ROWS = 13;
+    let W = COLS * CELL;
+    let H = ROWS * CELL;
+
+    const canvas = document.getElementById('cv');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const codeEl = document.getElementById('code');
+    const nameIn = document.getElementById('nameIn');
+    const moneyIn = document.getElementById('moneyIn');
+    const colsIn = document.getElementById('colsIn');
+    const rowsIn = document.getElementById('rowsIn');
+
+    const rectCountIn = document.getElementById('rectCountIn');
+    const rectMinIn = document.getElementById('rectMinIn');
+    const rectMaxIn = document.getElementById('rectMaxIn');
+    const wInpIn = document.getElementById('wInpIn');
+const wXIn = document.getElementById('wXIn');
+const wOIn = document.getElementById('wOIn');
+const wDotIn = document.getElementById('wDotIn');
+
+    const pathOIn = document.getElementById('pathOIn');
+    const pathOPct = document.getElementById('pathOPct');
+
+    let grid = [];
+    let brushChar = '.';
+    let mode = 'brush';
+    let strokeChar = '.';
+    let hover = null;
+    let dragging = false;
+    let lastPainted = null;
+    let drag = null;
+    let crop = null;
+    const history = [];
+    let floodCacheKey = '';
+    let floodCacheCells = null;
+
+    // ============================================================
+    // 随机地图名：两个 2 字词组合，固定 4 字
+    // ============================================================
+    const NAME_P1 = ['暗影','幽林','荒原','霜寒','赤焰','迷雾','深渊','碎星','古堡','废墟','寂静','血色','寒冰','雷霆','翡翠','苍穹','遗忘','孤岛','熔岩','幽灵','烈日','黑曜','银月','赤岩','青锋','风暴','机械','远古','腐化','水晶','沙漠','丛林','雪原','沼泽','火山','浮空','地下','海岸','钢铁','星界','虚空','熔火','雷鸣','毒沼','沙丘','绿洲','断崖','密林','潮汐','陨石'];
+    const NAME_P2 = ['回廊','迷城','要塞','战场','秘境','峡谷','王座','迷宫','裂谷','哨站','遗迹','庄园','防线','港湾','堡垒','阵地','之路','之境','之渊','之巅','前哨','重镇','空港','地牢','深井','高塔','矿场','港口','城门','祭坛','神殿','平台','高地','平原','森林','洞穴','地窟','熔炉','工坊','仓库','电站','核心','枢纽','塔楼','城墙','炮台','码头','车站','禁地','补给站'];
+
+    function randomMapName() {
+        const a = NAME_P1[Math.floor(Math.random() * NAME_P1.length)];
+        const b = NAME_P2[Math.floor(Math.random() * NAME_P2.length)];
+        return a + b;
+    }
+
+    // ============================================================
+    // 通路随机变 o
+    // ============================================================
+    function getPathORatio() {
+        return Math.max(0, Math.min(90, parseInt(pathOIn.value, 10) || 0)) / 100;
+    }
+
+    function applyPathOConversion(g, ratio) {
+        if (ratio <= 0) return 0;
+        let count = 0;
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (g[r][c] === '.' && Math.random() < ratio) {
+                    g[r][c] = 'o';
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // ============================================================
+    // 修正孤立通路：周围4格有3或4个 # / X 的 . 或 o，
+    // 随机拆掉一个内部墙邻居，防止形成不可达区域
+    // 注意：不修改最外圈的墙
+    // 循环到没有变化为止（每拆一面墙墙总数减 1，必然终止）
+    // ============================================================
+    function fixIsolatedCells(g) {
+        const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+        let totalFixed = 0;
+        let changed = true;
+
+        while (changed) {
+            changed = false;
+            for (let r = 1; r < ROWS - 1; r++) {
+                for (let c = 1; c < COLS - 1; c++) {
+                    const ch = g[r][c];
+                    if (ch !== '.' && ch !== 'o') continue;
+
+                    const internalWalls = [];
+                    let totalWalls = 0;
+                    for (const [dx, dy] of dirs) {
+                        const nr = r + dy, nc = c + dx;
+                        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+                        const nch = g[nr][nc];
+                        if (nch === '#' || nch === 'X') {
+                            totalWalls++;
+                            // 只允许拆除内部墙，不修改最外圈
+                            if (nr > 0 && nr < ROWS - 1 && nc > 0 && nc < COLS - 1) {
+                                internalWalls.push({ r: nr, c: nc });
+                            }
+                        }
+                    }
+
+                    if (totalWalls >= 3 && internalWalls.length > 0) {
+                        const pick = internalWalls[Math.floor(Math.random() * internalWalls.length)];
+                        g[pick.r][pick.c] = ch;
+                        totalFixed++;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        return totalFixed;
+    }
+
+    // ============================================================
+    // BFS 连通性兜底
+    //   从所有 S（没有 S 时退化为 C）出发标记可达通路格
+    //   对每个不可达通路格，用 Dijkstra 找一条到最近可达格的最短穿墙路径
+    //   把沿途的 #/X 打通（不穿最外圈）
+    //   重复直到所有通路格都可达，或无法继续打通
+    // ============================================================
+    function ensureConnectivity(g) {
+        const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+        const isPath = ch => ch === '.' || ch === 'o' || ch === 'S'
+                          || ch === 'E' || ch === 'C' || ch === '+';
+
+        // 起点集合：优先所有 S，没有则用所有 C
+        let starts = [];
+        for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++)
+                if (g[r][c] === 'S') starts.push({ c, r });
+        if (starts.length === 0) {
+            for (let r = 0; r < ROWS; r++)
+                for (let c = 0; c < COLS; c++)
+                    if (g[r][c] === 'C') starts.push({ c, r });
+        }
+        if (starts.length === 0) return 0;
+
+        let totalBroken = 0;
+        let guard = 0;
+        const MAX_ITER = COLS * ROWS;
+
+        while (guard++ < MAX_ITER) {
+            // ---- BFS 标记从所有起点可达的通路格 ----
+            const reachable = new Uint8Array(COLS * ROWS);
+            const queue = [];
+            for (const p of starts) {
+                const idx = p.r * COLS + p.c;
+                if (!reachable[idx]) {
+                    reachable[idx] = 1;
+                    queue.push(p);
+                }
+            }
+            for (let qi = 0; qi < queue.length; qi++) {
+                const cur = queue[qi];
+                for (const [dx, dy] of dirs) {
+                    const nc = cur.c + dx, nr = cur.r + dy;
+                    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+                    const ni = nr * COLS + nc;
+                    if (reachable[ni]) continue;
+                    if (!isPath(g[nr][nc])) continue;
+                    reachable[ni] = 1;
+                    queue.push({ c: nc, r: nr });
+                }
+            }
+
+            // ---- 找第一个不可达的通路格 ----
+            let target = null;
+            for (let r = 0; r < ROWS && !target; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (isPath(g[r][c]) && !reachable[r * COLS + c]) {
+                        target = { c, r };
+                        break;
+                    }
+                }
+            }
+            if (!target) break; // 所有通路格都可达
+
+            // ---- 从 target 出发做 Dijkstra，找最近的可达格 ----
+            const N = COLS * ROWS;
+            const dist = new Int32Array(N).fill(-1);
+            const prev = new Int32Array(N).fill(-1);
+            const heap = new MinHeap();
+            const startIdx = target.r * COLS + target.c;
+            dist[startIdx] = 0;
+            heap.push({ c: target.c, r: target.r }, 0);
+
+            let foundIdx = -1;
+            while (!heap.isEmpty()) {
+                const cur = heap.pop();
+                const ci = cur.r * COLS + cur.c;
+                if (reachable[ci] && ci !== startIdx) {
+                    foundIdx = ci;
+                    break;
+                }
+                for (const [dx, dy] of dirs) {
+                    const nc = cur.c + dx, nr = cur.r + dy;
+                    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+                    // 不穿最外圈
+                    if (nr === 0 || nr === ROWS - 1 || nc === 0 || nc === COLS - 1) continue;
+                    const ni = nr * COLS + nc;
+                    const cost = isPath(g[nr][nc]) ? 0 : 1;
+                    const nd = dist[ci] + cost;
+                    if (dist[ni] === -1 || nd < dist[ni]) {
+                        dist[ni] = nd;
+                        prev[ni] = ci;
+                        heap.push({ c: nc, r: nr }, nd);
+                    }
+                }
+            }
+            if (foundIdx === -1) break; // 无法打通（例如被外圈完全隔开）
+
+            // ---- 回溯路径，把沿途的墙打通 ----
+            let idx = foundIdx;
+            while (idx !== -1) {
+                const c = idx % COLS;
+                const r = (idx - c) / COLS;
+                if (!isPath(g[r][c])) {
+                    g[r][c] = '.';
+                    totalBroken++;
+                }
+                if (idx === startIdx) break;
+                idx = prev[idx];
+            }
+        }
+
+        return totalBroken;
+    }
+
+    // ============================================================
+    // 工具：洗牌
+    // ============================================================
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // ============================================================
+    // DFS迷宫算法
+    // ============================================================
+    class MazeCell {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.walls = [true, true, true, true];
+            this.visited = false;
+        }
+    }
+
+    function generateDFSLogicalMaze(mazeCols, mazeRows) {
+        const cells = [];
+        for (let y = 0; y < mazeRows; y++) {
+            for (let x = 0; x < mazeCols; x++) {
+                cells.push(new MazeCell(x, y));
+            }
+        }
+
+        function idx(x, y) {
+            if (x < 0 || y < 0 || x >= mazeCols || y >= mazeRows) return -1;
+            return y * mazeCols + x;
+        }
+
+        function getUnvisited(cell) {
+            const dirs = [
+                { dx: 0, dy: -1, wa: 0, wb: 2 },
+                { dx: 1, dy: 0, wa: 1, wb: 3 },
+                { dx: 0, dy: 1, wa: 2, wb: 0 },
+                { dx: -1, dy: 0, wa: 3, wb: 1 }
+            ];
+            const res = [];
+            for (const d of dirs) {
+                const i = idx(cell.x + d.dx, cell.y + d.dy);
+                if (i !== -1 && !cells[i].visited) {
+                    res.push({ cell: cells[i], ...d });
+                }
+            }
+            return shuffle(res);
+        }
+
+        function removeWall(a, b, wa, wb) {
+            a.walls[wa] = false;
+            b.walls[wb] = false;
+        }
+
+        const stack = [];
+        const start = cells[0];
+        start.visited = true;
+        stack.push(start);
+
+        while (stack.length > 0) {
+            const cur = stack[stack.length - 1];
+            const neighbors = getUnvisited(cur);
+            if (neighbors.length > 0) {
+                const next = neighbors[0];
+                removeWall(cur, next.cell, next.wa, next.wb);
+                next.cell.visited = true;
+                stack.push(next.cell);
+            } else {
+                stack.pop();
+            }
+        }
+
+        const outH = mazeRows * 2 + 1;
+        const outW = mazeCols * 2 + 1;
+        const logical = Array.from({ length: outH }, () => Array(outW).fill(false));
+
+        for (let y = 0; y < mazeRows; y++) {
+            for (let x = 0; x < mazeCols; x++) {
+                const c = cells[idx(x, y)];
+                const py = y * 2 + 1;
+                const px = x * 2 + 1;
+                logical[py][px] = true;
+                if (!c.walls[0]) logical[py - 1][px] = true;
+                if (!c.walls[1]) logical[py][px + 1] = true;
+                if (!c.walls[2]) logical[py + 1][px] = true;
+                if (!c.walls[3]) logical[py][px - 1] = true;
+            }
+        }
+
+        return logical;
+    }
+
+    function applyBlankRectanglesToLogical(logical, mW, mH, count, minSize, maxSize) {
+        if (count <= 0) return;
+
+        const outH = logical.length;
+        const outW = logical[0].length;
+
+        for (let i = 0; i < count; i++) {
+            const w = randInt(minSize, maxSize);
+            const h = randInt(minSize, maxSize);
+
+            const maxX = mW - w;
+            const maxY = mH - h;
+            if (maxX < 0 || maxY < 0) continue;
+
+            const startX = Math.floor(Math.random() * (maxX + 1));
+            const startY = Math.floor(Math.random() * (maxY + 1));
+
+            for (let y = startY; y < startY + h; y++) {
+                for (let x = startX; x < startX + w; x++) {
+                    const py = y * 2 + 1;
+                    const px = x * 2 + 1;
+
+                    logical[py][px] = true;
+
+                    if (py - 1 >= 0) logical[py - 1][px] = true;
+                    if (py + 1 < outH) logical[py + 1][px] = true;
+                    if (px - 1 >= 0) logical[py][px - 1] = true;
+                    if (px + 1 < outW) logical[py][px + 1] = true;
+                }
+            }
+        }
+    }
+
+    function decorateWalls(g) {
+        const rates = {
+            '#': Math.max(0, parseInt(wInpIn.value, 10) || 0),
+            X: Math.max(0, parseInt(wXIn.value, 10) || 0),
+            o: Math.max(0, parseInt(wOIn.value, 10) || 0),
+            '.': Math.max(0, parseInt(wDotIn.value, 10) || 0)
+        };
+
+        const total = rates['#'] + rates.X + rates.o + rates['.'];
+        if (total <= 0) return;
+
+        for (let r = 1; r < ROWS - 1; r++) {
+            for (let c = 1; c < COLS - 1; c++) {
+                if (g[r][c] !== '#') continue;
+
+                const roll = Math.random() * total;
+
+                if (roll < rates['#']) {
+                    g[r][c] = '#';
+                } else if (roll < rates['#'] + rates.X) {
+                    g[r][c] = 'X';
+                } else if (roll < rates['#'] + rates.X + rates.o) {
+                    g[r][c] = 'o';
+                } else {
+                    g[r][c] = '.';
+                }
+            }
+        }
+    }
+
+    function bfsPath(g, sc, sr, gc, gr) {
+        const rows = g.length;
+        const cols = g[0].length;
+        const visited = new Uint8Array(rows * cols);
+        const prev = new Int32Array(rows * cols).fill(-1);
+        const queue = [[sc, sr]];
+        visited[sr * cols + sc] = 1;
+
+        const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+        while (queue.length) {
+            const [cx, cy] = queue.shift();
+            if (cx === gc && cy === gr) break;
+
+            for (const [dx, dy] of dirs) {
+                const nx = cx + dx, ny = cy + dy;
+                if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+                const ni = ny * cols + nx;
+                if (visited[ni]) continue;
+                if (g[ny][nx] !== '.' && g[ny][nx] !== 'S' && g[ny][nx] !== 'C') continue;
+
+                visited[ni] = 1;
+                prev[ni] = cy * cols + cx;
+                queue.push([nx, ny]);
+            }
+        }
+
+        const endIdx = gr * cols + gc;
+        if (prev[endIdx] === -1 && !(sc === gc && sr === gr)) return null;
+
+        const path = [];
+        let idx = endIdx;
+        while (idx !== -1) {
+            path.push({ c: idx % cols, r: (idx - (idx % cols)) / cols });
+            idx = prev[idx];
+        }
+        path.reverse();
+        return path;
+    }
+
+    function createDfsMazeToEditorGrid() {
+        pushHistory();
+
+        let mW = Math.floor((COLS - 1) / 2);
+        let mH = Math.floor((ROWS - 1) / 2);
+        if (mW < 2) mW = 2;
+        if (mH < 2) mH = 2;
+
+        const logicalMaze = generateDFSLogicalMaze(mW, mH);
+
+        const rectCount = clampInt(rectCountIn.value, 0, 20, 0);
+        const rectMin = clampInt(rectMinIn.value, 2, 20, 3);
+        let rectMax = clampInt(rectMaxIn.value, 2, 20, 6);
+        if (rectMax < rectMin) rectMax = rectMin;
+
+        applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
+
+        const newGrid = [];
+        for (let r = 0; r < ROWS; r++) {
+            const row = [];
+            for (let c = 0; c < COLS; c++) {
+                row.push('#');
+            }
+            newGrid.push(row);
+        }
+
+        for (let y = 0; y < logicalMaze.length && y < ROWS; y++) {
+            for (let x = 0; x < logicalMaze[0].length && x < COLS; x++) {
+                if (logicalMaze[y][x]) {
+                    newGrid[y][x] = '.';
+                }
+            }
+        }
+
+        decorateWalls(newGrid);
+
+        placeRandomMarkers(newGrid, { maxExtraS: 1, maxExtraC: 1, maxExtraE: 1, minExtraE: 0 });
+
+        const oCount = applyPathOConversion(newGrid, getPathORatio());
+        const connBroken = ensureConnectivity(newGrid);
+        const fixedCount = fixIsolatedCells(newGrid);
+
+        grid = newGrid;
+        resetEditState();
+        refreshAll();
+        let msg = "🧱 DFS迷宫已生成";
+        if (oCount) msg += `（${oCount} 个通路转为 o）`;
+        if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
+        if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
+        toast(msg);
+    }
+
+    function placeRandomMarkers(g, opt) {
+        opt = opt || {};
+        const maxExtraS = opt.maxExtraS != null ? opt.maxExtraS : 2;
+        const maxExtraC = opt.maxExtraC != null ? opt.maxExtraC : 2;
+        const maxExtraE = opt.maxExtraE != null ? opt.maxExtraE : 2;
+        const minExtraE = opt.minExtraE != null ? opt.minExtraE : 0;
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const ch = g[r][c];
+                if (ch === 'S' || ch === 'E' || ch === 'C') g[r][c] = '.';
+            }
+        }
+
+        const cells = [];
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (g[r][c] === '.') cells.push({ c: c, r: r });
+            }
+        }
+        if (cells.length < 2) return;
+
+        shuffle(cells);
+
+        const sCell = cells.pop();
+        g[sCell.r][sCell.c] = 'S';
+
+        let cCell = null;
+        if (cells.length) {
+            const scored = cells.map(function (p) {
+                return { p: p, d: Math.abs(p.c - sCell.c) + Math.abs(p.r - sCell.r) };
+            });
+            scored.sort(function (a, b) { return b.d - a.d; });
+            const poolSize = Math.max(1, Math.ceil(scored.length * 0.3));
+            cCell = scored[randInt(0, poolSize - 1)].p;
+
+            const idx = cells.indexOf(cCell);
+            if (idx >= 0) cells.splice(idx, 1);
+            g[cCell.r][cCell.c] = 'C';
+        }
+
+        const extra = [];
+        const nS = randInt(0, maxExtraS);
+        const nC = randInt(0, maxExtraC);
+        const nE = maxExtraE > 0 ? randInt(Math.min(minExtraE, maxExtraE), maxExtraE) : 0;
+        for (let i = 0; i < nS; i++) extra.push('S');
+        for (let i = 0; i < nC; i++) extra.push('C');
+        for (let i = 0; i < nE; i++) extra.push('E');
+        shuffle(extra);
+
+        const n = Math.min(extra.length, cells.length);
+        for (let i = 0; i < n; i++) {
+            g[cells[i].r][cells[i].c] = extra[i];
+        }
+    }
+
+    function createHybridMap() {
+        pushHistory();
+
+        let mW = Math.floor((COLS - 1) / 2);
+        let mH = Math.floor((ROWS - 1) / 2);
+        if (mW < 2) mW = 2;
+        if (mH < 2) mH = 2;
+
+        const logicalMaze = generateDFSLogicalMaze(mW, mH);
+
+        const rectCount = clampInt(rectCountIn.value, 0, 20, 0);
+        const rectMin = clampInt(rectMinIn.value, 2, 20, 3);
+        let rectMax = clampInt(rectMaxIn.value, 2, 20, 6);
+        if (rectMax < rectMin) rectMax = rectMin;
+
+        applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
+
+        const g = [];
+        for (let r = 0; r < ROWS; r++) {
+            const row = [];
+            for (let c = 0; c < COLS; c++) row.push('#');
+            g.push(row);
+        }
+
+        for (let y = 0; y < logicalMaze.length && y < ROWS; y++) {
+            for (let x = 0; x < logicalMaze[0].length && x < COLS; x++) {
+                if (logicalMaze[y][x]) g[y][x] = '.';
+            }
+        }
+
+        decorateWalls(g);
+
+        const branchOpen = Math.floor((ROWS * COLS) * 0.015);
+        for (let i = 0; i < branchOpen; i++) {
+            const r = 1 + Math.floor(Math.random() * (ROWS - 2));
+            const c = 1 + Math.floor(Math.random() * (COLS - 2));
+            if (g[r][c] === '#' || g[r][c] === 'X') {
+                const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+                let nearPath = false;
+                for (const [dx, dy] of dirs) {
+                    if (g[r+dy] && g[r+dy][c+dx] === '.') nearPath = true;
+                }
+                if (nearPath) g[r][c] = '.';
+            }
+        }
+
+        placeRandomMarkers(g, { maxExtraS: 2, maxExtraC: 2, maxExtraE: 2, minExtraE: 0 });
+
+        const oCount = applyPathOConversion(g, getPathORatio());
+        const connBroken = ensureConnectivity(g);
+        const fixedCount = fixIsolatedCells(g);
+
+        grid = g;
+        resetEditState();
+        refreshAll();
+        let msg = "🔀 融合迷宫地图已生成";
+        if (oCount) msg += `（${oCount} 个通路转为 o）`;
+        if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
+        if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
+        toast(msg);
+    }
+
+    function resetEditState() {
+        drag = null;
+        dragging = false;
+        lastPainted = null;
+        hover = null;
+        crop = null;
+        floodCacheKey = '';
+    }
+
+    function blankGrid() {
+        const g = [];
+        for (let r = 0; r < ROWS; r++) {
+            const row = [];
+            for (let c = 0; c < COLS; c++) {
+                const border = (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1);
+                row.push(border ? '#' : '.');
+            }
+            g.push(row);
+        }
+        return g;
+    }
+
+    function defaultGrid() {
+        const g = blankGrid();
+        g[1][1] = 'S';
+        g[ROWS - 2][COLS - 2] = 'C';
+        if (COLS > 7 && ROWS > 6) {
+            g[2][3] = 'X';
+            g[2][COLS - 4] = 'X';
+        }
+        return g;
+    }
+
+    grid = defaultGrid();
+
+    function applyCanvasSize() {
+        W = COLS * CELL;
+        H = ROWS * CELL;
+        canvas.width = W;
+        canvas.height = H;
+        const scale = Math.min(1, 720 / W);
+        canvas.style.width  = Math.round(W * scale) + 'px';
+        canvas.style.height = Math.round(H * scale) + 'px';
+    }
+
+    function clampInt(v, lo, hi, def) {
+        v = parseInt(v, 10);
+        if (isNaN(v)) return def;
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    function syncSizeInputs() {
+        colsIn.value = COLS;
+        rowsIn.value = ROWS;
+    }
+
+    function setSize(nc, nr) {
+        nc = clampInt(nc, MIN_COLS, MAX_COLS, COLS);
+        nr = clampInt(nr, MIN_ROWS, MAX_ROWS, ROWS);
+        if (nc === COLS && nr === ROWS) { syncSizeInputs(); return; }
+
+        pushHistory();
+        const g = [];
+        for (let r = 0; r < nr; r++) {
+            const row = [];
+            for (let c = 0; c < nc; c++) {
+                row.push((r < ROWS && c < COLS) ? grid[r][c] : '.');
+            }
+            g.push(row);
+        }
+
+        COLS = nc;
+        ROWS = nr;
+        grid = g;
+        resetEditState();
+        applyCanvasSize();
+        syncSizeInputs();
+        refreshAll();
+    }
+
+    function isShapeMode(m) { return ['line', 'rect', 'fillrect'].indexOf(m) >= 0; }
+    function isMarkerChar(ch) { return ch === 'S' || ch === 'E' || ch === 'C'; }
+
+    function bresenham(x0, y0, x1, y1, cb) {
+        let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        let err = dx + dy;
+        for (;;) {
+            cb(x0, y0);
+            if (x0 === x1 && y0 === y1) break;
+            const e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    function applyShape(g, a, b, shapeTool, ch) {
+        if (shapeTool === 'line') {
+            bresenham(a.c, a.r, b.c, b.r, (c, r) => { g[r][c] = ch; });
+            return;
+        }
+        const c0 = Math.min(a.c, b.c), c1 = Math.max(a.c, b.c);
+        const r0 = Math.min(a.r, b.r), r1 = Math.max(a.r, b.r);
+        for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+                if (shapeTool === 'rect' && r > r0 && r < r1 && c > c0 && c < c1) continue;
+                g[r][c] = ch;
+            }
+        }
+    }
+
+    function toast(msg) {
+        statusEl.innerHTML = `<span class="ok">${msg}</span>`;
+        setTimeout(() => { updateStatus(); }, 1400);
+    }
+
+    function getFloodCells(c, r) {
+        if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return [];
+        const target = grid[r][c];
+        const out = [];
+        const seen = new Uint8Array(COLS * ROWS);
+        const stack = [c + r * COLS];
+
+        while (stack.length) {
+            const idx = stack.pop();
+            if (seen[idx]) continue;
+            const x = idx % COLS;
+            const y = (idx - x) / COLS;
+            if (grid[y][x] !== target) continue;
+
+            seen[idx] = 1;
+            out.push([x, y]);
+            if (x > 0)          stack.push(idx - 1);
+            if (x < COLS - 1)   stack.push(idx + 1);
+            if (y > 0)          stack.push(idx - COLS);
+            if (y < ROWS - 1)   stack.push(idx + COLS);
+        }
+
+        return out;
+    }
+
+    function doFloodFill(c, r, ch) {
+        if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
+        if (grid[r][c] === ch) return false;
+
+        const cells = getFloodCells(c, r);
+        if (!cells.length) return false;
+
+        pushHistory();
+        for (let i = 0; i < cells.length; i++) {
+            grid[cells[i][1]][cells[i][0]] = ch;
+        }
+        floodCacheKey = '';
+        return true;
+    }
+
+    function drawMarker(c, r, ch) {
+        const cx = c * CELL + CELL / 2;
+        const cy = r * CELL + CELL / 2;
+        const cfg = {
+            S: { color: '#4aff7a', label: 'S' },
+            E: { color: '#ffaa44', label: 'E' },
+            C: { color: '#ff4466', label: 'C' }
+        }[ch];
+        if (!cfg) return;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, CELL * 0.33, 0, Math.PI * 2);
+        ctx.fillStyle = cfg.color + '33';
+        ctx.fill();
+        ctx.strokeStyle = cfg.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = cfg.color;
+        ctx.font = 'bold 15px "Microsoft YaHei"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cfg.label, cx, cy + 1);
+    }
+
+    function drawBuildableWall(x, y) {
+        const grd = ctx.createLinearGradient(x, y, x, y + CELL);
+        grd.addColorStop(0, '#283b56');
+        grd.addColorStop(1, '#172338');
+        ctx.fillStyle = grd;
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+        ctx.strokeStyle = 'rgba(126, 200, 255, 0.75)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
+
+        const cx = x + CELL / 2, cy = y + CELL / 2, sz = CELL * 0.20;
+        ctx.strokeStyle = 'rgba(170, 225, 255, 0.9)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(cx - sz, cy); ctx.lineTo(cx + sz, cy);
+        ctx.moveTo(cx, cy - sz); ctx.lineTo(cx, cy + sz);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, sz * 1.35, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(126, 200, 255, 0.60)';
+        const p = 3, s = 3;
+        ctx.fillRect(x + p, y + p, s, s);
+        ctx.fillRect(x + CELL - p - s, y + p, s, s);
+        ctx.fillRect(x + p, y + CELL - p - s, s, s);
+        ctx.fillRect(x + CELL - p - s, y + CELL - p - s, s, s);
+    }
+
+    function drawEmptyFloorMark(x, y) {
+        const cx = x + CELL / 2, cy = y + CELL / 2;
+        const sz = Math.max(2, CELL * 0.14);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(126, 200, 255, 0.20)';
+        ctx.lineWidth = Math.max(1, CELL * 0.018);
+        ctx.beginPath(); ctx.arc(cx, cy, sz * 1.55, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(150, 210, 255, 0.42)';
+        ctx.lineWidth = Math.max(1, CELL * 0.024);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - sz, cy); ctx.lineTo(cx + sz, cy);
+        ctx.moveTo(cx, cy - sz); ctx.lineTo(cx, cy + sz);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(190, 230, 255, 0.60)';
+        ctx.beginPath(); ctx.arc(cx, cy, Math.max(1, CELL * 0.03), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    function drawCrossJunction(x, y) {
+        const cx = x + CELL / 2, cy = y + CELL / 2;
+        const a = CELL * 0.13;
+        const i = 1;
+
+        ctx.fillStyle = '#0a0f18';
+        ctx.fillRect(x, y, CELL, CELL);
+
+        ctx.beginPath();
+        ctx.moveTo(cx - a, y + i);
+        ctx.lineTo(cx + a, y + i);
+        ctx.lineTo(cx + a, cy - a);
+        ctx.lineTo(x + CELL - i, cy - a);
+        ctx.lineTo(x + CELL - i, cy + a);
+        ctx.lineTo(cx + a, cy + a);
+        ctx.lineTo(cx + a, y + CELL - i);
+        ctx.lineTo(cx - a, y + CELL - i);
+        ctx.lineTo(cx - a, cy + a);
+        ctx.lineTo(x + i, cy + a);
+        ctx.lineTo(x + i, cy - a);
+        ctx.lineTo(cx - a, cy - a);
+        ctx.closePath();
+
+        ctx.fillStyle = 'rgba(167, 139, 250, 0.16)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(167, 139, 250, 0.80)';
+        ctx.lineWidth = Math.max(1, CELL * 0.035);
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        const armLen = CELL * 0.16;
+        const head = CELL * 0.07;
+        ctx.strokeStyle = 'rgba(200, 180, 255, 0.85)';
+        ctx.lineWidth = Math.max(1, CELL * 0.028);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        ctx.moveTo(cx, cy - a - armLen); ctx.lineTo(cx, cy - a);
+        ctx.moveTo(cx - head, cy - a - armLen + head); ctx.lineTo(cx, cy - a - armLen);
+        ctx.lineTo(cx + head, cy - a - armLen + head);
+
+        ctx.moveTo(cx, cy + a + armLen); ctx.lineTo(cx, cy + a);
+        ctx.moveTo(cx - head, cy + a + armLen - head); ctx.lineTo(cx, cy + a + armLen);
+        ctx.lineTo(cx + head, cy + a + armLen - head);
+
+        ctx.moveTo(cx - a - armLen, cy); ctx.lineTo(cx - a, cy);
+        ctx.moveTo(cx - a - armLen + head, cy - head); ctx.lineTo(cx - a - armLen, cy);
+        ctx.lineTo(cx - a - armLen + head, cy + head);
+
+        ctx.moveTo(cx + a + armLen, cy); ctx.lineTo(cx + a, cy);
+        ctx.moveTo(cx + a + armLen - head, cy - head); ctx.lineTo(cx + a + armLen, cy);
+        ctx.lineTo(cx + a + armLen - head, cy + head);
+
+        ctx.stroke();
+    }
+
+    function draw() {
+        let g = grid;
+        if (drag && drag.preview) g = drag.preview;
+        else if (crop && crop.phase === 'float') g = buildCropPreview();
+
+        ctx.clearRect(0, 0, W, H);
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const x = c * CELL, y = r * CELL;
+                const ch = g[r][c];
+
+                if (ch === '#') {
+                    ctx.fillStyle = '#1b2b45';
+                    ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+                    ctx.strokeStyle = 'rgba(110,160,220,0.28)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
+                    ctx.fillStyle = 'rgba(150,200,255,0.09)';
+                    ctx.fillRect(x + 5, y + 5, CELL - 10, 3);
+                } else if (ch === 'X') {
+                    drawBuildableWall(x, y);
+                } else if (ch === '+') {
+                    drawCrossJunction(x, y);
+                } else if (ch === 'o') {
+                    ctx.fillStyle = '#0a0f18';
+                    ctx.fillRect(x, y, CELL, CELL);
+                    drawEmptyFloorMark(x, y);
+                } else {
+                    ctx.fillStyle = '#0a0f18';
+                    ctx.fillRect(x, y, CELL, CELL);
+                }
+            }
+        }
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const ch = g[r][c];
+                if (isMarkerChar(ch)) drawMarker(c, r, ch);
+            }
+        }
+
+        ctx.strokeStyle = 'rgba(45,75,110,0.40)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (let i = 0; i <= COLS; i++) {
+            ctx.moveTo(i * CELL + 0.5, 0);
+            ctx.lineTo(i * CELL + 0.5, H);
+        }
+        for (let i = 0; i <= ROWS; i++) {
+            ctx.moveTo(0, i * CELL + 0.5);
+            ctx.lineTo(W, i * CELL + 0.5);
+        }
+        ctx.stroke();
+
+        if (mode === 'flood' && hover && !(crop && crop.phase === 'float')) {
+            drawFloodPreview();
+        }
+
+        if (hover && hover.c < COLS && hover.r < ROWS && !(crop && crop.phase === 'float')) {
+            ctx.strokeStyle = 'rgba(126,200,255,0.95)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(hover.c * CELL + 1, hover.r * CELL + 1, CELL - 2, CELL - 2);
+        }
+
+        if (drag && drag.preview) {
+            ctx.strokeStyle = 'rgba(255,217,102,0.95)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 3]);
+            ctx.strokeRect(drag.start.c * CELL + 1, drag.start.r * CELL + 1, CELL - 2, CELL - 2);
+            ctx.strokeRect(drag.cur.c * CELL + 1, drag.cur.r * CELL + 1, CELL - 2, CELL - 2);
+            ctx.setLineDash([]);
+        }
+
+        if (crop) drawCropOverlay();
+    }
+
+    function drawFloodPreview() {
+        if (hover.c >= COLS || hover.r >= ROWS) return;
+        if (grid[hover.r][hover.c] === brushChar) return;
+
+        const key = hover.c + ',' + hover.r + '|' + grid[hover.r][hover.c] + '|' + brushChar;
+        if (key !== floodCacheKey) {
+            floodCacheKey = key;
+            floodCacheCells = getFloodCells(hover.c, hover.r);
+        }
+
+        const cells = floodCacheCells;
+        if (!cells || !cells.length) return;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(126, 200, 255, 0.16)';
+        for (let i = 0; i < cells.length; i++) {
+            ctx.fillRect(cells[i][0] * CELL + 1, cells[i][1] * CELL + 1, CELL - 2, CELL - 2);
+        }
+        ctx.restore();
+    }
+
+    function drawCropOverlay() {
+        let c0, r0, w, h, filled;
+        if (crop.phase === 'select') {
+            c0 = Math.min(crop.start.c, crop.cur.c);
+            r0 = Math.min(crop.start.r, crop.cur.r);
+            w = Math.abs(crop.cur.c - crop.start.c) + 1;
+            h = Math.abs(crop.cur.r - crop.start.r) + 1;
+            filled = true;
+        } else {
+            c0 = crop.dest.c;
+            r0 = crop.dest.r;
+            w = crop.w;
+            h = crop.h;
+            filled = false;
+        }
+
+        const x = c0 * CELL, y = r0 * CELL, pw = w * CELL, ph = h * CELL;
+        ctx.save();
+
+        if (filled) {
+            ctx.fillStyle = 'rgba(126,200,255,0.10)';
+            ctx.fillRect(x, y, pw, ph);
+        }
+
+        ctx.strokeStyle = 'rgba(126,200,255,0.95)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = 'rgba(160,220,255,1)';
+        ctx.lineWidth = 2.5;
+        const k = Math.min(9, pw / 3, ph / 3);
+        ctx.beginPath();
+        ctx.moveTo(x, y + k);       ctx.lineTo(x, y);       ctx.lineTo(x + k, y);
+        ctx.moveTo(x + pw - k, y);  ctx.lineTo(x + pw, y);  ctx.lineTo(x + pw, y + k);
+        ctx.moveTo(x, y + ph - k);  ctx.lineTo(x, y + ph);  ctx.lineTo(x + k, y + ph);
+        ctx.moveTo(x + pw - k, y + ph); ctx.lineTo(x + pw, y + ph); ctx.lineTo(x + pw, y + ph - k);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function finishCropSelect() {
+        const a = crop.start, b = crop.cur;
+        const c0 = Math.min(a.c, b.c), c1 = Math.max(a.c, b.c);
+        const r0 = Math.min(a.r, b.r), r1 = Math.max(a.r, b.r);
+        const w = c1 - c0 + 1, h = r1 - r0 + 1;
+
+        const data = [];
+        for (let r = 0; r < h; r++) {
+            const row = [];
+            for (let k = 0; k < w; k++) row.push(grid[r0 + r][c0 + k]);
+            data.push(row);
+        }
+
+        crop = {
+            phase: 'float',
+            src: { c: c0, r: r0 },
+            dest: { c: c0, r: r0 },
+            off: { dc: crop.cur.c - c0, dr: crop.cur.r - r0 },
+            data: data,
+            w: w,
+            h: h
+        };
+    }
+
+    function updateCropDest(cell) {
+        if (!crop || crop.phase !== 'float') return;
+        let dc = cell.c - crop.off.dc;
+        let dr = cell.r - crop.off.dr;
+        dc = Math.max(0, Math.min(COLS - crop.w, dc));
+        dr = Math.max(0, Math.min(ROWS - crop.h, dr));
+        crop.dest = { c: dc, r: dr };
+    }
+
+    function buildCropPreview() {
+        const g = grid.map(row => row.slice());
+        const c = crop;
+
+        for (let r = 0; r < c.h; r++)
+            for (let k = 0; k < c.w; k++)
+                g[c.src.r + r][c.src.c + k] = '.';
+
+        for (let r = 0; r < c.h; r++) {
+            for (let k = 0; k < c.w; k++) {
+                const tr = c.dest.r + r, tc = c.dest.c + k;
+                if (tr >= 0 && tr < ROWS && tc >= 0 && tc < COLS)
+                    g[tr][tc] = c.data[r][k];
+            }
+        }
+
+        return g;
+    }
+
+    function commitCrop() {
+        if (!crop || crop.phase !== 'float') { crop = null; return; }
+
+        const c = crop;
+        crop = null;
+        pushHistory();
+
+        for (let r = 0; r < c.h; r++)
+            for (let k = 0; k < c.w; k++)
+                grid[c.src.r + r][c.src.c + k] = '.';
+
+        for (let r = 0; r < c.h; r++) {
+            for (let k = 0; k < c.w; k++) {
+                const tr = c.dest.r + r, tc = c.dest.c + k;
+                if (tr >= 0 && tr < ROWS && tc >= 0 && tc < COLS)
+                    grid[tr][tc] = c.data[r][k];
+            }
+        }
+
+        floodCacheKey = '';
+        refreshAll();
+    }
+
+    function esc(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function buildCodeText() {
+        const name = nameIn.value.trim() || '自定义地图';
+        const money = parseInt(moneyIn.value, 10);
+        const lines = grid.map(row => row.join(''));
+
+        let txt = '{\n';
+        txt += `    name: '${name}', startMoney: ${isNaN(money) ? 1500 : money},\n`;
+        txt += `    cols: ${COLS}, rows: ${ROWS},\n`;
+        txt += '    map: [\n';
+        for (let i = 0; i < lines.length; i++) {
+            txt += `        "${lines[i]}"${i < lines.length - 1 ? ',' : ''}\n`;
+        }
+        txt += '    ]\n';
+        txt += '}';
+        return txt;
+    }
+
+    function updateCode() {
+        const txt = buildCodeText();
+        let html = esc(txt);
+        html = html.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
+        html = html.replace(/'[^']*'/g, m => `<span class="str">${m}</span>`);
+        codeEl.innerHTML = html;
+    }
+
+    function updateStatus() {
+        let s = 0, e = 0, c = 0, x = 0, o = 0, cross = 0;
+        for (let r = 0; r < ROWS; r++) {
+            for (let col = 0; col < COLS; col++) {
+                const ch = grid[r][col];
+                if (ch === 'S') s++;
+                else if (ch === 'E') e++;
+                else if (ch === 'C') c++;
+                else if (ch === 'X') x++;
+                else if (ch === 'o') o++;
+                else if (ch === '+') cross++;
+            }
+        }
+
+        const warns = [];
+        if (s === 0) warns.push('缺少出怪点 S');
+        if (c === 0) warns.push('缺少基地 C');
+        if (e === 0) warns.push('无独立出口 E（S 将兼作出口）');
+
+        let html = `<span>📐 <b>${COLS}×${ROWS}</b></span>`
+                 + `<span>🟢 S × <b>${s}</b></span>`
+                 + `<span>🟠 E × <b>${e}</b></span>`
+                 + `<span>🔴 C × <b>${c}</b></span>`
+                 + `<span style="color:#7ec8ff;">🎯 X × <b>${x}</b></span>`
+                 + `<span style="color:#88ffcc;">⬜ o × <b>${o}</b></span>`
+                 + `<span style="color:#c0a8ff;">✚ + × <b>${cross}</b></span>`;
+
+        if (warns.length) {
+            html += `<span class="warn">⚠ ${warns.join(' · ')}</span>`;
+        } else {
+            html += `<span class="ok">✔ 地图结构完整</span>`;
+        }
+
+        statusEl.innerHTML = html;
+    }
+
+    function refreshAll() {
+        draw();
+        updateCode();
+        updateStatus();
+    }
+
+    function pushHistory() {
+        history.push({ cols: COLS, rows: ROWS, g: grid.map(row => row.join('')) });
+        if (history.length > 120) history.shift();
+    }
+
+    function undo() {
+        if (!history.length) return;
+        const snap = history.pop();
+        COLS = snap.cols;
+        ROWS = snap.rows;
+        grid = snap.g.map(s => s.split(''));
+        resetEditState();
+        applyCanvasSize();
+        syncSizeInputs();
+        refreshAll();
+    }
+
+    function getCell(e) {
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        const sx = canvas.width / rect.width;
+        const sy = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * sx;
+        const y = (e.clientY - rect.top) * sy;
+        const c = Math.floor(x / CELL);
+        const r = Math.floor(y / CELL);
+        if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
+        return { c, r };
+    }
+
+    function paintLine(a, b, ch) {
+        if (!a) { grid[b.r][b.c] = ch; return; }
+        bresenham(a.c, a.r, b.c, b.r, (c, r) => { grid[r][c] = ch; });
+    }
+
+    function updatePreview() {
+        if (!drag) return;
+        const g = grid.map(row => row.slice());
+        applyShape(g, drag.start, drag.cur, drag.shapeTool, drag.char);
+        drag.preview = g;
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 && e.button !== 2) return;
+        const cell = getCell(e);
+        if (!cell) return;
+
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        hover = cell;
+
+        if (mode === 'crop') {
+            if (crop && crop.phase === 'float') {
+                if (e.button === 2) crop = null;
+                else commitCrop();
+                draw();
+                return;
+            }
+            if (e.button === 2) { draw(); return; }
+            crop = { phase: 'select', start: cell, cur: cell };
+            draw();
+            return;
+        }
+
+        if (crop) crop = null;
+
+        if (mode === 'flood') {
+            const fch = (e.button === 2) ? '.' : brushChar;
+            doFloodFill(cell.c, cell.r, fch);
+            draw();
+            updateCode();
+            updateStatus();
+            return;
+        }
+
+        pushHistory();
+        const erase = (e.button === 2);
+        const ch = erase ? '.' : brushChar;
+
+        if (isShapeMode(mode)) {
+            drag = {
+                start: cell,
+                cur: cell,
+                preview: null,
+                char: ch,
+                shapeTool: mode
+            };
+            updatePreview();
+        } else {
+            dragging = true;
+            strokeChar = ch;
+            lastPainted = null;
+            paintLine(null, cell, ch);
+            if (!isMarkerChar(ch)) lastPainted = cell;
+        }
+
+        floodCacheKey = '';
+        draw();
+        updateCode();
+        updateStatus();
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+        const cell = getCell(e);
+        hover = cell;
+
+        if (crop) {
+            if (crop.phase === 'select' && cell) {
+                crop.cur = cell;
+            } else if (crop.phase === 'float' && cell) {
+                updateCropDest(cell);
+            }
+            draw();
+            return;
+        }
+
+        if (dragging && cell) {
+            paintLine(lastPainted, cell, strokeChar);
+            lastPainted = isMarkerChar(strokeChar) ? null : cell;
+            floodCacheKey = '';
+            updateCode();
+            updateStatus();
+            draw();
+            return;
+        }
+
+        if (drag && cell) {
+            drag.cur = cell;
+            updatePreview();
+            draw();
+            return;
+        }
+
+        draw();
+    });
+
+    function endStroke(e) {
+        if (crop && crop.phase === 'select') {
+            finishCropSelect();
+            draw();
+        }
+
+        if (dragging) {
+            dragging = false;
+            lastPainted = null;
+        }
+
+        if (drag) {
+            if (drag.preview) grid = drag.preview;
+            drag = null;
+            floodCacheKey = '';
+            updateCode();
+            updateStatus();
+        }
+
+        if (e && e.pointerId !== undefined && canvas.hasPointerCapture(e.pointerId)) {
+            try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        }
+
+        draw();
+    }
+
+    canvas.addEventListener('pointerup', endStroke);
+    canvas.addEventListener('pointercancel', endStroke);
+    canvas.addEventListener('pointerleave', () => {
+        hover = null;
+        if (!dragging && !drag && !crop) draw();
+    });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    document.querySelectorAll('button.tool[data-char]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('button.tool[data-char]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            brushChar = btn.dataset.char;
+            floodCacheKey = '';
+            draw();
+        });
+    });
+
+    document.querySelectorAll('button.tool[data-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('button.tool[data-mode]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            mode = btn.dataset.mode;
+            drag = null;
+            dragging = false;
+            lastPainted = null;
+            crop = null;
+            floodCacheKey = '';
+            canvas.style.cursor = (mode === 'crop') ? 'move'
+                                : (mode === 'flood') ? 'cell'
+                                : 'crosshair';
+            draw();
+        });
+    });
+
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    
+    document.getElementById('hybridGenBtn').addEventListener('click', createHybridMap);
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        pushHistory();
+        grid = blankGrid();
+        resetEditState();
+        refreshAll();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        pushHistory();
+        grid = defaultGrid();
+        resetEditState();
+        refreshAll();
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+        const txt = buildCodeText();
+        const btn = document.getElementById('copyBtn');
+        try {
+            await navigator.clipboard.writeText(txt);
+        } catch (err) {
+            const ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e2) { /* ignore */ }
+            document.body.removeChild(ta);
+        }
+        const old = btn.textContent;
+        btn.textContent = '✔ 已复制';
+        setTimeout(() => { btn.textContent = old; }, 1100);
+    });
+
+    [nameIn, moneyIn, rectCountIn, rectMinIn, rectMaxIn].forEach(inp => {
+    inp.addEventListener('input', updateCode);
+});
+
+[wInpIn, wXIn, wOIn, wDotIn].forEach(inp => {
+    inp.addEventListener('input', () => {
+        updateStatus();
+    });
+});
+
+    pathOIn.addEventListener('input', () => {
+        pathOPct.textContent = pathOIn.value + '%';
+    });
+
+    document.getElementById('applyPathOBtn').addEventListener('click', () => {
+        const ratio = getPathORatio();
+        if (ratio <= 0) {
+            toast('当前比例为 0%，未转换');
+            return;
+        }
+        pushHistory();
+        const n = applyPathOConversion(grid, ratio);
+        floodCacheKey = '';
+        refreshAll();
+        toast(`已按 ${pathOIn.value}% 比例把 ${n} 个通路转为 o`);
+    });
+
+    // ===== 新增：随机地图名按钮 =====
+    document.getElementById('randNameBtn').addEventListener('click', () => {
+        nameIn.value = randomMapName();
+        updateCode();
+        toast(`🎲 地图名：${nameIn.value}`);
+    });
+
+    colsIn.addEventListener('change', () => {
+        setSize(clampInt(colsIn.value, MIN_COLS, MAX_COLS, COLS), ROWS);
+    });
+    rowsIn.addEventListener('change', () => {
+        setSize(COLS, clampInt(rowsIn.value, MIN_ROWS, MAX_ROWS, ROWS));
+    });
+
+    const CHAR_KEYS = { '1': '#', '2': 'X', '3': '.', '4': 'o', '5': 'S', '6': 'E', '7': 'C', '8': '+' };
+    const MODE_KEYS = { 'b': 'brush', 'l': 'line', 'r': 'rect', 'f': 'fillrect', 'g': 'flood', 'm': 'crop' };
+
+    window.addEventListener('keydown', (e) => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+
+        if (e.key === 'Escape') {
+            if (crop) { crop = null; draw(); }
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            e.preventDefault();
+            undo();
+            return;
+        }
+
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (e.key === 'G') {
+            e.preventDefault();
+            generateRandomMap();
+            return;
+        }
+
+        const ch = CHAR_KEYS[e.key];
+        if (ch) {
+            e.preventDefault();
+            const btn = document.querySelector(`button.tool[data-char="${ch}"]`);
+            if (btn) btn.click();
+            return;
+        }
+
+        const m = MODE_KEYS[e.key.toLowerCase()];
+        if (m) {
+            e.preventDefault();
+            const btn = document.querySelector(`button.tool[data-mode="${m}"]`);
+            if (btn) btn.click();
+        }
+    });
+
+    const GEN_DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+    function randInt(a, b) {
+        if (b < a) b = a;
+        return a + Math.floor(Math.random() * (b - a + 1));
+    }
+
+    function MinHeap() { this.a = []; }
+    MinHeap.prototype.isEmpty = function () { return this.a.length === 0; };
+    MinHeap.prototype.push = function (item, pri) {
+        const a = this.a;
+        a.push([pri, item]);
+        let i = a.length - 1;
+        while (i > 0) {
+            const p = (i - 1) >> 1;
+            if (a[p][0] <= a[i][0]) break;
+            const t = a[p]; a[p] = a[i]; a[i] = t;
+            i = p;
+        }
+    };
+    MinHeap.prototype.pop = function () {
+        const a = this.a;
+        const top = a[0][1];
+        const last = a.pop();
+        if (a.length) {
+            a[0] = last;
+            let i = 0;
+            for (;;) {
+                const l = i * 2 + 1, r = l + 1;
+                let m = i;
+                if (l < a.length && a[l][0] < a[m][0]) m = l;
+                if (r < a.length && a[r][0] < a[m][0]) m = r;
+                if (m === i) break;
+                const t = a[m]; a[m] = a[i]; a[i] = t;
+                i = m;
+            }
+        }
+        return top;
+    };
+
+    function smoothNoise(w, h) {
+        let a = new Float32Array(w * h);
+        for (let i = 0; i < a.length; i++) a[i] = Math.random();
+        for (let pass = 0; pass < 3; pass++) {
+            const b = new Float32Array(w * h);
+            for (let r = 0; r < h; r++) {
+                for (let c = 0; c < w; c++) {
+                    let s = 0, n = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const rr = r + dr, cc = c + dc;
+                            if (rr < 0 || rr >= h || cc < 0 || cc >= w) continue;
+                            s += a[rr * w + cc]; n++;
+                        }
+                    }
+                    b[r * w + c] = s / n;
+                }
+            }
+            a = b;
+        }
+        return a;
+    }
+
+    function findWindingPath(sc, sr, gc, gr, cellCost) {
+        const N = COLS * ROWS;
+        const dist = new Float64Array(N).fill(Infinity);
+        const prev = new Int32Array(N).fill(-1);
+        const dir = new Int8Array(N).fill(-1);
+        const heap = new MinHeap();
+
+        dist[sr * COLS + sc] = 0;
+        heap.push({ c: sc, r: sr }, 0);
+
+        while (!heap.isEmpty()) {
+            const cur = heap.pop();
+            const ci = cur.c + cur.r * COLS;
+            if (cur.c === gc && cur.r === gr) break;
+
+            for (let d = 0; d < 4; d++) {
+                const nc = cur.c + GEN_DIRS[d][0];
+                const nr = cur.r + GEN_DIRS[d][1];
+                if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+
+                const ni = nr * COLS + nc;
+                let cost = cellCost[nr * COLS + nc];
+                if (dir[ci] !== -1 && dir[ci] !== d) cost += 0.6;
+
+                const nd = dist[ci] + cost;
+                if (nd < dist[ni]) {
+                    dist[ni] = nd;
+                    prev[ni] = ci;
+                    dir[ni] = d;
+                    heap.push({ c: nc, r: nr }, nd);
+                }
+            }
+        }
+
+        if (dist[gr * COLS + gc] === Infinity) return null;
+
+        const path = [];
+        let idx = gr * COLS + gc;
+        while (idx !== -1) {
+            path.push({ c: idx % COLS, r: (idx - (idx % COLS)) / COLS });
+            idx = prev[idx];
+        }
+        path.reverse();
+        return path;
+    }
+
+    function generateRandomMap() {
+    pushHistory();
+
+    const cellCost = smoothNoise(COLS, ROWS);
+    for (let i = 0; i < cellCost.length; i++) {
+        cellCost[i] = 0.35 + cellCost[i] * 1.55;
+    }
+
+    const sc = 1, sr = 1;
+    const gc = COLS - 2, gr = ROWS - 2;
+
+    const path = findWindingPath(sc, sr, gc, gr, cellCost);
+
+    const g = [];
+    for (let r = 0; r < ROWS; r++) {
+        const row = [];
+        for (let c = 0; c < COLS; c++) row.push('#');
+        g.push(row);
+    }
+
+    if (path) {
+        for (const p of path) {
+            if (p.r >= 0 && p.r < ROWS && p.c >= 0 && p.c < COLS) {
+                g[p.r][p.c] = '.';
+            }
+        }
+    } else {
+        for (let c = 0; c < COLS; c++) g[1][c] = '.';
+        for (let r = 0; r < ROWS; r++) g[r][COLS - 2] = '.';
+    }
+
+    decorateWalls(g);
+
+    g[sr][sc] = 'S';
+    g[gr][gc] = 'C';
+
+    const emptyCells = [];
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (g[r][c] === '.') emptyCells.push({ c, r });
+        }
+    }
+    shuffle(emptyCells);
+
+    const sTarget = randInt(1, 4);
+    const eTarget = randInt(0, 2);
+    const cTarget = randInt(1, 4);
+
+    const extra = [];
+    for (let i = 0; i < sTarget - 1; i++) extra.push('S');
+    for (let i = 0; i < eTarget;     i++) extra.push('E');
+    for (let i = 0; i < cTarget - 1; i++) extra.push('C');
+    shuffle(extra);
+
+    const n = Math.min(extra.length, emptyCells.length);
+    for (let i = 0; i < n; i++) {
+        const cell = emptyCells[i];
+        g[cell.r][cell.c] = extra[i];
+    }
+
+    const oCount = applyPathOConversion(g, getPathORatio());
+    const connBroken = ensureConnectivity(g);
+    const fixedCount = fixIsolatedCells(g);
+
+    grid = g;
+    resetEditState();
+    refreshAll();
+    let msg = "🎲 随机曲折地图已生成";
+    if (oCount) msg += `（${oCount} 个通路转为 o）`;
+    if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
+    if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
+    toast(msg);
+}
+
+    const genBtn = document.getElementById('genBtn');
+if (genBtn) genBtn.addEventListener('click', generateRandomMap);
+
+    applyCanvasSize();
+    syncSizeInputs();
+    refreshAll();
+
+})();
+</script>
+</body>
+</html>
