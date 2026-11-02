@@ -630,27 +630,15 @@
   <footer>
     <div class="wrap">
       <p>© <span id="year">2026</span> NonComtGr · 用 <span class="heart">♥</span> 和原生 JavaScript 构建</p>
-      <p style="margin:6px 0 0;font-size:12px;opacity:.6">本站不收集任何用户数据 · 本机访问次数：<span id="visitCount">0</span></p>
+      <p style="margin:6px 0 0;font-size:12px;opacity:.6">本站总访问量：<span id="busuanzi_value_site_pv">加载中...</span> 次</p>
     </div>
   </footer>
 </div>
+<!-- 不蒜子统计脚本 -->
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <script>
 (function () {
   'use strict';
-
-  /* ========== 访问次数统计（本地浏览器 localStorage） ========== */
-  function initVisitCounter(){
-    let count = localStorage.getItem("site_visit_count");
-    if(count === null){
-      count = 1;
-    }else{
-      count = Number(count) + 1;
-    }
-    localStorage.setItem("site_visit_count", String(count));
-    const el = document.getElementById("visitCount");
-    if(el) el.textContent = count;
-  }
-  initVisitCounter();
 
   /* =========================================================
      1. 游戏数据 —— 增删游戏只改这里
