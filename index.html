@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>NonComtGr · JS 小游戏实验室</title>
 <meta name="description" content="用原生 JavaScript 写的小游戏合集 —— 无需安装，点开即玩。" />
-
 <style>
   /* ===================== 基础变量 ===================== */
   :root{
@@ -17,19 +16,15 @@
     --c1:        #7c5cff;
     --c2:        #00d4ff;
     --c3:        #ff2e88;
-
     --wrap: 1120px;
     --radius: 18px;
   }
-
   *{ box-sizing: border-box; }
-
   html{
     scroll-behavior: smooth;
     scroll-padding-top: 90px;
     -webkit-text-size-adjust: 100%;
   }
-
   body{
     margin: 0;
     min-height: 100vh;
@@ -41,7 +36,6 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
-
   /* 背景氛围光 */
   body::before{
     content:"";
@@ -53,11 +47,8 @@
       radial-gradient(800px 480px at 92% 4%,   rgba(0,212,255,.14),  transparent 62%),
       radial-gradient(700px 500px at 50% 108%, rgba(255,46,136,.10), transparent 60%);
   }
-
   a{ color: inherit; }
-
   ::selection{ background: rgba(124,92,255,.45); color:#fff; }
-
   /* ===================== 背景层 ===================== */
   #bg{
     position: fixed; inset: 0;
@@ -65,7 +56,6 @@
     display: block;
     pointer-events: none;
   }
-
   .cursor-glow{
     position: fixed;
     top: 0; left: 0;
@@ -80,17 +70,14 @@
     will-change: transform;
   }
   .cursor-glow.on{ opacity: 1; }
-
   /* 页面主体（压在背景层之上） */
   .page{ position: relative; z-index: 1; }
-
   .wrap{
     width: 100%;
     max-width: var(--wrap);
     margin-inline: auto;
     padding-inline: 22px;
   }
-
   /* ===================== 导航 ===================== */
   .nav{
     position: sticky;
@@ -145,7 +132,6 @@
     color: var(--text);
     background: rgba(255,255,255,.06);
   }
-
   /* ===================== Hero ===================== */
   .hero{
     padding: 84px 0 66px;
@@ -169,7 +155,6 @@
     0%,100%{ transform: translateY(0); }
     50%    { transform: translateY(-9px); }
   }
-
   .hero h1{
     margin: 0 0 14px;
     font-size: clamp(30px, 6vw, 52px);
@@ -188,14 +173,12 @@
   @keyframes shimmer{
     to{ background-position: 220% center; }
   }
-
   .hero .lead{
     max-width: 620px;
     margin: 0 auto 32px;
     color: var(--muted);
     font-size: clamp(14px, 2.2vw, 16.5px);
   }
-
   .actions{
     display: flex;
     justify-content: center;
@@ -218,14 +201,12 @@
   }
   .btn:hover{ transform: translateY(-2px); }
   .btn:active{ transform: translateY(0); }
-
   .btn-primary{
     background: linear-gradient(100deg, var(--c1), var(--c2));
     color: #08080f;
     box-shadow: 0 12px 34px -12px rgba(124,92,255,.95);
   }
   .btn-primary:hover{ box-shadow: 0 16px 40px -10px rgba(0,212,255,.85); }
-
   .btn-ghost{
     background: rgba(255,255,255,.04);
     border-color: var(--line);
@@ -235,7 +216,6 @@
     background: rgba(255,255,255,.09);
     border-color: rgba(124,92,255,.5);
   }
-
   .stats{
     display: flex;
     justify-content: center;
@@ -263,10 +243,8 @@
     color: var(--muted);
     letter-spacing: .4px;
   }
-
   /* ===================== 区块通用 ===================== */
   section{ padding: 34px 0 40px; }
-
   .sec-head{
     margin-bottom: 30px;
   }
@@ -291,7 +269,6 @@
     color: var(--c2);
     opacity: .9;
   }
-
   /* ===================== 游戏卡片 ===================== */
   .games-grid{
     display: grid;
@@ -299,7 +276,6 @@
     gap: 20px;
   }
   .games-grid > .reveal{ display: flex; }
-
   .card{
     position: relative;
     flex: 1;
@@ -329,7 +305,6 @@
     );
   }
   .card:hover::after{ opacity: 1; }
-
   .card-link{
     display: flex;
     flex-direction: column;
@@ -342,7 +317,6 @@
     outline-offset: 3px;
     border-radius: var(--radius);
   }
-
   .thumb{
     position: relative;
     height: 118px;
@@ -375,7 +349,6 @@
     transition: transform .45s cubic-bezier(.2,.8,.3,1.2);
   }
   .card:hover .thumb .emoji{ transform: scale(1.16) rotate(-7deg); }
-
   .play-badge{
     position: absolute;
     top: 12px; right: 12px;
@@ -396,7 +369,6 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
-
   .card-body{
     display: flex;
     flex-direction: column;
@@ -444,7 +416,6 @@
     background: rgba(255,255,255,.05);
     border: 1px solid rgba(255,255,255,.07);
   }
-
   /* ===================== 关于 ===================== */
   .about-grid{
     display: grid;
@@ -469,7 +440,6 @@
     font-size: 14.3px;
   }
   .panel p:last-child{ margin-bottom: 0; }
-
   .skill-list{
     display: flex;
     flex-wrap: wrap;
@@ -484,7 +454,6 @@
     background: linear-gradient(180deg, rgba(124,92,255,.16), rgba(124,92,255,.06));
     border: 1px solid rgba(124,92,255,.26);
   }
-
   .contact-list{
     list-style: none;
     margin: 0;
@@ -519,7 +488,6 @@
     background: rgba(255,255,255,.06);
     font-size: 15px;
   }
-
   /* ===================== 页脚 ===================== */
   footer{
     margin-top: 40px;
@@ -530,7 +498,6 @@
     font-size: 13px;
   }
   footer .heart{ color: var(--c3); }
-
   /* ===================== 入场动画 ===================== */
   .reveal{
     opacity: 0;
@@ -542,7 +509,6 @@
     opacity: 1;
     transform: none;
   }
-
   /* ===================== 响应式 ===================== */
   @media (max-width: 820px){
     .about-grid{ grid-template-columns: 1fr; }
@@ -555,7 +521,6 @@
     .stat b{ font-size: 19px; }
     .cursor-glow{ display: none; }
   }
-
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
     html{ scroll-behavior: auto; }
@@ -563,14 +528,10 @@
   }
 </style>
 </head>
-
 <body id="top">
-
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="cursor-glow" id="glow" aria-hidden="true"></div>
-
 <div class="page">
-
   <!-- ================= 导航 ================= -->
   <nav class="nav">
     <div class="wrap nav-inner">
@@ -584,7 +545,6 @@
       </div>
     </div>
   </nav>
-
   <!-- ================= Hero ================= -->
   <header class="hero wrap">
     <div class="avatar reveal" aria-hidden="true">🎮</div>
@@ -593,13 +553,11 @@
       一个在 DeepSeek 辅助下用 JavaScript 写小游戏的人。<br />
       这里没有安装包、没有账号、没有广告 —— 点开就玩，关掉就走。
     </p>
-
     <div class="actions reveal">
       <a class="btn btn-primary" href="#games">🎯 挑一个开始玩</a>
       <a class="btn btn-ghost" href="#about">看看我是谁</a>
     </div>
   </header>
-
   <!-- ================= 游戏列表 ================= -->
   <section id="games">
     <div class="wrap">
@@ -608,13 +566,11 @@
         <h2>小游戏合集</h2>
         
       </div>
-
       <div class="games-grid" id="gamesGrid">
         <!-- 卡片由 JS 渲染，见下方 games 数组 -->
       </div>
     </div>
   </section>
-
   <!-- ================= 关于 ================= -->
   <section id="about">
     <div class="wrap">
@@ -623,7 +579,6 @@
         <h2>关于这个站点</h2>
         <p>一个用来放实验作品的地方。</p>
       </div>
-
       <div class="about-grid">
         <div class="panel reveal">
           <h3>👋 写在前头</h3>
@@ -647,7 +602,6 @@
             <span>性能优化</span>
           </div>
         </div>
-
         <div class="panel reveal" id="contact">
           <h3>📮 找到我</h3>
           <p>发现 bug、想加功能，或者只是想说句话，都可以。</p>
@@ -672,20 +626,31 @@
       </div>
     </div>
   </section>
-
   <!-- ================= 页脚 ================= -->
   <footer>
     <div class="wrap">
       <p>© <span id="year">2026</span> NonComtGr · 用 <span class="heart">♥</span> 和原生 JavaScript 构建</p>
-      <p style="margin:6px 0 0;font-size:12px;opacity:.6">本站不收集任何用户数据</p>
+      <p style="margin:6px 0 0;font-size:12px;opacity:.6">本站不收集任何用户数据 · 本机访问次数：<span id="visitCount">0</span></p>
     </div>
   </footer>
-
 </div>
-
 <script>
 (function () {
   'use strict';
+
+  /* ========== 访问次数统计（本地浏览器 localStorage） ========== */
+  function initVisitCounter(){
+    let count = localStorage.getItem("site_visit_count");
+    if(count === null){
+      count = 1;
+    }else{
+      count = Number(count) + 1;
+    }
+    localStorage.setItem("site_visit_count", String(count));
+    const el = document.getElementById("visitCount");
+    if(el) el.textContent = count;
+  }
+  initVisitCounter();
 
   /* =========================================================
      1. 游戏数据 —— 增删游戏只改这里
@@ -710,6 +675,15 @@
       g1: '#22c55e', g2: '#0ea5e9'
     },
     {
+      title: '魔塔地图编辑器',
+      badge: '益智',
+      emoji: '',
+      desc: '',
+      tags: ['魔塔'],
+      href: 'games/魔塔地图编辑器.html',
+      g1: '#22c55e', g2: '#0ea5e9'
+    },
+    {
       title: '台球',
       badge: '',
       emoji: '',
@@ -719,22 +693,17 @@
       g1: '#f59e0b', g2: '#ef4444'
     }
   ];
-
   /* =========================================================
      2. 渲染游戏卡片
      ========================================================= */
   const grid = document.getElementById('gamesGrid');
-
   const frag = document.createDocumentFragment();
-
   games.forEach(function (g) {
     const reveal = document.createElement('div');
     reveal.className = 'reveal';
-
     const card = document.createElement('article');
     card.className = 'card';
     card.setAttribute('data-tilt', '');
-
     card.innerHTML =
       '<a class="card-link" href="' + g.href + '" aria-label="开始玩 ' + g.title + '">' +
         '<div class="thumb" style="--g1:' + g.g1 + ';--g2:' + g.g2 + '">' +
@@ -751,18 +720,14 @@
           '</div>' +
         '</div>' +
       '</a>';
-
     reveal.appendChild(card);
     frag.appendChild(reveal);
   });
-
   grid.appendChild(frag);
-
   /* =========================================================
      3. 滚动入场动画
      ========================================================= */
   const revealEls = document.querySelectorAll('.reveal');
-
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
@@ -772,7 +737,6 @@
         }
       });
     }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
     revealEls.forEach(function (el, i) {
       el.style.transitionDelay = (i % 4) * 70 + 'ms';
       io.observe(el);
@@ -780,39 +744,31 @@
   } else {
     revealEls.forEach(function (el) { el.classList.add('in'); });
   }
-
   /* =========================================================
      4. 卡片 3D 倾斜 + 高光跟随
      ========================================================= */
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   if (!reduceMotion) {
     document.querySelectorAll('[data-tilt]').forEach(function (card) {
       let rafId = null;
       let px = 0, py = 0;
-
       function apply() {
         card.style.transform =
           'perspective(800px) rotateX(' + (-py * 8).toFixed(2) + 'deg) ' +
           'rotateY(' + (px * 10).toFixed(2) + 'deg) translateY(-5px)';
         rafId = null;
       }
-
       card.addEventListener('pointermove', function (e) {
         if (e.pointerType === 'touch') return;
         const r = card.getBoundingClientRect();
         const x = e.clientX - r.left;
         const y = e.clientY - r.top;
-
         px = x / r.width - 0.5;
         py = y / r.height - 0.5;
-
         card.style.setProperty('--mx', x + 'px');
         card.style.setProperty('--my', y + 'px');
-
         if (rafId === null) rafId = requestAnimationFrame(apply);
       });
-
       card.addEventListener('pointerleave', function () {
         if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
         card.style.transform = '';
@@ -820,7 +776,6 @@
       });
     });
   }
-
   /* =========================================================
      5. 鼠标光晕
      ========================================================= */
@@ -829,14 +784,12 @@
   let glowY = window.innerHeight / 2;
   let curX = glowX, curY = glowY;
   let glowRaf = null;
-
   function glowLoop() {
     curX += (glowX - curX) * 0.14;
     curY += (glowY - curY) * 0.14;
     glow.style.transform = 'translate3d(' + curX.toFixed(1) + 'px,' + curY.toFixed(1) + 'px,0)';
     glowRaf = requestAnimationFrame(glowLoop);
   }
-
   if (window.matchMedia('(hover: hover)').matches && !reduceMotion) {
     window.addEventListener('pointermove', function (e) {
       glowX = e.clientX;
@@ -844,24 +797,19 @@
       glow.classList.add('on');
       if (glowRaf === null) glowRaf = requestAnimationFrame(glowLoop);
     }, { passive: true });
-
     document.addEventListener('mouseleave', function () {
       glow.classList.remove('on');
     });
   }
-
   /* =========================================================
      6. 背景粒子 + 连线
      ========================================================= */
   const canvas = document.getElementById('bg');
   const ctx = canvas.getContext('2d');
-
   let W = 0, H = 0;
   let dots = [];
   let rafId = null;
-
   const pointer = { x: -9999, y: -9999 };
-
   function buildDots() {
     const count = Math.min(84, Math.max(26, Math.round((W * H) / 17000)));
     dots = [];
@@ -875,41 +823,32 @@
       });
     }
   }
-
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth;
     H = window.innerHeight;
-
     canvas.width = Math.floor(W * dpr);
     canvas.height = Math.floor(H * dpr);
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
-
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     buildDots();
   }
-
   const LINK_DIST = 125;
   const LINK_DIST_SQ = LINK_DIST * LINK_DIST;
   const MOUSE_DIST_SQ = 150 * 150;
-
   function draw() {
     ctx.clearRect(0, 0, W, H);
-
     // 更新 & 绘制点
     for (let i = 0; i < dots.length; i++) {
       const d = dots[i];
-
       d.x += d.vx;
       d.y += d.vy;
-
       // 环绕边界
       if (d.x < -20) d.x = W + 20;
       else if (d.x > W + 20) d.x = -20;
       if (d.y < -20) d.y = H + 20;
       else if (d.y > H + 20) d.y = -20;
-
       // 鼠标轻微吸引
       const mdx = pointer.x - d.x;
       const mdy = pointer.y - d.y;
@@ -919,13 +858,11 @@
         d.x += mdx * f * 0.1;
         d.y += mdy * f * 0.1;
       }
-
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(150,165,255,.55)';
       ctx.fill();
     }
-
     // 连线
     for (let i = 0; i < dots.length; i++) {
       const a = dots[i];
@@ -934,7 +871,6 @@
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         const distSq = dx * dx + dy * dy;
-
         if (distSq < LINK_DIST_SQ) {
           const alpha = (1 - distSq / LINK_DIST_SQ) * 0.20;
           ctx.beginPath();
@@ -946,36 +882,29 @@
         }
       }
     }
-
     rafId = requestAnimationFrame(draw);
   }
-
   function startBg() {
     if (rafId === null) rafId = requestAnimationFrame(draw);
   }
   function stopBg() {
     if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
   }
-
   window.addEventListener('resize', function () {
     resize();
   }, { passive: true });
-
   window.addEventListener('pointermove', function (e) {
     pointer.x = e.clientX;
     pointer.y = e.clientY;
   }, { passive: true });
-
   window.addEventListener('pointerleave', function () {
     pointer.x = -9999;
     pointer.y = -9999;
   });
-
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopBg();
     else startBg();
   });
-
   resize();
   if (!reduceMotion) startBg();
   else {
@@ -988,14 +917,11 @@
       ctx.fill();
     });
   }
-
   /* =========================================================
      7. 页脚年份
      ========================================================= */
   document.getElementById('year').textContent = new Date().getFullYear();
-
 })();
 </script>
-
 </body>
 </html>
