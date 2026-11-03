@@ -356,6 +356,212 @@
             { id:'coreDelay',   name:'核心滞留', icon:'⏳', color:'#4affd0', desc:'携带核心的敌人被击杀后，核心原地停留 3 秒（可叠加，每层 +3 秒）' },
             { id:'dodge',       name:'闪避',     icon:'🌀', color:'#ff88dd', desc:'敌人获得 8% 闪避率' }
         ];
+        // ── 塔位联动（Synergy）系统 ──
+// 15 座塔两两组合共 C(15,2) = 105 种联动。
+// 每张联动卡使 A 塔获得加成，加成强度取决于 A 塔射程内 B 塔的数量。
+
+const SYN_MOD_TEXT = {
+    dmg:     { label: '伤害',     fmt: (v) => `+${Math.round(v * 100)}%` },
+    rate:    { label: '射速',     fmt: (v) => `+${Math.round(v * 100)}%` },
+    range:   { label: '射程',     fmt: (v) => `+${Math.round(v * 100)}%` },
+    crit:    { label: '暴击率',   fmt: (v) => `+${Math.round(v * 100)}%` },
+    slow:    { label: '减速效果', fmt: (v) => `+${Math.round(v * 100)}%` },
+    poison:  { label: '毒伤',     fmt: (v) => `+${Math.round(v * 100)}%` },
+    stun:    { label: '眩晕时长', fmt: (v) => `+${Math.round(v * 100)}%` },
+    splash:  { label: '溅射范围', fmt: (v) => `+${Math.round(v * 100)}%` },
+    burn:    { label: '灼烧伤害', fmt: (v) => `+${Math.round(v * 100)}%` },
+    harvest: { label: '回收效率', fmt: (v) => `+${Math.round(v * 100)}%` },
+    targets: { label: '额外目标', fmt: (v) => `+${v}` },
+    chain:   { label: '额外跳跃', fmt: (v) => `+${v}` },
+    pierce:  { label: '光束宽度', fmt: (v) => `+${Math.round(v * 100)}%` },
+    reveal:  { label: '侦测范围', fmt: (v) => `+${Math.round(v * 100)}%` }
+};
+
+const ROGUE_SYNERGIES = [
+    // ══════════ A = 机枪塔 ══════════
+    { id:'sy_gun_cannon',     a:'gun', b:'cannon',     name:'穿甲弹链', cap:5, mods:{ dmg:0.12 } },
+    { id:'sy_gun_missile',    a:'gun', b:'missile',    name:'追踪弹幕', cap:5, mods:{ rate:0.10 } },
+    { id:'sy_gun_temporal',   a:'gun', b:'temporal',   name:'寒霜弹链', cap:4, mods:{ crit:0.06 } },
+    { id:'sy_gun_laser',      a:'gun', b:'laser',      name:'激光校准', cap:5, mods:{ range:0.06 } },
+    { id:'sy_gun_shock',      a:'gun', b:'shock',      name:'电磁供弹', cap:4, mods:{ rate:0.08 } },
+    { id:'sy_gun_chain',      a:'gun', b:'chain',      name:'导电弹头', cap:5, mods:{ dmg:0.10 } },
+    { id:'sy_gun_sniper',     a:'gun', b:'sniper',     name:'精准校准', cap:3, mods:{ crit:0.07 } },
+    { id:'sy_gun_amplifier',  a:'gun', b:'amplifier',  name:'共振增幅', cap:4, mods:{ dmg:0.09 } },
+    { id:'sy_gun_railgun',    a:'gun', b:'railgun',    name:'磁化弹头', cap:4, mods:{ dmg:0.13 } },
+    { id:'sy_gun_venom',      a:'gun', b:'venom',      name:'毒弹涂层', cap:5, mods:{ dmg:0.11 } },
+    { id:'sy_gun_flak',       a:'gun', b:'flak',       name:'对空协同', cap:3, mods:{ rate:0.09 } },
+    { id:'sy_gun_prism',      a:'gun', b:'prism',      name:'光棱校准', cap:5, mods:{ crit:0.05 } },
+    { id:'sy_gun_emp',        a:'gun', b:'emp',        name:'脉冲供能', cap:4, mods:{ rate:0.07 } },
+    { id:'sy_gun_harvester',  a:'gun', b:'harvester',  name:'弹药回收', cap:5, mods:{ rate:0.06 } },
+
+    // ══════════ A = 炮塔 ══════════
+    { id:'sy_cannon_missile',   a:'cannon', b:'missile',   name:'饱和轰炸',   cap:4, mods:{ splash:0.25 } },
+    { id:'sy_cannon_temporal',  a:'cannon', b:'temporal',  name:'震荡弹',     cap:4, mods:{ dmg:0.15 } },
+    { id:'sy_cannon_laser',     a:'cannon', b:'laser',     name:'热能炮弹',   cap:3, mods:{ dmg:0.18 } },
+    { id:'sy_cannon_shock',     a:'cannon', b:'shock',     name:'冲击波',     cap:4, mods:{ splash:0.20 } },
+    { id:'sy_cannon_chain',     a:'cannon', b:'chain',     name:'连锁爆破',   cap:5, mods:{ splash:0.18 } },
+    { id:'sy_cannon_sniper',    a:'cannon', b:'sniper',    name:'重型穿甲',   cap:4, mods:{ dmg:0.20 } },
+    { id:'sy_cannon_amplifier', a:'cannon', b:'amplifier', name:'火力增幅',   cap:5, mods:{ dmg:0.14 } },
+    { id:'sy_cannon_railgun',   a:'cannon', b:'railgun',   name:'磁轨助燃',   cap:4, mods:{ rate:0.10 } },
+    { id:'sy_cannon_venom',     a:'cannon', b:'venom',     name:'毒爆弹',     cap:4, mods:{ dmg:0.16 } },
+    { id:'sy_cannon_flak',      a:'cannon', b:'flak',      name:'破片弹',     cap:3, mods:{ splash:0.22 } },
+    { id:'sy_cannon_prism',     a:'cannon', b:'prism',     name:'聚焦爆破',   cap:5, mods:{ dmg:0.13 } },
+    { id:'sy_cannon_emp',       a:'cannon', b:'emp',       name:'瘫痪弹头',   cap:3, mods:{ stun:0.50 } },
+    { id:'sy_cannon_harvester', a:'cannon', b:'harvester', name:'战利品炮击', cap:4, mods:{ dmg:0.12 } },
+
+    // ══════════ A = 导弹塔 ══════════
+    { id:'sy_missile_temporal',  a:'missile', b:'temporal',  name:'凝固汽油', cap:4, mods:{ splash:0.25 } },
+    { id:'sy_missile_laser',     a:'missile', b:'laser',     name:'激光制导', cap:4, mods:{ range:0.08 } },
+    { id:'sy_missile_shock',     a:'missile', b:'shock',     name:'震荡弹头', cap:5, mods:{ splash:0.20 } },
+    { id:'sy_missile_chain',     a:'missile', b:'chain',     name:'分导弹头', cap:4, mods:{ splash:0.22 } },
+    { id:'sy_missile_sniper',    a:'missile', b:'sniper',    name:'远程导弹', cap:4, mods:{ range:0.10 } },
+    { id:'sy_missile_amplifier', a:'missile', b:'amplifier', name:'增幅弹舱', cap:4, mods:{ dmg:0.15 } },
+    { id:'sy_missile_railgun',   a:'missile', b:'railgun',   name:'电磁推进', cap:4, mods:{ rate:0.12 } },
+    { id:'sy_missile_venom',     a:'missile', b:'venom',     name:'毒雾弹头', cap:5, mods:{ dmg:0.14 } },
+    { id:'sy_missile_flak',      a:'missile', b:'flak',      name:'对空导弹', cap:3, mods:{ splash:0.30 } },
+    { id:'sy_missile_prism',     a:'missile', b:'prism',     name:'棱镜导引', cap:5, mods:{ dmg:0.12 } },
+    { id:'sy_missile_emp',       a:'missile', b:'emp',       name:'脉冲弹头', cap:3, mods:{ stun:0.40 } },
+    { id:'sy_missile_harvester', a:'missile', b:'harvester', name:'掠夺弹头', cap:4, mods:{ dmg:0.11 } },
+
+    // ══════════ A = 减速塔 ══════════
+    { id:'sy_temporal_laser',     a:'temporal', b:'laser',     name:'冰晶灼烧', cap:4, mods:{ slow:0.06 } },
+    { id:'sy_temporal_shock',     a:'temporal', b:'shock',     name:'寒冰震击', cap:5, mods:{ slow:0.05 } },
+    { id:'sy_temporal_chain',     a:'temporal', b:'chain',     name:'连锁冰冻', cap:3, mods:{ slow:0.07 } },
+    { id:'sy_temporal_sniper',    a:'temporal', b:'sniper',    name:'冰封狙击', cap:4, mods:{ range:0.08 } },
+    { id:'sy_temporal_amplifier', a:'temporal', b:'amplifier', name:'寒域扩展', cap:4, mods:{ range:0.10 } },
+    { id:'sy_temporal_railgun',   a:'temporal', b:'railgun',   name:'冰冻射线', cap:5, mods:{ slow:0.04 } },
+    { id:'sy_temporal_venom',     a:'temporal', b:'venom',     name:'冰毒混合', cap:4, mods:{ range:0.07 } },
+    { id:'sy_temporal_flak',      a:'temporal', b:'flak',      name:'霜冻弹幕', cap:4, mods:{ slow:0.05 } },
+    { id:'sy_temporal_prism',     a:'temporal', b:'prism',     name:'极寒棱镜', cap:4, mods:{ range:0.09 } },
+    { id:'sy_temporal_emp',       a:'temporal', b:'emp',       name:'绝对零度', cap:3, mods:{ slow:0.08 } },
+    { id:'sy_temporal_harvester', a:'temporal', b:'harvester', name:'冰封财富', cap:5, mods:{ range:0.06 } },
+
+    // ══════════ A = 激光塔 ══════════
+    { id:'sy_laser_shock',     a:'laser', b:'shock',     name:'电磁灼烧', cap:4, mods:{ burn:0.15 } },
+    { id:'sy_laser_chain',     a:'laser', b:'chain',     name:'传导光束', cap:3, mods:{ burn:0.20 } },
+    { id:'sy_laser_sniper',    a:'laser', b:'sniper',    name:'聚焦透镜', cap:4, mods:{ range:0.10 } },
+    { id:'sy_laser_amplifier', a:'laser', b:'amplifier', name:'谐振腔',   cap:4, mods:{ burn:0.18 } },
+    { id:'sy_laser_railgun',   a:'laser', b:'railgun',   name:'粒子加速', cap:4, mods:{ dmg:0.15 } },
+    { id:'sy_laser_venom',     a:'laser', b:'venom',     name:'腐蚀光束', cap:3, mods:{ burn:0.22 } },
+    { id:'sy_laser_flak',      a:'laser', b:'flak',      name:'对空灼烧', cap:4, mods:{ dmg:0.12 } },
+    { id:'sy_laser_prism',     a:'laser', b:'prism',     name:'光棱共振', cap:5, mods:{ burn:0.16 } },
+    { id:'sy_laser_emp',       a:'laser', b:'emp',       name:'过载光束', cap:3, mods:{ stun:0.40 } },
+    { id:'sy_laser_harvester', a:'laser', b:'harvester', name:'光谱收割', cap:4, mods:{ burn:0.14 } },
+
+    // ══════════ A = 震荡塔 ══════════
+    { id:'sy_shock_chain',     a:'shock', b:'chain',     name:'电涌扩散', cap:4, mods:{ range:0.09 } },
+    { id:'sy_shock_sniper',    a:'shock', b:'sniper',    name:'定点爆破', cap:4, mods:{ dmg:0.16 } },
+    { id:'sy_shock_amplifier', a:'shock', b:'amplifier', name:'共鸣增幅', cap:5, mods:{ dmg:0.13 } },
+    { id:'sy_shock_railgun',   a:'shock', b:'railgun',   name:'电磁共振', cap:3, mods:{ dmg:0.18 } },
+    { id:'sy_shock_venom',     a:'shock', b:'venom',     name:'腐蚀震波', cap:4, mods:{ dmg:0.14 } },
+    { id:'sy_shock_flak',      a:'shock', b:'flak',      name:'对空震爆', cap:4, mods:{ range:0.08 } },
+    { id:'sy_shock_prism',     a:'shock', b:'prism',     name:'棱镜震荡', cap:4, mods:{ range:0.10 } },
+    { id:'sy_shock_emp',       a:'shock', b:'emp',       name:'双重脉冲', cap:3, mods:{ stun:0.50 } },
+    { id:'sy_shock_harvester', a:'shock', b:'harvester', name:'震荡采矿', cap:5, mods:{ range:0.07 } },
+
+    // ══════════ A = 链雷塔 ══════════
+    { id:'sy_chain_sniper',    a:'chain', b:'sniper',    name:'连锁狙击', cap:2, mods:{ chain:1 } },
+    { id:'sy_chain_amplifier', a:'chain', b:'amplifier', name:'增幅链跳', cap:2, mods:{ chain:1 } },
+    { id:'sy_chain_railgun',   a:'chain', b:'railgun',   name:'超导链',   cap:4, mods:{ dmg:0.15 } },
+    { id:'sy_chain_venom',     a:'chain', b:'venom',     name:'毒链',     cap:4, mods:{ dmg:0.13 } },
+    { id:'sy_chain_flak',      a:'chain', b:'flak',      name:'空中链雷', cap:2, mods:{ chain:1 } },
+    { id:'sy_chain_prism',     a:'chain', b:'prism',     name:'折射链',   cap:2, mods:{ chain:1 } },
+    { id:'sy_chain_emp',       a:'chain', b:'emp',       name:'麻痹链',   cap:3, mods:{ stun:0.40 } },
+    { id:'sy_chain_harvester', a:'chain', b:'harvester', name:'回收链',   cap:2, mods:{ chain:1 } },
+
+    // ══════════ A = 狙击塔 ══════════
+    { id:'sy_sniper_amplifier', a:'sniper', b:'amplifier', name:'超远增幅', cap:4, mods:{ range:0.12 } },
+    { id:'sy_sniper_railgun',   a:'sniper', b:'railgun',   name:'穿甲狙击', cap:3, mods:{ dmg:0.20 } },
+    { id:'sy_sniper_venom',     a:'sniper', b:'venom',     name:'毒狙',     cap:4, mods:{ dmg:0.16 } },
+    { id:'sy_sniper_flak',      a:'sniper', b:'flak',      name:'对空狙击', cap:4, mods:{ rate:0.12 } },
+    { id:'sy_sniper_prism',     a:'sniper', b:'prism',     name:'棱镜瞄准', cap:4, mods:{ crit:0.08 } },
+    { id:'sy_sniper_emp',       a:'sniper', b:'emp',       name:'定身狙击', cap:3, mods:{ stun:0.60 } },
+    { id:'sy_sniper_harvester', a:'sniper', b:'harvester', name:'猎头赏金', cap:4, mods:{ dmg:0.15 } },
+
+    // ══════════ A = 增幅塔 ══════════
+    { id:'sy_amplifier_railgun',   a:'amplifier', b:'railgun',   name:'超导增幅', cap:4, mods:{ dmg:0.10 } },
+    { id:'sy_amplifier_venom',     a:'amplifier', b:'venom',     name:'剧毒增幅', cap:4, mods:{ rate:0.08 } },
+    { id:'sy_amplifier_flak',      a:'amplifier', b:'flak',      name:'防空增幅', cap:4, mods:{ range:0.06 } },
+    { id:'sy_amplifier_prism',     a:'amplifier', b:'prism',     name:'棱镜增幅', cap:5, mods:{ dmg:0.08 } },
+    { id:'sy_amplifier_emp',       a:'amplifier', b:'emp',       name:'脉冲增幅', cap:3, mods:{ rate:0.10 } },
+    { id:'sy_amplifier_harvester', a:'amplifier', b:'harvester', name:'财富增幅', cap:4, mods:{ range:0.08 } },
+
+    // ══════════ A = 磁轨炮 ══════════
+    { id:'sy_railgun_venom',     a:'railgun', b:'venom',     name:'腐蚀弹芯', cap:4, mods:{ pierce:0.25 } },
+    { id:'sy_railgun_flak',      a:'railgun', b:'flak',      name:'对空磁轨', cap:3, mods:{ rate:0.15 } },
+    { id:'sy_railgun_prism',     a:'railgun', b:'prism',     name:'棱镜加速', cap:3, mods:{ pierce:0.30 } },
+    { id:'sy_railgun_emp',       a:'railgun', b:'emp',       name:'磁暴脉冲', cap:3, mods:{ stun:0.50 } },
+    { id:'sy_railgun_harvester', a:'railgun', b:'harvester', name:'磁轨采矿', cap:4, mods:{ dmg:0.16 } },
+
+    // ══════════ A = 毒液塔 ══════════
+    { id:'sy_venom_flak',      a:'venom', b:'flak',      name:'毒雾防空', cap:4, mods:{ poison:0.20 } },
+    { id:'sy_venom_prism',     a:'venom', b:'prism',     name:'棱镜毒光', cap:3, mods:{ poison:0.25 } },
+    { id:'sy_venom_emp',       a:'venom', b:'emp',       name:'毒爆脉冲', cap:4, mods:{ poison:0.18 } },
+    { id:'sy_venom_harvester', a:'venom', b:'harvester', name:'剧毒回收', cap:3, mods:{ poison:0.22 } },
+
+    // ══════════ A = 防空塔 ══════════
+    { id:'sy_flak_prism',     a:'flak', b:'prism',     name:'棱镜防空', cap:4, mods:{ rate:0.15 } },
+    { id:'sy_flak_emp',       a:'flak', b:'emp',       name:'脉冲防空', cap:3, mods:{ dmg:0.18 } },
+    { id:'sy_flak_harvester', a:'flak', b:'harvester', name:'空战掠夺', cap:4, mods:{ rate:0.12 } },
+
+    // ══════════ A = 棱镜塔 ══════════
+    { id:'sy_prism_emp',       a:'prism', b:'emp',       name:'光棱脉冲', cap:2, mods:{ targets:1 } },
+    { id:'sy_prism_harvester', a:'prism', b:'harvester', name:'棱镜聚财', cap:2, mods:{ targets:1 } },
+
+    // ══════════ A = EMP 塔 ══════════
+    { id:'sy_emp_harvester', a:'emp', b:'harvester', name:'脉冲采矿', cap:3, mods:{ stun:0.40 } }
+];
+
+// 稀有度权重表（数值越小越不敏感，1 为标准）
+const SYN_RARITY_WEIGHT = {
+    dmg: 1.00, rate: 1.15, range: 1.40, crit: 2.60, slow: 1.60,
+    poison: 1.00, stun: 0.70, splash: 0.90, burn: 1.00, harvest: 1.40,
+    targets: 0.45, chain: 0.35, pierce: 0.70, reveal: 1.30
+};
+
+function calcSynergyRarity(s) {
+    let w = 0;
+    for (const k in s.mods) w += (SYN_RARITY_WEIGHT[k] || 1) * s.mods[k] * s.cap;
+    if (w >= 0.85) return 'epic';
+    if (w >= 0.60) return 'rare';
+    if (w >= 0.38) return 'uncommon';
+    return 'common';
+}
+
+function buildSynergyDesc(s) {
+    const aName = TOWER_TYPES[s.a].name;
+    const bName = TOWER_TYPES[s.b].name;
+    const parts = [];
+    for (const k in s.mods) {
+        const meta = SYN_MOD_TEXT[k];
+        if (!meta) continue;
+        parts.push(`${meta.label} ${meta.fmt(s.mods[k])}`);
+    }
+    return `每有 1 座${bName}，${aName}${parts.join(' · ')}（最多 ${s.cap} 座）`;
+}
+
+
+
+// 联动加成聚合用的空对象
+const EMPTY_SYN = {
+    dmg: 0, rate: 0, range: 0, crit: 0, slow: 0, poison: 0, stun: 0,
+    splash: 0, burn: 0, harvest: 0, targets: 0, chain: 0, pierce: 0, reveal: 0
+};
+
+// 抽卡时联动卡出现 0~3 张的概率
+function rollSynergyCount() {
+    const r = Math.random();
+    if (r < 0.50) return 0;
+    if (r < 0.80) return 1;
+    if (r < 0.95) return 2;
+    return 3;
+}
+
+
+
+
+
+
 
         let rogueState = null;
         let draftPanel = null;
@@ -1647,6 +1853,13 @@
             emp:      '🌀 满级特性：对机械单位伤害 +50%，眩晕时长提升（封顶冷却 90%）',
             harvester:'💠 满级特性：光环射程翻倍'
         };
+        // 初始化字段
+for (const s of ROGUE_SYNERGIES) {
+    s.icon = '🔗';
+    s.desc = buildSynergyDesc(s);
+    s.rarity = calcSynergyRarity(s);
+    s.isSynergy = true;
+}
 
         function getUpgradeCost(type, curLevel) {
             if (curLevel >= MAX_LEVEL) return null;
@@ -1656,51 +1869,64 @@
             return Math.floor(base * 1.6 * curLevel);
         }
 
-        function towerStatsAt(type, lv) {
-            const d = TOWER_TYPES[type];
-            const range = d.range * (1 + (lv - 1) * GROW.range);
-            if (type === 'amplifier') {
-                const la = lv - 1;
-                return { range, boost: {
-                    dmg:   d.boostBase.dmg   + la * d.boostPerLevel.dmg,
-                    rate:  d.boostBase.rate  + la * d.boostPerLevel.rate,
-                    range: d.boostBase.range + la * d.boostPerLevel.range
-                }};
-            }
-            if (type === 'temporal') {
-                return { slow: Math.max(GROW.slowMin, 0.5 - (lv - 1) * GROW.slowStep), duration: 1.5 + (lv - 1) * GROW.slowDurStep, range, cooldown: d.fireRate };
-            }
-            if (type === 'laser') {
-                const dps = d.damage * (1 + (lv - 1) * GROW.damage);
-                return { dps, burnDps: dps, burnDur: 2.0 + (lv - 1) * 0.3, range };
-            }
-            if (type === 'shock') {
-                return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: d.fireRate / (1 + (lv - 1) * GROW.rate), range };
-            }
-            if (type === 'prism') {
-                return { dps: d.damage * (1 + (lv - 1) * GROW.damage), range, targets: 1 + Math.floor((lv - 1) * 1.6) + (lv >= MAX_LEVEL ? 2 : 0), cooldown: 0 };
-            }
-            if (type === 'venom') {
-                const pb = !!(rogueState && rogueState.bonus && rogueState.bonus.poisonBoost);
-                return {
-                    damage:    d.damage    * (1 + (lv - 1) * GROW.damage),
-                    cooldown:  d.fireRate  / (1 + (lv - 1) * GROW.rate),
-                    range,
-                    poisonDps: d.poisonDps * (1 + (lv - 1) * GROW.damage) * (pb ? 1.5 : 1),
-                    poisonDur: d.poisonDur + (lv - 1) * 0.35 + (pb ? 2 : 0) + (lv >= MAX_LEVEL ? 2 : 0),
-                    maxStacks: lv >= MAX_LEVEL ? Infinity : 3 + Math.floor(lv / 2)
-                };
-            }
-            if (type === 'emp') {
-                const cd = d.fireRate / (1 + (lv - 1) * GROW.rate);
-                const rawStun = 0.1 + (lv - 1) * 0.1 + (lv >= MAX_LEVEL ? 1.2 : 0);
-                return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: cd, range, stun: Math.min(rawStun, cd * 0.7) };
-            }
-            if (type === 'harvester') {
-                return { range: range * (lv >= MAX_LEVEL ? 2 : 1), harvest: d.harvestBase + (lv - 1) * d.harvestPerLevel };
-            }
-            return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: d.fireRate / (1 + (lv - 1) * GROW.rate), range };
-        }
+        // 纯函数：只依赖 type / lv / rogueState.bonus.poisonBoost
+function computeTowerStats(type, lv) {
+    const d = TOWER_TYPES[type];
+    const range = d.range * (1 + (lv - 1) * GROW.range);
+    if (type === 'amplifier') {
+        const la = lv - 1;
+        return { range, boost: {
+            dmg:   d.boostBase.dmg   + la * d.boostPerLevel.dmg,
+            rate:  d.boostBase.rate  + la * d.boostPerLevel.rate,
+            range: d.boostBase.range + la * d.boostPerLevel.range
+        }};
+    }
+    if (type === 'temporal') {
+        return { slow: Math.max(GROW.slowMin, 0.5 - (lv - 1) * GROW.slowStep), duration: 1.5 + (lv - 1) * GROW.slowDurStep, range, cooldown: d.fireRate };
+    }
+    if (type === 'laser') {
+        const dps = d.damage * (1 + (lv - 1) * GROW.damage);
+        return { dps, burnDps: dps, burnDur: 2.0 + (lv - 1) * 0.3, range };
+    }
+    if (type === 'shock') {
+        return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: d.fireRate / (1 + (lv - 1) * GROW.rate), range };
+    }
+    if (type === 'prism') {
+        return { dps: d.damage * (1 + (lv - 1) * GROW.damage), range, targets: 1 + Math.floor((lv - 1) * 1.6) + (lv >= MAX_LEVEL ? 2 : 0), cooldown: 0 };
+    }
+    if (type === 'venom') {
+        const pb = !!(rogueState && rogueState.bonus && rogueState.bonus.poisonBoost);
+        return {
+            damage:    d.damage    * (1 + (lv - 1) * GROW.damage),
+            cooldown:  d.fireRate  / (1 + (lv - 1) * GROW.rate),
+            range,
+            poisonDps: d.poisonDps * (1 + (lv - 1) * GROW.damage) * (pb ? 1.5 : 1),
+            poisonDur: d.poisonDur + (lv - 1) * 0.35 + (pb ? 2 : 0) + (lv >= MAX_LEVEL ? 2 : 0),
+            maxStacks: lv >= MAX_LEVEL ? Infinity : 3 + Math.floor(lv / 2)
+        };
+    }
+    if (type === 'emp') {
+        const cd = d.fireRate / (1 + (lv - 1) * GROW.rate);
+        const rawStun = 0.1 + (lv - 1) * 0.1 + (lv >= MAX_LEVEL ? 1.2 : 0);
+        return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: cd, range, stun: Math.min(rawStun, cd * 0.7) };
+    }
+    if (type === 'harvester') {
+        return { range: range * (lv >= MAX_LEVEL ? 2 : 1), harvest: d.harvestBase + (lv - 1) * d.harvestPerLevel };
+    }
+    return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: d.fireRate / (1 + (lv - 1) * GROW.rate), range };
+}
+
+// 带缓存的包装：key = type|lv|pb(仅毒液塔需要)
+function towerStatsAt(type, lv) {
+    const pb = (type === 'venom' && rogueState && rogueState.bonus && rogueState.bonus.poisonBoost) ? 1 : 0;
+    const cache = towerStatsAt._cache || (towerStatsAt._cache = new Map());
+    const key = type + '|' + lv + '|' + pb;
+    let res = cache.get(key);
+    if (res) return res;
+    res = computeTowerStats(type, lv);
+    cache.set(key, res);
+    return res;
+}
 
         
         const ENEMY_COUNT_MUL = 0.33;
@@ -2274,6 +2500,7 @@ function makeSeededRng(seed) {
             }
             rogueState = {
                 affixes: pickedAffixes,
+                synergies: [],
                     bonus: {
                         dmg:1, rate:1, range:1, priceMul:1,
                         critStacks:0, doubleShotStacks:0,
@@ -4899,24 +5126,34 @@ function drawRogueToggle() {
         // Roguelike 强化聚合 & 面板
         // ============================================================
         function getAggregatedUpgrades() {
-            if (!rogueState || rogueState.upgrades.length === 0) return [];
-            const counts = new Map();
-            for (const u of rogueState.upgrades) {
-                if (u.id === 'freeUp' || u.id === 'coreRepair') continue;
-                counts.set(u.id, (counts.get(u.id) || 0) + 1);
-            }
-            const result = [];
-            for (const [id, count] of counts) {
-                const up = ROGUE_UPGRADES.find(u => u.id === id);
-                if (!up) continue;
-                result.push({ ...up, count, _rord: RARITY_ORDER[up.rarity] ?? 4 });
-            }
-            result.sort((a, b) => {
-                if (a._rord !== b._rord) return a._rord - b._rord;
-                return b.count - a.count;
-            });
-            return result;
-        }
+    // ★ 坑 1：放宽早退条件
+    if (!rogueState) return [];
+    if (rogueState.upgrades.length === 0 &&
+        (!rogueState.synergies || rogueState.synergies.length === 0)) return [];
+
+    const counts = new Map();
+    for (const u of rogueState.upgrades) {
+        if (u.id === 'freeUp' || u.id === 'coreRepair') continue;
+        counts.set(u.id, (counts.get(u.id) || 0) + 1);
+    }
+    const result = [];
+    for (const [id, count] of counts) {
+        const up = ROGUE_UPGRADES.find(u => u.id === id);
+        if (!up) continue;
+        result.push({ ...up, count, _rord: RARITY_ORDER[up.rarity] ?? 4 });
+    }
+
+    // ★ 新增：联动卡（每张只算 1 份，因为抽卡时已去重）
+    for (const s of (rogueState.synergies || [])) {
+        result.push({ ...s, count: 1, _rord: RARITY_ORDER[s.rarity] ?? 4 });
+    }
+
+    result.sort((a, b) => {
+        if (a._rord !== b._rord) return a._rord - b._rord;
+        return b.count - a.count;
+    });
+    return result;
+}
 
         function getAggregatedEnemyMods() {
             if (!rogueState || !rogueState.enemyMods) return [];
@@ -5023,7 +5260,8 @@ function drawRogueToggle() {
             ctx.textAlign = 'right';
             ctx.font = 'bold 11px "Microsoft YaHei"';
             ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`${rogueState.upgrades.length} 张`, x + w - 12, y + 17);
+            const synCount = (rogueState.synergies || []).length;
+            ctx.fillText(`${rogueState.upgrades.length + synCount} 张`, x + w - 12, y + 17);
 
             ctx.strokeStyle = 'rgba(255, 217, 102, 0.2)';
             ctx.lineWidth = 1;
@@ -5205,29 +5443,51 @@ function drawRogueToggle() {
         // ============================================================
         // Draft 系统
         // ============================================================
-        function openDraft(kind) {
+                function openDraft(kind) {
             if (!rogueState) return;
             closeBuildMenu();
             closeTowerMenu();
             hideTip();
             selectedTower = null;
             hideSellButton();
-            let pool;
+
+            const picked = [];
+
             if (kind === 'enemy') {
-                pool = ROGUE_ENEMY_BOOSTS.filter(b => !(b.once && rogueState.enemyMods.picks.includes(b.id)));
+                const pool = ROGUE_ENEMY_BOOSTS.filter(b => !(b.once && rogueState.enemyMods.picks.includes(b.id)));
+                for (let i = 0; i < 3 && pool.length > 0; i++) {
+                    const idx = Math.floor(Math.random() * pool.length);
+                    picked.push(pool.splice(idx, 1)[0]);
+                }
             } else {
+                // 1) 先按概率抽联动卡（0~3 张，同一联动不重复）
+                const ownedSyn = new Set(rogueState.synergies.map(s => s.id));
+                const synPool = ROGUE_SYNERGIES.filter(s => !ownedSyn.has(s.id));
+                const synWant = Math.min(synPool.length, rollSynergyCount());
+                for (let i = 0; i < synWant; i++) {
+                    const idx = Math.floor(Math.random() * synPool.length);
+                    picked.push(synPool.splice(idx, 1)[0]);
+                }
+
+                // 2) 剩余槽位用普通塔强化补齐
                 const pickedIds = new Set(rogueState.upgrades.map(u => u.id));
-                pool = ROGUE_UPGRADES.filter(u => {
+                const upPool = ROGUE_UPGRADES.filter(u => {
                     if (u.once && pickedIds.has(u.id)) return false;
                     if (u.requireCrit && !(rogueState.bonus.critChance > 0)) return false;
                     return true;
                 });
+                while (picked.length < 3 && upPool.length > 0) {
+                    const idx = Math.floor(Math.random() * upPool.length);
+                    picked.push(upPool.splice(idx, 1)[0]);
+                }
+
+                // 3) 打乱顺序，避免联动卡永远排最左
+                for (let i = picked.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [picked[i], picked[j]] = [picked[j], picked[i]];
+                }
             }
-            const picked = [];
-            for (let i = 0; i < 3 && pool.length > 0; i++) {
-                const idx = Math.floor(Math.random() * pool.length);
-                picked.push(pool.splice(idx, 1)[0]);
-            }
+
             if (picked.length === 0) {
                 draftPanel = null;
                 openNextDraft();
@@ -5294,8 +5554,17 @@ function drawRogueToggle() {
             }
         }
 
+        // 应用一张联动卡
+function applySynergy(s) {
+    if (!rogueState || !s) return;
+    rogueState.synergies.push(s);
+    SFX.click();
+    msgDisplay.textContent = `🔗 联动激活：${s.name}（${TOWER_TYPES[s.a].name} × ${TOWER_TYPES[s.b].name}）`;
+    updateUI();
+}
         function applyDraftUpgrade(up) {
             if (!rogueState || !up) return;
+            if (up.isSynergy) { applySynergy(up); return; } 
             rogueState.upgrades.push(up);
             up.apply(rogueState);
             if (rogueState.moneyBonus > 0) {
@@ -7716,6 +7985,51 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
                 }
             }
         }
+// 每帧重算每座塔的联动加成
+function updateSynergies() {
+    const synList = (rogueState && rogueState.synergies) || [];
+    if (synList.length === 0) {
+        for (const t of towers) { if (t.syn) t.syn = null; }
+        return;
+    }
+    const posCache = new Map();
+    for (const t of towers) {
+        posCache.set(t, { x: cellCenterX(t.col), y: cellCenterY(t.row) });
+    }
+    for (const t of towers) {
+        const p = posCache.get(t);
+        let syn = null;
+        for (let i = 0; i < synList.length; i++) {
+            const s = synList[i];
+            if (s.a !== t.type) continue;
+            const baseStats = towerStatsAt(t.type, t.level);
+            const rad = (baseStats.range || 3) * CELL;
+            const rad2 = rad * rad;
+            let n = 0;
+            for (const o of towers) {
+                if (o === t || o.type !== s.b) continue;
+                const q = posCache.get(o);
+                const dx = q.x - p.x, dy = q.y - p.y;
+                if (dx * dx + dy * dy <= rad2) n++;
+            }
+            if (n > s.cap) n = s.cap;
+            if (n <= 0) continue;
+            if (!syn) {
+                syn = {
+                    dmg: 0, rate: 0, range: 0, crit: 0, slow: 0, poison: 0, stun: 0,
+                    splash: 0, burn: 0, harvest: 0, targets: 0, chain: 0, pierce: 0, reveal: 0
+                };
+            }
+            for (const k in s.mods) {
+                syn[k] = (syn[k] || 0) + s.mods[k] * n;
+            }
+        }
+        t.syn = syn;
+    }
+}
+
+
+
 
         function clipRayToMap(px, py, ux, uy, maxLen) {
             const x0 = mapOffX, x1 = mapOffX + COLS * CELL;
@@ -7853,6 +8167,16 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
                     cooldown:(base.cooldown || 0) / (bf.rate * rb.rate),
                     range:   (base.range   || 0) * bf.range * rb.range
                 };
+                                // ★ 合并联动加成（伤害/射速/射程）
+                const syn = t.syn;
+                if (syn) {
+                    st.damage    *= (1 + syn.dmg);
+                    st.dps       *= (1 + syn.dmg);
+                    st.burnDps   *= (1 + syn.burn);
+                    st.poisonDps *= (1 + syn.poison);
+                    st.cooldown  /= (1 + syn.rate);
+                    st.range     *= (1 + syn.range);
+                }
 
                 if (ascensionState && ascensionState.fireDecay) {
                     const decayMul = Math.max(0.5, 1 - Math.floor(waveIndex / 10) * 0.1);
@@ -8264,7 +8588,7 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
             if (screen === 'game' && !draftPanel) updateEdgePan(rawDt);
             if (gameOver && buildMenu) closeBuildMenu();
             if (gameOver && towerMenu) closeTowerMenu();
-            if (screen === 'game' && !gameOver) updateAmplifiers();
+            if (screen === 'game' && !gameOver) { updateAmplifiers(); updateSynergies(); }
             if (screen === 'game' && !gameOver && !paused && !draftPanel) {
                 arrowAnimTime += dt;
                 updateSpawn(dt);
