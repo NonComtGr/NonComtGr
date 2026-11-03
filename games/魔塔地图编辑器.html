@@ -791,8 +791,8 @@ const EQUIP_ICONS = {
   rusty_sword:      'ti-sword',              // 生锈短剑
   iron_sword:       'ti-sword-off',          // 铁剑
   steel_blade:      'ti-blade',              // 精钢长剑
-  twin_dagger:      'ti-dagger',             // 双刃匕首
-  knight_lance:     'ti-lance',              // 骑士长枪（Tabler 有 lance）
+  twin_dagger:      'ti-razor',             // 双刃匕首
+  knight_lance:     'ti-trident',              // 骑士长枪（Tabler 有 lance）
   war_axe:          'ti-axe',                // 战斧
   great_hammer:     'ti-hammer',             // 巨锤
   hunting_bow:      'ti-bow',                // 猎弓
@@ -811,10 +811,10 @@ const EQUIP_ICONS = {
   iron_shield:      'ti-shield-check',       // 铁盾
   tower_shield:     'ti-shield-lock',        // 塔盾
   iron_helm:        'ti-helmet',             // 铁盔
-  leather_cap:      'ti-hat',                // 皮帽
+  leather_cap:      'ti-cap-rounded',                // 皮帽
   chest_guard:      'ti-shield-star',        // 护心镜
   scale_mail:       'ti-hexagon',            // 锁子甲
-  plate_armor:      'ti-layers',             // 板甲
+  plate_armor:      'ti-shield-chevron',     // 板甲
   rattan_armor:     'ti-plant-2',            // 藤甲
   fire_cloak:       'ti-campfire',           // 耐火斗篷
   leather_bracer:   'ti-fingerprint',        // 皮护腕
@@ -842,11 +842,11 @@ const EQUIP_ICONS = {
   lucky_coin:       'ti-coin',               // 幸运硬币
 
   /* ========== 中级装备 30 件 ========== */
-  mid_giant_sword:      'ti-machete',        // 精钢巨剑
-  mid_dawn_lance:       'ti-spear',          // 破晓长枪
-  mid_twin_fang:        'ti-cleaver',        // 双生短刃
+  mid_giant_sword:      'ti-sword-off',        // 精钢巨剑
+  mid_dawn_lance:       'ti-trident',          // 破晓长枪
+  mid_twin_fang:        'ti-swords',        // 双生短刃
   mid_flame_axe:        'ti-flare',          // 烈焰战斧
-  mid_armor_breaker:    'ti-pickaxe',        // 碎甲重锤
+  mid_armor_breaker:    'ti-axe',        // 碎甲重锤
   mid_hawk_bow:         'ti-target',         // 鹰眼长弓
   mid_curse_staff:      'ti-atom',           // 咒印法杖
   mid_frost_blade:      'ti-droplet-half',   // 霜寒利刃
@@ -856,12 +856,12 @@ const EQUIP_ICONS = {
 
   mid_dark_armor:       'ti-shield',         // 玄铁重甲
   mid_holy_shield:      'ti-sun',            // 圣光之盾
-  mid_dragon_scale:     'ti-grid',           // 龙鳞护甲
+  mid_dragon_scale:     'ti-shield-chevron',           // 龙鳞护甲
   mid_mithril_mail:     'ti-cube',           // 秘银胸甲
   mid_thorn_shield:     'ti-tree',           // 荆棘之盾
   mid_antimagic_cloak:  'ti-shield-off',     // 反魔斗篷
   mid_gale_boots:       'ti-wind',           // 疾风战靴
-  mid_ironwall_bracer:  'ti-brick',          // 铁壁护腕
+  mid_ironwall_bracer:  'ti-shield-lock',          // 铁壁护腕
   mid_bomb_plate:       'ti-package',        // 拆弹重铠
   mid_sturdy_chest:     'ti-mountain',       // 坚岩护胸
 
@@ -895,7 +895,7 @@ const EQUIP_ICONS = {
   high_void_ring:       'ti-circle-dashed',  // 虚无吞噬者之戒
   high_hourglass:       'ti-history',        // 时光沙漏
   high_thief_blade:     'ti-razor',          // 盗贼大师之刃（ti-razor 可能不存在）
-  high_dragon_fang:     'ti-saw',            // 龙牙战斧
+  high_dragon_fang:     'ti-swords',            // 龙牙战斧
   high_abyss_judge:     'ti-scale',          // 深渊裁决者
   high_eternal_crown:   'ti-gem'             // 永恒王冠
 };
@@ -1886,11 +1886,12 @@ function pickDoorType(floorIdx){
   return roll < 0.20 ? 'Y' : (roll < 0.60 ? 'B' : 'R');
 }
 
-/* 依据用户设定的双端区间返回怪物编号范围（含端点） */
-function monsterRangeFor(floorIdx){
-  const lo = Math.max(0, Math.min(MONSTER_LAST, Math.min(E.mRange.min, E.mRange.max)));
-  const hi = Math.max(0, Math.min(MONSTER_LAST, Math.max(E.mRange.min, E.mRange.max)));
-  return [lo, hi];
+/* 只读取 E.mRange，与楼层索引完全无关 */
+function pickMonsterIdx(){
+  const a = Math.max(0, Math.min(MONSTER_LAST, E.mRange.min));
+  const b = Math.max(0, Math.min(MONSTER_LAST, E.mRange.max));
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  return lo + randInt(0, hi - lo);
 }
 
 function populateFloor(g, entry, exit, floorIdx, density){
@@ -1961,16 +1962,13 @@ function populateFloor(g, entry, exit, floorIdx, density){
   const actualI = Math.min(itemCount, iSlots);
 
   const monsters = {}, items = {};
-  const [minIdx, maxIdx] = monsterRangeFor(floorIdx);
-
   let ptr = 0;
 
-  // 怪物
-  for (let i = 0; i < actualM && ptr < M; i++){
-    const c = cells[ptr++];
-    const idx = minIdx + randInt(0, maxIdx - minIdx);
-    monsters[c.x + ',' + c.y] = Math.min(MONSTER_LAST, idx);
-  }
+// 怪物：每格独立从 E.mRange 均匀随机，不受楼层影响
+for (let i = 0; i < actualM && ptr < M; i++){
+  const c = cells[ptr++];
+  monsters[c.x + ',' + c.y] = pickMonsterIdx();
+}
 
   // 补钥匙
   const needKeys = [];
