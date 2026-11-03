@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>魔塔 · 地图编辑器</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/tabler-icons.min.css">
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
@@ -122,6 +122,48 @@
   .pick button[data-kind="boss"]:not(.on) small{color:#d08b78}
   .pick button[data-kind="boss"]:not(.on):hover{background:#4d2820}
 
+  /* ================= 装备选择区 ================= */
+  #equipPick{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(58px,1fr));
+    gap:5px;
+    max-height:360px;overflow-y:auto;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:#3a4360 #1b2135;
+  }
+  #equipPick::-webkit-scrollbar{width:8px}
+  #equipPick::-webkit-scrollbar-track{background:#1b2135;border-radius:4px}
+  #equipPick::-webkit-scrollbar-thumb{background:#3a4360;border-radius:4px}
+  #equipPick::-webkit-scrollbar-thumb:hover{background:#4a5474}
+
+  .eq-group{
+    grid-column:1/-1;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;letter-spacing:2px;color:#8e98bd;
+    padding:6px 0 4px;border-bottom:1px dashed #2e3752;
+  }
+  .eq-group:first-child{padding-top:0}
+  .eq-group b{color:#6c7fc4;font-weight:400;letter-spacing:0}
+
+  #equipPick button{
+    padding:6px 2px 4px;border-radius:6px;cursor:pointer;transition:.12s;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+    font-size:17px;line-height:1.05;overflow:hidden;font-family:inherit;
+  }
+  #equipPick button small{
+    font-size:9px;color:#7c86ad;letter-spacing:0;width:100%;
+    text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #equipPick button:hover{background:#33406a}
+  #equipPick button.on{background:#3b4a78;border-color:#6c7fc4;color:#fff}
+  #equipPick button.on small{color:#c3cdf5}
+  #equipPick button[data-tier="mid"]:not(.on){border-color:#6a4a9a;background:#241d38;color:#d9c4ff}
+  #equipPick button[data-tier="mid"]:not(.on) small{color:#9d86cc}
+  #equipPick button[data-tier="mid"]:not(.on):hover{background:#2f2547}
+  #equipPick button[data-tier="high"]:not(.on){border-color:#9a6a20;background:#33260f;color:#ffd9a0}
+  #equipPick button[data-tier="high"]:not(.on) small{color:#c9a06a}
+  #equipPick button[data-tier="high"]:not(.on):hover{background:#443312}
+
   .irow{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;
         border-bottom:1px dashed #2e3752}
   .irow:last-child{border-bottom:none}
@@ -214,7 +256,7 @@
 
   <header>
     <h1>魔塔 · 地图编辑器</h1>
-    <p>左键绘制 · 右键擦除 · 拖拽连续绘制 · 实时生成 HAND_FLOORS 代码</p>
+    <p>左键绘制 · 右键擦除 · 拖拽连续绘制 · 实时生成 HAND_FLOORS 代码 · 支持 100 件装备</p>
   </header>
 
   <div class="main">
@@ -319,6 +361,11 @@
       <div class="panel">
         <h3>物 品 / 门 <span class="curTag" id="curItem"></span></h3>
         <div id="itemPick" class="pick pick-item"></div>
+      </div>
+
+      <div class="panel">
+        <h3>装 备 <span class="curTag" id="curEquip"></span></h3>
+        <div id="equipPick"></div>
       </div>
 
       <div class="panel">
@@ -615,8 +662,365 @@ const ITEMS = {
 };
 const ITEM_ORDER = ['atk','def','hp1','hp2','ykey','bkey','rkey','doorY','doorB','doorR'];
 
+/* ==================================================================
+   ★ 装备定义（100 件：50 初级 / 30 中级 / 20 高级）
+   ================================================================== */
+const EQUIP_DEFS = {};
+const EQUIP_LIST = [];
+
+function defEquip(id, name, emoji, tier, stats, recipe){
+  const e = { id, name, emoji, tier, stats: stats || {}, recipe: recipe || null };
+  EQUIP_DEFS[id] = e;
+  EQUIP_LIST.push(e);
+}
+
+/* ---------------- 初级装备 50 件 ---------------- */
+defEquip('rusty_sword',   '生锈短剑',     '🗡️', 'basic', {atk:6});
+defEquip('iron_sword',    '铁剑',         '⚔️', 'basic', {atk:12});
+defEquip('steel_blade',   '精钢长剑',     '🗡️', 'basic', {atk:18, pen:3});
+defEquip('twin_dagger',   '双刃匕首',     '🔪', 'basic', {atk:8, critChance:10});
+defEquip('knight_lance',  '骑士长枪',     '🔱', 'basic', {atk:10, pen:8});
+defEquip('war_axe',       '战斧',         '🪓', 'basic', {atk:22});
+defEquip('great_hammer',  '巨锤',         '🔨', 'basic', {atk:16, antiArmor:1});
+defEquip('hunting_bow',   '猎弓',         '🏹', 'basic', {atk:9, critChance:8});
+defEquip('crossbow',      '短弩',         '🎯', 'basic', {atk:11, antiDodge:1});
+defEquip('knuckle',       '拳刃',         '🥊', 'basic', {atk:7, antiCombo:10});
+defEquip('rune_staff',    '符文短杖',     '🪄', 'basic', {atk:8, antiCurse:1});
+defEquip('frost_dagger',  '冰晶匕首',     '❄️', 'basic', {atk:10, antiStun:1});
+defEquip('flame_knife',   '火焰短刀',     '🔥', 'basic', {atk:12, dotRes:10});
+defEquip('venom_dagger',  '毒牙匕首',     '🐍', 'basic', {atk:9, dotRes:15});
+defEquip('moon_rapier',   '月光细剑',     '🌙', 'basic', {atk:15, critChance:5});
+
+defEquip('cloth_robe',    '布衣',         '👕', 'basic', {def:3, hp:60});
+defEquip('leather_armor', '皮甲',         '🥼', 'basic', {def:8, hp:100});
+defEquip('chain_mail',    '铁链甲',       '⛓️', 'basic', {def:15});
+defEquip('wood_shield',   '木盾',         '🪵', 'basic', {def:10, flatRed:2});
+defEquip('iron_shield',   '铁盾',         '🛡️', 'basic', {def:16, flatRed:3});
+defEquip('tower_shield',  '塔盾',         '🚪', 'basic', {def:22, dmgRed:5});
+defEquip('iron_helm',     '铁盔',         '⛑️', 'basic', {def:7, hp:80});
+defEquip('leather_cap',   '皮帽',         '🎩', 'basic', {def:4, hp:50});
+defEquip('chest_guard',   '护心镜',       '🔰', 'basic', {def:12, hp:150});
+defEquip('scale_mail',    '锁子甲',       '🧱', 'basic', {def:18, dmgRed:6});
+defEquip('plate_armor',   '板甲',         '🏋️', 'basic', {def:25, dmgRed:8});
+defEquip('rattan_armor',  '藤甲',         '🌿', 'basic', {def:9, dotRes:15});
+defEquip('fire_cloak',    '耐火斗篷',     '🧥', 'basic', {def:6, dotRes:20});
+defEquip('leather_bracer','皮护腕',       '🧤', 'basic', {def:6, flatRed:2});
+defEquip('iron_boots',    '铁靴',         '👢', 'basic', {def:8, antiFirst:1});
+
+defEquip('wood_ring',     '木戒指',       '💍', 'basic', {hp:100});
+defEquip('iron_ring',     '铁戒指',       '💍', 'basic', {atk:4, def:4});
+defEquip('life_amulet',   '生命护符',     '🧿', 'basic', {hp:250});
+defEquip('bone_necklace', '白骨项链',     '💀', 'basic', {antiReborn:1});
+defEquip('mithril_ring',  '秘银戒指',     '💍', 'basic', {atk:6, def:6});
+defEquip('swift_boots',   '迅捷之靴',     '👟', 'basic', {antiFirst:1});
+defEquip('purify_amulet', '净化护符',     '✨', 'basic', {antiCurse:1});
+defEquip('antidote_herb', '解毒草',       '🍀', 'basic', {dotRes:25});
+defEquip('ironwall_rune', '铁壁符文',     '🧱', 'basic', {dmgRed:6});
+defEquip('armorbreak_rune','破甲符文',    '🪨', 'basic', {antiArmor:1});
+defEquip('truesight_eye', '真视之眼',     '👁️', 'basic', {antiDodge:1});
+defEquip('shieldbreak_rune','破盾符文',   '💠', 'basic', {antiShield:1});
+defEquip('stasis_amulet', '静滞护符',     '🕸️', 'basic', {antiStun:1});
+defEquip('keychain',      '钥匙扣',       '🔑', 'basic', {keyGuard:1});
+defEquip('bomb_amulet',   '拆弹护符',     '💣', 'basic', {antiBomb:1});
+defEquip('thorn_bracer',  '荆棘护腕',     '🌵', 'basic', {antiThorns:1});
+defEquip('agile_amulet',  '灵巧护符',     '🍃', 'basic', {antiCombo:15});
+defEquip('sturdy_amulet', '坚固护符',     '🗿', 'basic', {antiPierce:20});
+defEquip('suppress_ring', '抑制之环',     '⭕', 'basic', {antiRegen:1});
+defEquip('lucky_coin',    '幸运硬币',     '🪙', 'basic', {critChance:10, hp:100});
+
+/* ---------------- 中级装备 30 件（初级 × 2） ---------------- */
+defEquip('mid_giant_sword',   '精钢巨剑',     '🗡️', 'mid', {atk:35, pen:10},                    ['iron_sword','steel_blade']);
+defEquip('mid_dawn_lance',    '破晓长枪',     '🔱', 'mid', {atk:30, pen:20},                    ['knight_lance','great_hammer']);
+defEquip('mid_twin_fang',     '双生短刃',     '🔪', 'mid', {atk:28, critChance:15, dotRes:15},  ['twin_dagger','venom_dagger']);
+defEquip('mid_flame_axe',     '烈焰战斧',     '🪓', 'mid', {atk:45, dotRes:15},                 ['war_axe','flame_knife']);
+defEquip('mid_armor_breaker', '碎甲重锤',     '🔨', 'mid', {atk:35, pen:15, antiArmor:1},       ['great_hammer','armorbreak_rune']);
+defEquip('mid_hawk_bow',      '鹰眼长弓',     '🏹', 'mid', {atk:30, critChance:20, antiDodge:1},['hunting_bow','crossbow']);
+defEquip('mid_curse_staff',   '咒印法杖',     '🪄', 'mid', {atk:28, def:10, antiCurse:1},       ['rune_staff','purify_amulet']);
+defEquip('mid_frost_blade',   '霜寒利刃',     '❄️', 'mid', {atk:32, antiFirst:1, antiStun:1},   ['frost_dagger','swift_boots']);
+defEquip('mid_moon_blade',    '月光双刃',     '🌙', 'mid', {atk:38, critChance:18},             ['moon_rapier','twin_dagger']);
+defEquip('mid_dragon_axe',    '巨龙战斧',     '🪓', 'mid', {atk:55},                            ['war_axe','great_hammer']);
+defEquip('mid_dark_armor',    '玄铁重甲',     '🛡️', 'mid', {def:45, dmgRed:12},                 ['chain_mail','plate_armor']);
+defEquip('mid_holy_shield',   '圣光之盾',     '🛡️', 'mid', {def:45, flatRed:8, dmgRed:8},       ['iron_shield','tower_shield']);
+defEquip('mid_dragon_scale',  '龙鳞护甲',     '🐲', 'mid', {def:50, dmgRed:15, dotRes:25},      ['plate_armor','fire_cloak']);
+defEquip('mid_mithril_mail',  '秘银胸甲',     '🥋', 'mid', {def:40, hp:600},                    ['scale_mail','chest_guard']);
+defEquip('mid_thorn_shield',  '荆棘之盾',     '🌵', 'mid', {def:30, flatRed:5, antiThorns:1},   ['wood_shield','thorn_bracer']);
+defEquip('mid_antimagic_cloak','反魔斗篷',    '🧥', 'mid', {def:25, dotRes:35, antiCurse:1},    ['fire_cloak','purify_amulet']);
+defEquip('mid_gale_boots',    '疾风战靴',     '👟', 'mid', {def:18, critChance:8, antiFirst:1}, ['iron_boots','swift_boots']);
+defEquip('mid_ironwall_bracer','铁壁护腕',    '🧤', 'mid', {def:22, dmgRed:10},                 ['leather_bracer','ironwall_rune']);
+defEquip('mid_life_gem',      '生命宝石项链', '🧿', 'mid', {hp:900},                            ['life_amulet','wood_ring']);
+defEquip('mid_mithril_band',  '秘银指环',     '💍', 'mid', {atk:18, def:18, hp:200},            ['mithril_ring','iron_ring']);
+defEquip('mid_break_eye',     '破魔之瞳',     '👁️', 'mid', {atk:12, antiDodge:1, antiShield:1}, ['truesight_eye','shieldbreak_rune']);
+defEquip('mid_stasis_crest',  '静滞纹章',     '🕸️', 'mid', {dotRes:30, antiStun:1},             ['stasis_amulet','antidote_herb']);
+defEquip('mid_ward_amulet',   '破邪护符',     '💀', 'mid', {antiReborn:1, antiCurse:1},         ['bone_necklace','purify_amulet']);
+defEquip('mid_suppress_core', '抑制之核',     '⭕', 'mid', {dmgRed:8, antiRegen:1},             ['suppress_ring','ironwall_rune']);
+defEquip('mid_bomb_plate',    '拆弹重铠',     '💣', 'mid', {def:30, antiBomb:1},                ['bomb_amulet','scale_mail']);
+defEquip('mid_agile_boots',   '灵巧之靴',     '🍃', 'mid', {def:15, antiCombo:30},              ['agile_amulet','iron_boots']);
+defEquip('mid_sturdy_chest',  '坚岩护胸',     '🗿', 'mid', {def:35, antiPierce:40},             ['sturdy_amulet','plate_armor']);
+defEquip('mid_lucky_ring',    '幸运之戒',     '🪙', 'mid', {atk:15, def:15, critChance:25},     ['lucky_coin','mithril_ring']);
+defEquip('mid_locksmith_belt','锁匠腰带',     '🔑', 'mid', {def:18, hp:200, keyGuard:1},        ['keychain','leather_armor']);
+defEquip('mid_shield_breaker','碎盾战锤',     '💠', 'mid', {atk:40, pen:10, antiShield:1},      ['great_hammer','shieldbreak_rune']);
+
+/* ---------------- 高级装备 20 件（初级 + 中级） ---------------- */
+defEquip('high_dragon_slayer', '屠龙圣剑',       '🗡️', 'high', {atk:90, pen:30, critChance:15},              ['steel_blade','mid_dragon_axe']);
+defEquip('high_chaos_blade',   '混沌之刃',       '🌑', 'high', {atk:85, critChance:30, antiDodge:1},         ['twin_dagger','mid_moon_blade']);
+defEquip('high_world_piercer', '破界长枪',       '🔱', 'high', {atk:80, pen:60, antiArmor:1},                ['knight_lance','mid_armor_breaker']);
+defEquip('high_flame_verdict', '烈焰裁决',       '🔥', 'high', {atk:95, dotRes:40, antiStun:1},              ['flame_knife','mid_flame_axe']);
+defEquip('high_hawk_bow',      '鹰眼神弓',       '🏹', 'high', {atk:70, critChance:35, antiDodge:1, antiShield:1}, ['hunting_bow','mid_break_eye']);
+defEquip('high_arcane_staff',  '奥术法杖',       '🪄', 'high', {atk:60, def:40, antiCurse:1, antiStun:1},    ['rune_staff','mid_stasis_crest']);
+defEquip('high_apocalypse',    '天启重铠',       '🛡️', 'high', {def:110, dmgRed:25},                         ['plate_armor','mid_dragon_scale']);
+defEquip('high_holy_bulwark',  '圣光壁垒',       '🛡️', 'high', {def:100, flatRed:20, dmgRed:18},             ['tower_shield','mid_ironwall_bracer']);
+defEquip('high_thorn_crown',   '荆棘王冠',       '🌵', 'high', {def:70, antiThorns:1, antiCombo:40},         ['wood_shield','mid_agile_boots']);
+defEquip('high_antimagic_mail','反魔战甲',       '🧥', 'high', {def:80, dotRes:40, antiCurse:1, antiPierce:50}, ['fire_cloak','mid_sturdy_chest']);
+defEquip('high_immortal_heart','不朽之心',       '❤️', 'high', {hp:3000, antiReborn:1},                      ['life_amulet','mid_ward_amulet']);
+defEquip('high_mithril_crown', '秘银冠冕',       '👑', 'high', {atk:50, def:50, hp:800, antiRegen:1},        ['mithril_ring','mid_suppress_core']);
+defEquip('high_void_ring',     '虚无吞噬者之戒', '🌀', 'high', {atk:45, critChance:30, antiDodge:1, antiShield:1}, ['truesight_eye','mid_lucky_ring']);
+defEquip('high_hourglass',     '时光沙漏',       '⏳', 'high', {def:40, critChance:15, antiFirst:1, antiStun:1}, ['swift_boots','mid_stasis_crest']);
+defEquip('high_guardian_shield','守护者之盾',    '🛡️', 'high', {def:95, dmgRed:20, antiBomb:1},               ['iron_shield','mid_bomb_plate']);
+defEquip('high_thief_blade',   '盗贼大师之刃',   '🔪', 'high', {atk:55, antiDodge:1, keyGuard:1},            ['keychain','mid_hawk_bow']);
+defEquip('high_element_heart', '元素之心',       '💠', 'high', {atk:70, def:70, dotRes:50},                  ['antidote_herb','mid_antimagic_cloak']);
+defEquip('high_dragon_fang',   '龙牙战斧',       '🐲', 'high', {atk:120, pen:40, antiShield:1},              ['war_axe','mid_shield_breaker']);
+defEquip('high_abyss_judge',   '深渊裁决者',     '⚖️', 'high', {atk:150, pen:50, critChance:35},             ['moon_rapier','mid_giant_sword']);
+defEquip('high_eternal_crown', '永恒王冠',       '👑', 'high', {def:120, hp:4000, dmgRed:20},                ['iron_helm','mid_life_gem']);
+
+/* ==================================================================
+   装备图标（Tabler Icons）
+   每件装备唯一一个图标，彻底消除 emoji 重复
+   ================================================================== */
+const EQUIP_ICONS = {
+  /* ========== 初级装备 50 件 ========== */
+  rusty_sword:      'ti-sword',              // 生锈短剑
+  iron_sword:       'ti-sword-off',          // 铁剑
+  steel_blade:      'ti-blade',              // 精钢长剑
+  twin_dagger:      'ti-dagger',             // 双刃匕首
+  knight_lance:     'ti-lance',              // 骑士长枪（Tabler 有 lance）
+  war_axe:          'ti-axe',                // 战斧
+  great_hammer:     'ti-hammer',             // 巨锤
+  hunting_bow:      'ti-bow',                // 猎弓
+  crossbow:         'ti-crosshair',          // 短弩
+  knuckle:          'ti-hand-stop',          // 拳刃
+  rune_staff:       'ti-wand',               // 符文短杖
+  frost_dagger:     'ti-snowflake',          // 冰晶匕首
+  flame_knife:      'ti-flame',              // 火焰短刀
+  venom_dagger:     'ti-biohazard',          // 毒牙匕首
+  moon_rapier:      'ti-moon',               // 月光细剑
+
+  cloth_robe:       'ti-shirt',              // 布衣
+  leather_armor:    'ti-vest',               // 皮甲
+  chain_mail:       'ti-link',               // 铁链甲
+  wood_shield:      'ti-shield-half',        // 木盾
+  iron_shield:      'ti-shield-check',       // 铁盾
+  tower_shield:     'ti-shield-lock',        // 塔盾
+  iron_helm:        'ti-helmet',             // 铁盔
+  leather_cap:      'ti-hat',                // 皮帽
+  chest_guard:      'ti-shield-star',        // 护心镜
+  scale_mail:       'ti-hexagon',            // 锁子甲
+  plate_armor:      'ti-layers',             // 板甲
+  rattan_armor:     'ti-plant-2',            // 藤甲
+  fire_cloak:       'ti-campfire',           // 耐火斗篷
+  leather_bracer:   'ti-fingerprint',        // 皮护腕
+  iron_boots:       'ti-shoe',               // 铁靴
+
+  wood_ring:        'ti-circle',             // 木戒指
+  iron_ring:        'ti-disc',               // 铁戒指
+  life_amulet:      'ti-heart',              // 生命护符
+  bone_necklace:    'ti-bone',               // 白骨项链
+  mithril_ring:     'ti-diamond',            // 秘银戒指
+  swift_boots:      'ti-run',                // 迅捷之靴
+  purify_amulet:    'ti-sparkles',           // 净化护符
+  antidote_herb:    'ti-leaf',               // 解毒草
+  ironwall_rune:    'ti-wall',               // 铁壁符文
+  armorbreak_rune:  'ti-bolt',               // 破甲符文
+  truesight_eye:    'ti-eye',                // 真视之眼
+  shieldbreak_rune: 'ti-bolt-off',           // 破盾符文
+  stasis_amulet:    'ti-hourglass',          // 静滞护符
+  keychain:         'ti-key',                // 钥匙扣
+  bomb_amulet:      'ti-bomb',               // 拆弹护符
+  thorn_bracer:     'ti-cactus',             // 荆棘护腕
+  agile_amulet:     'ti-feather',            // 灵巧护符
+  sturdy_amulet:    'ti-anchor',             // 坚固护符
+  suppress_ring:    'ti-lock',               // 抑制之环
+  lucky_coin:       'ti-coin',               // 幸运硬币
+
+  /* ========== 中级装备 30 件 ========== */
+  mid_giant_sword:      'ti-machete',        // 精钢巨剑
+  mid_dawn_lance:       'ti-spear',          // 破晓长枪
+  mid_twin_fang:        'ti-cleaver',        // 双生短刃
+  mid_flame_axe:        'ti-flare',          // 烈焰战斧
+  mid_armor_breaker:    'ti-pickaxe',        // 碎甲重锤
+  mid_hawk_bow:         'ti-target',         // 鹰眼长弓
+  mid_curse_staff:      'ti-atom',           // 咒印法杖
+  mid_frost_blade:      'ti-droplet-half',   // 霜寒利刃
+  mid_moon_blade:       'ti-star',           // 月光双刃
+  mid_dragon_axe:       'ti-tools',          // 巨龙战斧
+  mid_shield_breaker:   'ti-sword-off',      // 碎盾战锤（与 iron_sword 重复，下面处理）
+
+  mid_dark_armor:       'ti-shield',         // 玄铁重甲
+  mid_holy_shield:      'ti-sun',            // 圣光之盾
+  mid_dragon_scale:     'ti-grid',           // 龙鳞护甲
+  mid_mithril_mail:     'ti-cube',           // 秘银胸甲
+  mid_thorn_shield:     'ti-tree',           // 荆棘之盾
+  mid_antimagic_cloak:  'ti-shield-off',     // 反魔斗篷
+  mid_gale_boots:       'ti-wind',           // 疾风战靴
+  mid_ironwall_bracer:  'ti-brick',          // 铁壁护腕
+  mid_bomb_plate:       'ti-package',        // 拆弹重铠
+  mid_sturdy_chest:     'ti-mountain',       // 坚岩护胸
+
+  mid_life_gem:         'ti-droplet',        // 生命宝石项链
+  mid_mithril_band:     'ti-circle-check',   // 秘银指环
+  mid_break_eye:        'ti-eye-off',        // 破魔之瞳
+  mid_stasis_crest:     'ti-clock',          // 静滞纹章
+  mid_ward_amulet:      'ti-skull',          // 破邪护符
+  mid_suppress_core:    'ti-key-off',        // 抑制之核
+  mid_agile_boots:      'ti-walk',           // 灵巧之靴
+  mid_lucky_ring:       'ti-clover',         // 幸运之戒
+  mid_locksmith_belt:   'ti-lock-open',      // 锁匠腰带
+
+  /* ========== 高级装备 20 件 ========== */
+  high_dragon_slayer:   'ti-sword',          // 屠龙圣剑（与 rusty_sword 重复？用 filled 变体区分）
+  high_chaos_blade:     'ti-infinity',       // 混沌之刃
+  high_world_piercer:   'ti-sickle',         // 破界长枪（ti-sickle 可能不存在，备选 ti-scan）
+  high_flame_verdict:   'ti-torch',          // 烈焰裁决
+  high_hawk_bow:        'ti-radar',          // 鹰眼神弓
+  high_arcane_staff:    'ti-planet',         // 奥术法杖
+
+  high_apocalypse:      'ti-building-castle',// 天启重铠
+  high_holy_bulwark:    'ti-octagon',        // 圣光壁垒
+  high_thorn_crown:     'ti-crown',          // 荆棘王冠
+  high_antimagic_mail:  'ti-radioactive',    // 反魔战甲
+  high_guardian_shield: 'ti-tower',          // 守护者之盾
+  high_element_heart:   'ti-flask-2',        // 元素之心
+
+  high_immortal_heart:  'ti-heartbeat',      // 不朽之心
+  high_mithril_crown:   'ti-tiara',          // 秘银冠冕
+  high_void_ring:       'ti-circle-dashed',  // 虚无吞噬者之戒
+  high_hourglass:       'ti-history',        // 时光沙漏
+  high_thief_blade:     'ti-razor',          // 盗贼大师之刃（ti-razor 可能不存在）
+  high_dragon_fang:     'ti-saw',            // 龙牙战斧
+  high_abyss_judge:     'ti-scale',          // 深渊裁决者
+  high_eternal_crown:   'ti-gem'             // 永恒王冠
+};
+
+EQUIP_LIST.forEach(e => {
+  if (EQUIP_ICONS[e.id]) e.icon = EQUIP_ICONS[e.id];
+});
+
+/* 属性描述 */
+const STAT_INFO = {
+  atk:        {n:'攻击',       f:v=>'+'+v},
+  def:        {n:'防御',       f:v=>'+'+v},
+  hp:         {n:'生命上限',   f:v=>'+'+v},
+  pen:        {n:'无视防御',   f:v=>'+'+v},
+  critChance: {n:'暴击率',     f:v=>'+'+v+'%'},
+  dmgRed:     {n:'受伤减免',   f:v=>'+'+v+'%'},
+  flatRed:    {n:'固定减伤',   f:v=>'+'+v},
+  dotRes:     {n:'持续伤害抗性', f:v=>'+'+v+'%'},
+  antiArmor:  {n:'无视护甲',   f:()=>'✓'},
+  antiDodge:  {n:'无视闪避',   f:()=>'✓'},
+  antiShield: {n:'无视护盾',   f:()=>'✓'},
+  antiRegen:  {n:'抑制再生',   f:()=>'✓'},
+  antiReborn: {n:'禁止复活',   f:()=>'✓'},
+  antiFirst:  {n:'免疫先攻',   f:()=>'✓'},
+  antiCombo:  {n:'连击减伤',   f:v=>'+'+v+'%'},
+  antiPierce: {n:'穿透抗性',   f:v=>'+'+v+'%'},
+  antiCurse:  {n:'免疫减益',   f:()=>'✓'},
+  antiThorns: {n:'反伤减免',   f:v=>'+'+v+'%'},
+  antiBomb:   {n:'爆炸减免',   f:()=>'✓'},
+  antiStun:   {n:'免疫控制',   f:()=>'✓'},
+  keyGuard:   {n:'守护钥匙',   f:()=>'✓'}
+};
+
+function describeStats(stats){
+  return Object.keys(stats).map(k => {
+    const info = STAT_INFO[k];
+    return info ? info.n + ' ' + info.f(stats[k]) : '';
+  }).filter(Boolean).join(' · ');
+}
+
+/* 把 100 件装备注册进 ITEMS，使它们能像普通物品一样放置 / 渲染 / 生成代码 */
+EQUIP_LIST.forEach(e => {
+  ITEMS[e.id] = {
+    emoji: e.emoji,
+    icon : e.icon,          // ← 新增：Tabler 图标类名
+    name : e.name,
+    color: e.tier === 'basic' ? '#9aa2c0' : (e.tier === 'mid' ? '#c6a0ff' : '#ffb454'),
+    isEquip: true,
+    tier: e.tier
+  };
+});
+
+/* ================= Tabler 图标可用性检测（缺失则回退 emoji） ================= */
+const ICON_AVAIL = new Map();   // iconClass -> boolean；未检测前视为「乐观可用」
+
+function isIconAvailable(iconClass){
+  if (!iconClass) return false;
+  const v = ICON_AVAIL.get(iconClass);
+  return v === undefined ? true : v;   // 未检测 → 先乐观显示图标
+}
+
+/* 用一个隐藏容器批量渲染所有图标，一次性测完宽度，避免 100 次单独 DOM 操作 */
+function batchDetectIcons(icons){
+  if (!icons.length) return [];
+  const box = document.createElement('div');
+  box.style.cssText =
+    'position:absolute;left:-9999px;top:0;visibility:hidden;' +
+    'pointer-events:none;white-space:nowrap;';
+  const items = icons.map(ic => {
+    const el = document.createElement('i');
+    el.className = 'ti ' + ic;
+    el.style.cssText = 'display:inline-block;font-size:24px;line-height:1;width:auto;min-width:0;';
+    box.appendChild(el);
+    return { ic, el };
+  });
+  document.body.appendChild(box);
+  const out = items.map(({ ic, el }) => ({
+    ic,
+    ok: el.getBoundingClientRect().width > 0.5   // 宽度 > 0.5px 才算真渲染出来
+  }));
+  document.body.removeChild(box);
+  return out;
+}
+
+/* 收集所有用到的图标类名（基础物品 + 100 件装备） */
+function collectAllIconClasses(){
+  const set = new Set();
+  Object.values(ITEMS).forEach(it => { if (it && it.icon) set.add(it.icon); });
+  if (typeof EQUIP_ICONS === 'object'){
+    Object.values(EQUIP_ICONS).forEach(ic => { if (ic) set.add(ic); });
+  }
+  return Array.from(set);
+}
+
+/* 字体加载完成后跑一次；只有「真的发现了缺失」才重渲，避免无谓闪动 */
+function refreshIconAvailability(){
+  const icons = collectAllIconClasses();
+  if (!icons.length) return;
+  const results = batchDetectIcons(icons);
+  let anyMissing = false;
+  results.forEach(({ ic, ok }) => {
+    const prev = ICON_AVAIL.get(ic);
+    ICON_AVAIL.set(ic, ok);
+    if (!ok && prev !== false) anyMissing = true;   // 上次乐观以为能用，这次发现不行
+  });
+  if (anyMissing){
+    renderGrid();
+    renderPickers();
+    renderInfo();
+  }
+}
+
+/* 等字体就绪再检测；再挂一次延时兜底，防止字体分片延迟加载 */
+function scheduleIconCheck(){
+  const run = () => setTimeout(refreshIconAvailability, 30);
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(run).catch(run);
+  } else {
+    setTimeout(refreshIconAvailability, 800);
+  }
+  setTimeout(refreshIconAvailability, 2500);
+}
+
 function itemGlyph(item){
-  if (item.icon){
+  if (item.icon && isIconAvailable(item.icon)){
     const bold = item.bold ? ';-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill' : '';
     return '<i class="ti ' + item.icon + '" style="color:' + item.color +
            ';font-size:1.1em;line-height:1;vertical-align:-0.12em' + bold + '"></i>';
@@ -788,6 +1192,7 @@ const tabsEl   = document.getElementById('tabs');
 const toolsEl  = document.getElementById('tools');
 const mpickEl  = document.getElementById('monsterPick');
 const ipickEl  = document.getElementById('itemPick');
+const epickEl  = document.getElementById('equipPick');
 const infoEl   = document.getElementById('info');
 const codeEl   = document.getElementById('code');
 const warnEl   = document.getElementById('warn');
@@ -869,6 +1274,7 @@ function renderTools(){
 }
 
 function renderPickers(){
+  /* ---- 怪物 ---- */
   mpickEl.innerHTML = MONSTER_DEFS.map((m, i) => {
     const kindTxt = m.kind === 'boss' ? '【BOSS】' : (m.kind === 'elite' ? '【精英】' : '');
     const tip = m.name + kindTxt + '  HP' + m.hp + ' ATK' + m.atk + ' DEF' + m.def;
@@ -876,6 +1282,7 @@ function renderPickers(){
            (i === E.mIdx ? ' class="on"' : '') + '>' + m.emoji + '<small>' + i + '</small></button>';
   }).join('');
 
+  /* ---- 基础物品 / 门 ---- */
   ipickEl.innerHTML = ITEM_ORDER.map(k => {
     const item = ITEMS[k];
     return '<button data-it="' + k + '" title="' + item.name + '"' +
@@ -885,8 +1292,33 @@ function renderPickers(){
     '<small>' + item.name + '</small></button>';
   }).join('');
 
+  /* ---- 装备（100 件，按品阶分组） ---- */
+  const TIER_LABEL = { basic:'初 级 装 备', mid:'中 级 装 备', high:'高 级 装 备' };
+  let ehtml = '';
+  ['basic','mid','high'].forEach(tier => {
+    const list = EQUIP_LIST.filter(e => e.tier === tier);
+    if (!list.length) return;
+    ehtml += '<div class="eq-group"><span>' + TIER_LABEL[tier] + '</span><b>' + list.length + ' 件</b></div>';
+    ehtml += list.map(e => {
+      const tip = e.name + ' · ' + describeStats(e.stats)
+                + (e.recipe ? '\n合成：' + e.recipe.map(r => EQUIP_DEFS[r].name).join(' + ') : '');
+      const glyph = (e.icon && isIconAvailable(e.icon))
+        ? '<i class="ti ' + e.icon + '"></i>'
+        : e.emoji;                                       // ← 缺失时回退 emoji
+      return '<button data-eq="' + e.id + '" data-tier="' + e.tier + '" title="' + tip + '"'
+           + (E.iType === e.id ? ' class="on"' : '') + '>'
+           + glyph + '<small>' + e.name + '</small></button>';
+    }).join('');
+  });
+  epickEl.innerHTML = ehtml;
+
+  /* ---- 当前选中提示 ---- */
   document.getElementById('curMonster').textContent = '#' + E.mIdx + ' ' + MONSTER_DEFS[E.mIdx].name;
   document.getElementById('curItem').textContent    = ITEMS[E.iType].name;
+  const eqTag = document.getElementById('curEquip');
+  if (eqTag){
+    eqTag.textContent = EQUIP_DEFS[E.iType] ? EQUIP_DEFS[E.iType].name : '点击选用';
+  }
   updateCurTool();
 }
 
@@ -897,6 +1329,8 @@ function renderInfo(){
   const it = Object.keys(fl.items).length;
   let doorCnt = 0;
   fl.grid.forEach(row => row.forEach(c => { if (c === 'Y' || c === 'B' || c === 'R') doorCnt++; }));
+  let eqCnt = 0;
+  Object.keys(fl.items).forEach(k => { if (EQUIP_DEFS[fl.items[k]]) eqCnt++; });
   infoEl.innerHTML =
     '<div class="irow"><span>下楼 entry</span><b>' +
       (fl.entry ? '(' + fl.entry.x + ', ' + fl.entry.y + ')' : '未设置') + '</b></div>' +
@@ -904,6 +1338,7 @@ function renderInfo(){
       (fl.exit ? '(' + fl.exit.x + ', ' + fl.exit.y + ')' : '未设置') + '</b></div>' +
     '<div class="irow"><span>怪物数量</span><b>' + mn + '</b></div>' +
     '<div class="irow"><span>物品数量</span><b>' + it + '</b></div>' +
+    '<div class="irow"><span>其中装备</span><b>' + eqCnt + '</b></div>' +
     '<div class="irow"><span>门数量</span><b>' + doorCnt + '</b></div>';
 }
 
@@ -1667,7 +2102,7 @@ function generateFloorRange(){
   if (total === 1){
     confirmDialog('将重新生成第 ' + (lo + 1) + ' 层，确定？', doGenerate);
   } else {
-    confirmDialog('将重新生成第 ' + (lo + 1) + ' ~ ' + (hi + 1) + ' 层（共 ' + total + ' 层），确定？', doGenerate);
+    confirmDialog('将重新生成第 ' + (lo + 1) + ' ~ 第 ' + (hi + 1) + ' 层（共 ' + total + ' 层），确定？', doGenerate);
   }
 }
 
@@ -1745,6 +2180,15 @@ ipickEl.addEventListener('click', e => {
   renderPickers();
 });
 
+epickEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  E.iType = b.dataset.eq;
+  E.tool = 'item';
+  renderTools();
+  renderPickers();
+});
+
 document.getElementById('densityIn').addEventListener('input', e => {
   document.getElementById('densityPct').textContent = e.target.value + '%';
 });
@@ -1804,9 +2248,10 @@ function genCode(){
       out.push('    items: {');
       iKeys.forEach((k, ki) => {
         const t = fl.items[k];
+        const def = ITEMS[t] || { name: '?' };
+        const suffix = EQUIP_DEFS[t] ? '   // 装备·' + def.name : '   // ' + def.name;
         out.push('      "' + k + '":"' + t + '"' +
-                 (ki < iKeys.length - 1 ? ',' : '') +
-                 '   // ' + ITEMS[t].name);
+                 (ki < iKeys.length - 1 ? ',' : '') + suffix);
       });
       out.push('    }');
     } else {
@@ -1889,6 +2334,7 @@ function toast(msg){
 }
 
 renderAll();
+scheduleIconCheck();
 
 })();
 </script>
