@@ -321,14 +321,14 @@
                     s.moneyBonus += 350 + (n - 1) * 100;
                 } },
             { id:'killBonus', name:'战利品',   rarity:'common',   icon:'💎', desc:'每次击杀额外 +8 资金',    apply:(s)=>{ s.bonus.killBonus += 8; } },
-            { id:'priceDown', name:'成本削减', rarity:'uncommon', icon:'💲', desc:'建造与升级花费 -10%（非线性叠加）', apply:(s)=>{ s.bonus.priceMul *= 0.9; } },
+            { id:'priceDown', name:'成本削减', rarity:'uncommon', icon:'💲', desc:'建造与升级花费 -10%', apply:(s)=>{ s.bonus.priceMul *= 0.9; } },
             { id:'reveal',    name:'雷达升级', rarity:'uncommon', icon:'📡', desc:'隐形发现范围 +50%',       apply:(s)=>{ s.bonus.revealRange *= 1.5; } },
             { id:'slowAura',  name:'时间扭曲', rarity:'uncommon', icon:'🕸️', desc:'所有敌人移速 -10%',       apply:(s)=>{ s.bonus.enemySlow *= 0.90; } },
             { id:'coreSpeed',    name:'核心回收', rarity:'uncommon', icon:'💨',
-  desc:'核心返回基地速度 +20%（非线性叠加）',
+  desc:'核心返回基地速度 +20%',
   apply:(s)=>{ s.bonus.coreReturnSpeed *= 1.20; } },
 { id:'jammerReduce', name:'信号屏蔽', rarity:'common',   icon:'📶',
-  desc:'干扰者干扰范围 -15%（非线性叠加）',
+  desc:'干扰者干扰范围 -15%',
   apply:(s)=>{ s.bonus.jammerRangeMul *= 0.85; } },
             { id:'sellPlus',  name:'回收专家', rarity:'uncommon', icon:'♻️', desc:'出售返还比例 +25%',       apply:(s)=>{ s.bonus.sellMul = Math.min(1.0, s.bonus.sellMul + 0.25); } },
             { id:'freeUp',    name:'免费升级', rarity:'uncommon', icon:'⬆️', desc:'随机一座塔免费升 1 级',    apply:(s)=>{ s._pendingFreeUp = true; } },
@@ -351,10 +351,10 @@
         const ROGUE_ENEMY_BOOSTS = [
             { id:'hp',          name:'铁壁',     icon:'❤️', color:'#ff6b6b', desc:'所有敌人生命值 +20%（乘算叠加）' },
             { id:'speed',       name:'疾行',     icon:'💨', color:'#ffd966', desc:'所有敌人移动速度 +20%（乘算叠加）' },
-            { id:'coreLock',    name:'核心惰性', icon:'🔒', color:'#c8b0ff', desc:'未携带核心的敌人受到伤害 -20%（非线性叠加）' },
-            { id:'stunResist',  name:'抗眩晕',   icon:'🛡️', color:'#7ec8ff', desc:'敌人眩晕时长 -20%（非线性叠加）' },
+            { id:'coreLock',    name:'核心惰性', icon:'🔒', color:'#c8b0ff', desc:'未携带核心的敌人受到伤害 -20%' },
+            { id:'stunResist',  name:'抗眩晕',   icon:'🛡️', color:'#7ec8ff', desc:'敌人眩晕时长 -20%' },
             { id:'coreDelay',   name:'核心滞留', icon:'⏳', color:'#4affd0', desc:'携带核心的敌人被击杀后，核心原地停留 3 秒（可叠加，每层 +3 秒）' },
-            { id:'dodge',       name:'闪避',     icon:'🌀', color:'#ff88dd', desc:'敌人获得 8% 闪避率（非线性叠加）' }
+            { id:'dodge',       name:'闪避',     icon:'🌀', color:'#ff88dd', desc:'敌人获得 8% 闪避率' }
         ];
 
         let rogueState = null;
