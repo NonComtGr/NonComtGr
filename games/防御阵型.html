@@ -537,7 +537,7 @@ function buildSynergyDesc(s) {
         if (!meta) continue;
         parts.push(`${meta.label} ${meta.fmt(s.mods[k])}`);
     }
-    return `每有 1 座${bName}，${aName}${parts.join(' · ')}（最多 ${s.cap} 座）`;
+    return `每有 1 座${bName}，${aName}${parts.join(' · ')}`;
 }
 
 
@@ -1853,9 +1853,9 @@ function rollSynergyCount() {
             emp:      '🌀 满级特性：对机械单位伤害 +50%，眩晕时长提升（封顶冷却 90%）',
             harvester:'💠 满级特性：光环射程翻倍'
         };
-        // 初始化字段
 for (const s of ROGUE_SYNERGIES) {
     s.icon = '🔗';
+    s.cap = Math.min(s.cap, 8);      // ★ 所有联动卡上限统一压到 8（或你要的数）
     s.desc = buildSynergyDesc(s);
     s.rarity = calcSynergyRarity(s);
     s.isSynergy = true;
