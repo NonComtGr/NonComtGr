@@ -205,22 +205,23 @@
         const SHADOW_FOG_RANGE_RATIO = 0.50;   // 暗影迷雾下探测半径至少覆盖塔射程的 50%
 
         function getStealthRevealRadius(tower) {
-            const revealMul = (rogueState && rogueState.bonus.revealRange) || 1;
-            let r = STEALTH_REVEAL_RANGE * CELL * revealMul;
+    const revealMul = (rogueState && rogueState.bonus.revealRange) || 1;
+    const synReveal = 1 + ((tower && tower.syn && tower.syn.reveal) || 0);
+    let r = STEALTH_REVEAL_RANGE * CELL * revealMul * synReveal;
 
-            if (ascensionState && ascensionState.shadowFog) {
-                r *= SHADOW_FOG_MUL;
-                // 保底：探测半径不小于自身射程的 50%，避免"射程 7 格却只能探 1 格"
-                if (tower && TOWER_TYPES[tower.type]) {
-                    const st = towerStatsAt(tower.type, tower.level);
-                    if (st && st.range) {
-                        const bf = (tower.buffs && tower.buffs.range) || 1;
-                        r = Math.max(r, st.range * CELL * bf * SHADOW_FOG_RANGE_RATIO);
-                    }
-                }
+    if (ascensionState && ascensionState.shadowFog) {
+        r *= SHADOW_FOG_MUL;
+        if (tower && TOWER_TYPES[tower.type]) {
+            const st = towerStatsAt(tower.type, tower.level);
+            if (st && st.range) {
+                const bf  = (tower.buffs && tower.buffs.range) || 1;
+                const synR = 1 + ((tower.syn && tower.syn.range) || 0);
+                r = Math.max(r, st.range * CELL * bf * synR * SHADOW_FOG_RANGE_RATIO);
             }
-            return r;
         }
+    }
+    return r;
+}
         const GROW = { damage: 0.60, rate: 0.30, range: 0.08, slowMin: 0.15, slowStep: 0.07, slowDurStep: 0.4 };
 
         const TOWER_DRAFT_INTERVAL = 6; // 每 6 波选塔
@@ -254,7 +255,7 @@
         const ASCENSION_MODIFIERS = [
             { id: 1,  name: '弹药限制',   desc: '每座塔有 50 发子弹，打空后需扣除金币自动装填（资金不足则停火）。' },
             { id: 2,  name: '终极狂潮',   desc: '最后一波的怪物数量翻倍。' },
-            { id: 3,  name: '死亡沉默',   desc: '隐形怪被击杀时，会使周围 2.5 格内的防御塔失效 3 秒。' },
+            { id: 3,  name: '死亡沉默',   desc: '隐形怪被击杀时，会使周围 2.5 格内的防御塔失效 1 秒。' },
             { id: 4,  name: '绝对制空',   desc: '飞行怪只会被防空塔攻击。' },
             { id: 5,  name: '资源匮乏',   desc: '初始资金降低 30%。' },
             { id: 6,  name: '建筑限额',   desc: '造塔次数不能超过 20 座（无尽模式不受此限制）。' },
@@ -284,6 +285,16 @@
         let ascHoldDir = 0, ascHoldTimer = 0, ascHoldStarted = false;
         let gameAscHover = -1;
         let ascGamePanelRect = null;
+
+        // ---------- 面板折叠状态 ----------
+        let ascGameCollapsed = false;
+        let affixCollapsed = false;
+        let towerUpCollapsed = false;
+        let enemyModCollapsed = false;
+        const ROGUE_PANEL_HDR_H = 32;
+        let affixPanelRect = null;
+        let towerUpPanelRect = null;
+        let enemyModPanelRect = null;
 
         const ROGUE_AFFIXES = [
             // ── 原有 7 种 ──
@@ -1754,7 +1765,7 @@ function rollSynergyCount() {
         const MAX_DIFFICULTY = 10;
         function levelDifficulty(lv) {
             const idx = LEVELS.indexOf(lv);
-            return Math.min(10, Math.floor(idx / 5));   // 每 4 关 +1 难度，第 37 关约 9
+            return Math.min(0, Math.floor(idx / 5));   // difficulty为0
         }
         function storyWaveCount(levelIdx) {
             const idx = Math.max(0, levelIdx | 0);
@@ -1952,7 +1963,7 @@ function makeSeededRng(seed) {
             const isGrind = modeKey === 'grind';
             const isEndless = modeKey === 'endless';
             const waveCount = isEndless ? 9999 : (isGrind ? 99 : storyWaveCount(levelIdx));
-            const baseHp = (26 + difficulty * 8) * hpMul * 15.0;
+            const baseHp = (26 + difficulty * 8) * hpMul * 8.0;     //怪物血量
             const baseSpeed = 1.04 + difficulty * 0.032;
             const GRIND_GROWTH = 1.030, GRIND_WAVES = 99, ENDLESS_GROWTH = 1.020;
             const hpGrowth = isGrind ? GRIND_GROWTH : 1.090;
@@ -2394,6 +2405,11 @@ function makeSeededRng(seed) {
             // 自动升级：每局开局默认关闭
             globalAutoUpgrade = false;
             autoUpgradeHover = false;
+            // 面板折叠状态复位
+            ascGameCollapsed = false;
+            affixCollapsed = false;
+            towerUpCollapsed = false;
+            enemyModCollapsed = false;
 
             
             // 进阶难度初始化
@@ -2570,6 +2586,9 @@ function makeSeededRng(seed) {
                 msgDisplay.textContent = `${mode.name}${(routeReverse && hasExitTile) ? ' · 路线反转' : ''} · 建造第一座塔后开始倒计时`;
             }
             setScreen('game');
+            if (rogueEnabled && rogueState) {
+                openDraft('synergy');
+            }
         }
 
         function getBlockedGrid() {
@@ -3002,19 +3021,35 @@ function pickSummonType(selfType, waveId) {
             const isPrism = t.type === 'prism';
             const isHarvest = t.type === 'harvester';
             const lvColor = LEVEL_COLORS[Math.min(Math.max(t.level, 1), MAX_LEVEL) - 1];
-            const bf = t.buffs || { dmg: 1, rate: 1, range: 1 };
-            const rb = (rogueState && rogueState.bonus) || { dmg: 1, rate: 1, range: 1 };
-            const bfDmg = bf.dmg || 1, bfRate = bf.rate || 1, bfRange = bf.range || 1;
-            const dmgMul = bfDmg * rb.dmg, rateMul = bfRate * rb.rate, rangeMul = bfRange * rb.range;
-            const hasAmp = bfDmg > 1.0001 || bfRate > 1.0001 || bfRange > 1.0001;
-            const BC = '#4affd0';
+
+                const bf = t.buffs || { dmg: 1, rate: 1, range: 1 };
+    const rb = (rogueState && rogueState.bonus) || { dmg: 1, rate: 1, range: 1 };
+    const bfDmg = bf.dmg || 1, bfRate = bf.rate || 1, bfRange = bf.range || 1;
+    const syn = t.syn || null;
+    const synDmg   = 1 + (syn ? (syn.dmg   || 0) : 0);
+    const synRate  = 1 + (syn ? (syn.rate  || 0) : 0);
+    const synRange = 1 + (syn ? (syn.range || 0) : 0);
+    const dmgMul   = bfDmg  * rb.dmg  * synDmg;
+    const rateMul  = bfRate * rb.rate * synRate;
+    const rangeMul = bfRange * rb.range * synRange;
+    const hasAmp = bfDmg > 1.0001 || bfRate > 1.0001 || bfRange > 1.0001;
+    const hasSyn = !!(syn && (
+        syn.dmg > 0 || syn.rate > 0 || syn.range > 0 ||
+        syn.crit > 0 || syn.slow > 0 || syn.poison > 0 || syn.stun > 0 ||
+        syn.splash > 0 || syn.burn > 0 || syn.harvest > 0 ||
+        syn.targets > 0 || syn.chain > 0 || syn.pierce > 0 || syn.reveal > 0
+    ));
+    const BC = '#4affd0';
 
             if (t.type === 'amplifier') {
                 const extra = t.level >= MAX_LEVEL ? '(+10%)' : '';
                 let html = `<div class="tt-title">${d.icon} ${d.name}<span class="tt-cost" style="color:${lvColor};">Lv.${t.level} / ${MAX_LEVEL}</span></div>`;
                 html += '<table><tr><th>伤害+</th><th>射速+</th><th>射程+</th><th>范围</th></tr>';
                 html += `<tr class="cur"><td>+${Math.round(s.boost.dmg * 100)}%${extra}</td><td>+${Math.round(s.boost.rate * 100)}%</td><td>+${Math.round(s.boost.range * 100)}%</td><td>${s.range.toFixed(1)}</td></tr></table>`;
-                html += `<div class="tt-note" style="color:#ffb86b;">${MAX_LEVEL_FEATURES.amplifier}</div>`;
+                                html += `<div class="tt-note" style="color:#ffb86b;">${MAX_LEVEL_FEATURES.amplifier}</div>`;
+                if (hasSyn && syn.range > 0) {
+                    html += `<div class="tt-note" style="color:#d8b0ff;border-top:none;padding-top:2px;margin-top:2px;white-space:normal;">🔗 联动加成：光环范围 +${Math.round(syn.range * 100)}%（实际 ${(s.range * synRange).toFixed(1)} 格）</div>`;
+                }
                 const sellVal = getSellValue(t);
                 if (t.level < MAX_LEVEL) {
                     const up = getUpgradeCostEffective(t.type, t.level);
@@ -3056,6 +3091,26 @@ function pickSummonType(selfType, waveId) {
                 if (bfRate > 1.0001) parts.push(`射速 +${Math.round((bfRate - 1) * 100)}%`);
                 if (bfRange > 1.0001) parts.push(`射程 +${Math.round((bfRange - 1) * 100)}%`);
                 html += `<div class="tt-note" style="color:${BC};border-top:none;padding-top:2px;margin-top:2px;">📡 增幅光环：${parts.join(' · ')} </div>`;
+            }
+            if (hasSyn) {
+                const parts = [];
+                if (syn.dmg > 0) parts.push(`伤害 +${Math.round(syn.dmg * 100)}%`);
+                if (syn.rate > 0) parts.push(`射速 +${Math.round(syn.rate * 100)}%`);
+                if (syn.range > 0) parts.push(`射程 +${Math.round(syn.range * 100)}%`);
+                if (syn.crit > 0) parts.push(`暴击率 +${Math.round(syn.crit * 100)}%`);
+                if (syn.slow > 0 && t.type === 'temporal') parts.push(`减速 +${Math.round(syn.slow * 100)}%`);
+                if (syn.poison > 0 && t.type === 'venom') parts.push(`毒伤 +${Math.round(syn.poison * 100)}%`);
+                if (syn.stun > 0 && (t.type === 'emp' || t.type === 'cannon' || t.type === 'chain' || t.type === 'laser' || t.type === 'missile' || t.type === 'shock' || t.type === 'sniper' || t.type === 'railgun')) parts.push(`眩晕 +${Math.round(syn.stun * 100)}%`);
+                if (syn.splash > 0 && (t.type === 'missile' || t.type === 'cannon' || t.type === 'flak')) parts.push(`溅射半径 +${Math.round(syn.splash * 100)}%`);
+                if (syn.burn > 0 && t.type === 'laser') parts.push(`灼烧伤害 +${Math.round(syn.burn * 100)}%`);
+                if (syn.harvest > 0 && t.type === 'harvester') parts.push(`回收率 +${Math.round(syn.harvest * 100)}%`);
+                if (syn.targets > 0 && t.type === 'prism') parts.push(`目标数 +${Math.floor(syn.targets)}`);
+                if (syn.chain > 0 && t.type === 'chain') parts.push(`跳跃数 +${Math.floor(syn.chain)}`);
+                if (syn.pierce > 0 && t.type === 'railgun') parts.push(`光束宽 +${Math.round(syn.pierce * 100)}%`);
+                if (syn.reveal > 0) parts.push(`侦测 +${Math.round(syn.reveal * 100)}%`);
+                if (parts.length) {
+                    html += `<div class="tt-note" style="color:#d8b0ff;border-top:none;padding-top:2px;margin-top:2px;white-space:normal;">🔗 联动加成：${parts.join(' · ')}</div>`;
+                }
             }
             const kills = t.kills || 0;
             const dmgDealt = Math.round(t.damageDealt || 0);
@@ -4405,9 +4460,10 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
         const ASC_GAME_HDR_H = 34;
         const ASC_GAME_W = 246;
 
-        function drawAscensionGamePanel(x, y) {
-            // 1. 动态计算高度：只计算到当前选择的难度
-            const h = ASC_GAME_HDR_H + selectedAscension * ASC_GAME_ITEM_H + 8;
+                function drawAscensionGamePanel(x, y) {
+            // 折叠时只保留标题栏
+            const bodyH = ascGameCollapsed ? 0 : selectedAscension * ASC_GAME_ITEM_H + 8;
+            const h = ASC_GAME_HDR_H + bodyH;
             ascGamePanelRect = { x, y, w: ASC_GAME_W, h };
             ctx.save();
             ctx.fillStyle = 'rgba(8, 14, 24, 0.85)';
@@ -4416,12 +4472,11 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             roundRect(ctx, x, y, ASC_GAME_W, h, 9);
             ctx.fill(); ctx.stroke();
 
-            // 标题绘制
+            // 标题
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // 2. 标题字号变大，从 15px 调整为 18px
-            ctx.font = 'bold 16px "Microsoft YaHei"'; 
+            ctx.font = 'bold 16px "Microsoft YaHei"';
             const grad = ctx.createLinearGradient(x, 0, x + ASC_GAME_W, 0);
             grad.addColorStop(0, '#ff6644');
             grad.addColorStop(0.5, '#ffbb88');
@@ -4429,49 +4484,56 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             ctx.fillStyle = grad;
             ctx.shadowColor = '#ff6644';
             ctx.shadowBlur = 10;
-            // Y 位置稍微下移一点配合字号
             ctx.fillText(`🔥 进阶难度 ${selectedAscension}`, x + ASC_GAME_W / 2, y + 18);
             ctx.restore();
 
-            // 装饰分割线
-            const lineY = y + ASC_GAME_HDR_H - 3;
-            ctx.strokeStyle = 'rgba(255, 102, 68, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x + 14, lineY);
-            ctx.lineTo(x + ASC_GAME_W - 14, lineY);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 102, 68, 0.8)';
-            ctx.beginPath(); ctx.arc(x + 14, lineY, 2, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + ASC_GAME_W - 14, lineY, 2, 0, Math.PI * 2); ctx.fill();
+            // 折叠箭头
+            ctx.save();
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 11px "Microsoft YaHei"';
+            ctx.fillStyle = 'rgba(255, 187, 136, 0.95)';
+            ctx.fillText(ascGameCollapsed ? '▶' : '▼', x + ASC_GAME_W - 12, y + 18);
+            ctx.restore();
 
-            // 3. 列表项绘制：循环次数改为 selectedAscension，只画选中的难度
-            for (let i = 0; i < selectedAscension; i++) {
-                const mod = ASCENSION_MODIFIERS[i];
-                const iy = y + ASC_GAME_HDR_H + i * ASC_GAME_ITEM_H;
-                
-                if (gameAscHover === i) {
-                    ctx.fillStyle = 'rgba(255, 102, 68, 0.18)';
-                    roundRect(ctx, x + 6, iy + 2, ASC_GAME_W - 12, ASC_GAME_ITEM_H - 4, 5);
-                    ctx.fill();
+            if (!ascGameCollapsed) {
+                // 装饰分割线
+                const lineY = y + ASC_GAME_HDR_H - 3;
+                ctx.strokeStyle = 'rgba(255, 102, 68, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x + 14, lineY);
+                ctx.lineTo(x + ASC_GAME_W - 14, lineY);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(255, 102, 68, 0.8)';
+                ctx.beginPath(); ctx.arc(x + 14, lineY, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + ASC_GAME_W - 14, lineY, 2, 0, Math.PI * 2); ctx.fill();
+
+                // 列表项
+                for (let i = 0; i < selectedAscension; i++) {
+                    const mod = ASCENSION_MODIFIERS[i];
+                    const iy = y + ASC_GAME_HDR_H + i * ASC_GAME_ITEM_H;
+
+                    if (gameAscHover === i) {
+                        ctx.fillStyle = 'rgba(255, 102, 68, 0.18)';
+                        roundRect(ctx, x + 6, iy + 2, ASC_GAME_W - 12, ASC_GAME_ITEM_H - 4, 5);
+                        ctx.fill();
+                    }
+
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = 'bold 18px "Microsoft YaHei"';
+                    ctx.fillStyle = '#ff8866';
+                    ctx.fillText(String(mod.id).padStart(2, ' '), x + 14, iy + ASC_GAME_ITEM_H / 2 + 1);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(mod.name, x + 46, iy + ASC_GAME_ITEM_H / 2 + 1);
                 }
-                
-                ctx.textAlign = 'left'; 
-                ctx.textBaseline = 'middle';
-                ctx.font = 'bold 18px "Microsoft YaHei"'; // 列表项字号稍微调大一点点
-                
-                // 因为只画已激活的，颜色统一亮色即可
-                ctx.fillStyle = '#ff8866'; 
-                ctx.fillText(String(mod.id).padStart(2, ' '), x + 14, iy + ASC_GAME_ITEM_H / 2 + 1);
-                
-                ctx.fillStyle = '#ffffff'; 
-                ctx.fillText(mod.name, x + 46, iy + ASC_GAME_ITEM_H / 2 + 1);
             }
             ctx.restore();
         }
 
-        function gameAscItemAt(mx, my) {
-            if (!ascGamePanelRect || selectedAscension <= 0) return -1;
+                function gameAscItemAt(mx, my) {
+            if (!ascGamePanelRect || selectedAscension <= 0 || ascGameCollapsed) return -1;
             const R = ascGamePanelRect;
             if (!hitRect(mx, my, R)) return -1;
             const idx = Math.floor((my - R.y - ASC_GAME_HDR_H) / ASC_GAME_ITEM_H);
@@ -5220,8 +5282,16 @@ function drawRogueToggle() {
             ctx.fillStyle = '#7a9ac0';
             ctx.fillText('🧬 本局词条', x + 12, y + 17);
 
+            // 折叠箭头
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 11px "Microsoft YaHei"';
+            ctx.fillStyle = affixCollapsed ? '#7ec8ff' : '#5a7fa8';
+            ctx.fillText(affixCollapsed ? '▶' : '▼', x + w - 12, y + 17);
+
             const rowH = 34;
-            for (let i = 0; i < rogueState.affixes.length; i++) {
+            const contentH = h - ROGUE_PANEL_HDR_H - 8;
+            const maxRows = Math.max(0, Math.floor(contentH / rowH));
+            for (let i = 0; i < rogueState.affixes.length && i < maxRows; i++) {
                 const a = rogueState.affixes[i];
                 const ry = y + 34 + i * rowH;
                 ctx.beginPath();
@@ -5231,6 +5301,7 @@ function drawRogueToggle() {
                 ctx.shadowBlur = 8;
                 ctx.fill();
                 ctx.shadowBlur = 0;
+                ctx.textAlign = 'left';
                 ctx.font = 'bold 12px "Microsoft YaHei"';
                 ctx.fillStyle = a.color || '#7ec8ff';
                 ctx.fillText(a.name, x + 30, ry + rowH / 2 - 5);
@@ -5261,7 +5332,11 @@ function drawRogueToggle() {
             ctx.font = 'bold 11px "Microsoft YaHei"';
             ctx.fillStyle = '#7a9ac0';
             const synCount = (rogueState.synergies || []).length;
-            ctx.fillText(`${rogueState.upgrades.length + synCount} 张`, x + w - 12, y + 17);
+            const totalCount = rogueState.upgrades.length + synCount;
+            ctx.fillText(`${totalCount} 张`, x + w - 24, y + 17);
+            ctx.fillStyle = towerUpCollapsed ? '#ffd966' : '#7a9ac0';
+            ctx.font = 'bold 11px "Microsoft YaHei"';
+            ctx.fillText(towerUpCollapsed ? '▶' : '▼', x + w - 12, y + 17);
 
             ctx.strokeStyle = 'rgba(255, 217, 102, 0.2)';
             ctx.lineWidth = 1;
@@ -5336,7 +5411,10 @@ function drawRogueToggle() {
             ctx.fillStyle = '#7a9ac0';
             let total = 0;
             for (const it of list) total += it.count;
-            ctx.fillText(`${total} 项`, x + w - 12, y + 17);
+            ctx.fillText(`${total} 项`, x + w - 24, y + 17);
+            ctx.fillStyle = enemyModCollapsed ? '#ff8a8a' : '#7a9ac0';
+            ctx.font = 'bold 11px "Microsoft YaHei"';
+            ctx.fillText(enemyModCollapsed ? '▶' : '▼', x + w - 12, y + 17);
 
             ctx.strokeStyle = 'rgba(255, 107, 107, 0.2)';
             ctx.lineWidth = 1;
@@ -5391,15 +5469,22 @@ function drawRogueToggle() {
         }
 
         function drawRoguePanels() {
+            affixPanelRect = null;
+            towerUpPanelRect = null;
+            enemyModPanelRect = null;
             if (!rogueState) return;
-            const w = ASC_GAME_W;          // 与左侧进阶难度面板等宽，左右对称
+            if (canvas.width < 1000) return;
+
+            const w = ASC_GAME_W;
             const x = canvas.width - w - 10;
-            const rowH = 34, hdrH = 32, padB = 8;
+            const rowH = 34, hdrH = ROGUE_PANEL_HDR_H, padB = 8;
             let y = 56;
 
             if (rogueState.affixes.length > 0) {
-                const h = hdrH + rogueState.affixes.length * rowH + padB;
+                const rows = affixCollapsed ? 0 : rogueState.affixes.length;
+                const h = hdrH + rows * rowH + padB;
                 drawAffixPanel(x, y, w, h);
+                affixPanelRect = { x, y, w, h };
                 y += h + 10;
             }
 
@@ -5413,7 +5498,8 @@ function drawRogueToggle() {
             const gap = (listA.length && listB.length) ? 10 : 0;
             let budget = Math.max(0, Math.floor((availH - fixedA - fixedB - gap) / rowH));
 
-            let rowsA = listA.length, rowsB = listB.length;
+            let rowsA = towerUpCollapsed ? 0 : listA.length;
+            let rowsB = enemyModCollapsed ? 0 : listB.length;
             if (rowsA + rowsB > budget) {
                 const total = rowsA + rowsB;
                 rowsA = Math.floor(budget * rowsA / total);
@@ -5425,25 +5511,27 @@ function drawRogueToggle() {
 
             if (listA.length > 0) {
                 const shown = Math.min(rowsA, listA.length);
-                const overflow = listA.length - shown;
+                const overflow = towerUpCollapsed ? 0 : listA.length - shown;
                 const totalRows = shown + (overflow > 0 ? 1 : 0);
                 const h = hdrH + totalRows * rowH + padB;
                 drawTowerUpgradePanel(x, y, w, h, listA, shown, overflow);
+                towerUpPanelRect = { x, y, w, h };
                 y += h + gap;
             }
             if (listB.length > 0) {
                 const shown = Math.min(rowsB, listB.length);
-                const overflow = listB.length - shown;
+                const overflow = enemyModCollapsed ? 0 : listB.length - shown;
                 const totalRows = shown + (overflow > 0 ? 1 : 0);
                 const h = hdrH + totalRows * rowH + padB;
                 drawEnemyModPanel(x, y, w, h, listB, shown, overflow);
+                enemyModPanelRect = { x, y, w, h };
             }
         }
 
         // ============================================================
         // Draft 系统
         // ============================================================
-                function openDraft(kind) {
+        function openDraft(kind) {
             if (!rogueState) return;
             closeBuildMenu();
             closeTowerMenu();
@@ -5455,6 +5543,14 @@ function drawRogueToggle() {
 
             if (kind === 'enemy') {
                 const pool = ROGUE_ENEMY_BOOSTS.filter(b => !(b.once && rogueState.enemyMods.picks.includes(b.id)));
+                for (let i = 0; i < 3 && pool.length > 0; i++) {
+                    const idx = Math.floor(Math.random() * pool.length);
+                    picked.push(pool.splice(idx, 1)[0]);
+                }
+            } else if (kind === 'synergy') {
+                // ★ 开局联动：随机抽 3 张不重复的联动
+                const ownedSyn = new Set(rogueState.synergies.map(s => s.id));
+                const pool = ROGUE_SYNERGIES.filter(s => !ownedSyn.has(s.id));
                 for (let i = 0; i < 3 && pool.length > 0; i++) {
                     const idx = Math.floor(Math.random() * pool.length);
                     picked.push(pool.splice(idx, 1)[0]);
@@ -5680,6 +5776,7 @@ function applySynergy(s) {
             const d = draftPanel;
             if (!d) return;
             const isEnemy = d.kind === 'enemy';
+            const isSynergy = d.kind === 'synergy';
             const elapsed = (performance.now() - d.openAt) / 1000;
             const fade = Math.min(1, elapsed * 4);
 
@@ -5690,14 +5787,36 @@ function applySynergy(s) {
             const px = (canvas.width - panelW) / 2;
             const py = (canvas.height - panelH) / 2;
 
+            // 主题色
+            const glowColor  = isEnemy ? 'rgba(220, 80, 80, 0.55)'
+                             : isSynergy ? 'rgba(180, 130, 255, 0.6)'
+                             : 'rgba(60, 140, 220, 0.55)';
+            const borderColor= isEnemy ? '#8a3a3a'
+                             : isSynergy ? '#7a4aaa'
+                             : '#3a6a9a';
+            const titleText  = isEnemy ? '☠️ 怪物强化 ☠️'
+                             : isSynergy ? '🔗 选择开局联动 🔗'
+                             : '⚡ 选择强化 ⚡';
+            const titleColor = isEnemy ? '#ff8a8a'
+                             : isSynergy ? '#d8b0ff'
+                             : '#ffd966';
+            const titleGlow  = isEnemy ? '#aa2222'
+                             : isSynergy ? '#6633aa'
+                             : '#aa7722';
+            const subText    = isEnemy
+                ? `每 ${ENEMY_BOOST_INTERVAL} 波一次 · 敌人将获得永久增益，请谨慎选择`
+                : isSynergy
+                ? '开局福利 · 从下方 3 张联动卡中选择 1 张作为本局起点 · 后续仍可抽到联动'
+                : `每 ${TOWER_DRAFT_INTERVAL} 波一次 · 从下列卡牌中选择一张永久生效`;
+
             ctx.save();
-            ctx.shadowColor = isEnemy ? 'rgba(220, 80, 80, 0.55)' : 'rgba(60, 140, 220, 0.55)';
+            ctx.shadowColor = glowColor;
             ctx.shadowBlur = 32;
             ctx.fillStyle = '#131c2b';
             roundRect(ctx, px, py, panelW, panelH, 16);
             ctx.fill();
             ctx.restore();
-            ctx.strokeStyle = isEnemy ? '#8a3a3a' : '#3a6a9a';
+            ctx.strokeStyle = borderColor;
             ctx.lineWidth = 2;
             roundRect(ctx, px, py, panelW, panelH, 16);
             ctx.stroke();
@@ -5705,17 +5824,15 @@ function applySynergy(s) {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = 'bold 26px "Microsoft YaHei"';
-            ctx.fillStyle = isEnemy ? '#ff8a8a' : '#ffd966';
-            ctx.shadowColor = isEnemy ? '#aa2222' : '#aa7722';
+            ctx.fillStyle = titleColor;
+            ctx.shadowColor = titleGlow;
             ctx.shadowBlur = 20;
-            ctx.fillText(isEnemy ? '☠️ 怪物强化 ☠️' : '⚡ 选择强化 ⚡', canvas.width / 2, py + 50);
+            ctx.fillText(titleText, canvas.width / 2, py + 50);
             ctx.shadowBlur = 0;
 
             ctx.font = '13px "Microsoft YaHei"';
             ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(isEnemy
-                ? `每 ${ENEMY_BOOST_INTERVAL} 波一次 · 敌人将获得永久增益，请谨慎选择`
-                : `每 ${TOWER_DRAFT_INTERVAL} 波一次 · 从下列卡牌中选择一张永久生效`, canvas.width / 2, py + 84);
+            ctx.fillText(subText, canvas.width / 2, py + 84);
 
             for (let i = 0; i < d.choices.length; i++) {
                 const up = d.choices[i];
@@ -5725,6 +5842,9 @@ function applySynergy(s) {
                 if (isEnemy) {
                     rc = up.color || '#ff8a8a';
                     rarityText = '怪物强化';
+                } else if (isSynergy) {
+                    rc = RARITY_COLORS[up.rarity] || '#d8b0ff';
+                    rarityText = RARITY_LABEL[up.rarity] || '联动';
                 } else {
                     rc = RARITY_COLORS[up.rarity] || '#7ec8ff';
                     rarityText = RARITY_LABEL[up.rarity] || '常见';
@@ -5795,7 +5915,7 @@ function applySynergy(s) {
 
                 if (hov) {
                     ctx.font = 'bold 13px "Microsoft YaHei"';
-                    ctx.fillStyle = isEnemy ? '#ff8a8a' : '#ffd966';
+                    ctx.fillStyle = isEnemy ? '#ff8a8a' : (isSynergy ? '#d8b0ff' : '#ffd966');
                     ctx.fillText('▶ 点击选择', r.x + r.w / 2, r.y + r.h - 22);
                 }
             }
@@ -5807,6 +5927,8 @@ function applySynergy(s) {
                 ctx.fillStyle = '#5a7fa8';
                 const extra = isEnemy
                     ? `已承受 ${rogueState.enemyMods.picks.length} 项怪物强化`
+                    : isSynergy
+                    ? '选中的联动会作为本局初始构筑，后续每 6 波仍有概率抽到联动'
                     : `已获得 ${rogueState.upgrades.length} 张塔强化`;
                 const autoTip = pendingAutoEnemyBoost ? ' · 选完后将自动应用 1 次怪物强化' : '';
                 ctx.fillText(extra + autoTip + ' · 累计效果见右侧面板', canvas.width / 2, py + panelH - 26);
@@ -7129,7 +7251,7 @@ function applySynergy(s) {
             drawAutoUpgradeToggle();
             drawWavePipeline();
 
-            if (rogueState && canvas.width >= 1000) {
+            if (rogueState) {
                 drawRoguePanels();
             }
 
@@ -7436,7 +7558,13 @@ function applySynergy(s) {
             if (!isDot && !skipDoubleShot && rogueState && tower && rogueState.bonus.currentHpDamage > 0) {
                 dmg += e.hp * rogueState.bonus.currentHpDamage;
             }
-            if (!isDot && !skipDoubleShot && rogueState && rogueState.bonus.critChance > 0 && Math.random() < rogueState.bonus.critChance) dmg *= (rogueState.bonus.critDmgMul || 2);
+                let critChance = 0;
+    if (rogueState && rogueState.bonus.critChance > 0) critChance += rogueState.bonus.critChance;
+    if (tower && tower.syn && tower.syn.crit > 0) critChance += tower.syn.crit;
+    if (critChance > 1) critChance = 1;
+    if (!isDot && !skipDoubleShot && critChance > 0 && Math.random() < critChance) {
+        dmg *= (rogueState && rogueState.bonus.critDmgMul) || 2;
+    }
             if (rogueState && rogueState.bonus.ignoreShield) {
                 e.hp -= dmg;
             } else {
@@ -7498,9 +7626,11 @@ function applySynergy(s) {
                         if (ht.type !== 'harvester') continue;
                         const hs = towerStatsAt('harvester', ht.level);
                         const rMul = (ht.buffs && ht.buffs.range) || 1;
-                        const hRange = hs.range * rMul * CELL;
+                        const synR = 1 + (ht.syn ? (ht.syn.range   || 0) : 0);
+                        const synH = 1 + (ht.syn ? (ht.syn.harvest || 0) : 0);
+                        const hRange = hs.range * rMul * synR * CELL;
                         const dd = Math.hypot(e.x - cellCenterX(ht.col), e.y - cellCenterY(ht.row));
-                        if (dd <= hRange) harvestBonus = Math.max(harvestBonus, e.reward * hs.harvest);
+                        if (dd <= hRange) harvestBonus = Math.max(harvestBonus, e.reward * hs.harvest * synH);
                     }
                     const rogueKillBonus = (rogueState && rogueState.bonus.killBonus) || 0;
                     let rogueRewardMul = (rogueState && rogueState.bonus.rewardMul) || 1;
@@ -7532,7 +7662,7 @@ function applySynergy(s) {
                         for (const t of towers) {
                             const d = Math.hypot(cellCenterX(t.col) - e.x, cellCenterY(t.row) - e.y);
                             if (d <= silenceR) {
-                                t.silenceTimer = Math.max(t.silenceTimer || 0, 3.0);
+                                t.silenceTimer = Math.max(t.silenceTimer || 0, 1.0);
                             }
                         }
                         projectiles.push({ kind: 'shockwave', x: e.x, y: e.y, radius: silenceR, color: 'rgba(150, 150, 255, 0.6)', life: 0.5, maxLife: 0.5 });
@@ -7965,7 +8095,8 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
                 if (t.type !== 'amplifier') continue;
                 const st = towerStatsAt('amplifier', t.level);
                 const boost = st.boost;
-                const rangePx = st.range * CELL;
+                const synR = 1 + (t.syn ? (t.syn.range || 0) : 0);
+                const rangePx = st.range * CELL * synR;
                 const tx = cellCenterX(t.col), ty = cellCenterY(t.row);
                 const isMax = t.level >= MAX_LEVEL;
                 const dmgBoost = boost.dmg + (isMax ? 0.10 : 0);
@@ -8088,6 +8219,9 @@ function updateSynergies() {
                 }
                 const dmg = (e === p.target) ? p.damage : p.damage * ratio;
                 damageEnemy(e, dmg, p.tower);
+                if (p.tower && p.tower.syn && p.tower.syn.stun > 0) {
+                    applyStun(e, 0.4 * p.tower.syn.stun);
+                }
             }
 
             projectiles.push({
@@ -8124,7 +8258,11 @@ function updateSynergies() {
 
                 // NaN 兜底：一旦角度被污染成 NaN，rotate() 会让炮管永远"卡住"
                 if (!Number.isFinite(t.angle)) t.angle = -Math.PI / 2;
-                if (t.type === 'harvester') continue;
+                if (t.type === 'harvester') {
+                    if (t.silenceTimer > 0) t.silenceTimer = Math.max(0, t.silenceTimer - dt);
+                    if (t.slowTimer   > 0) t.slowTimer   = Math.max(0, t.slowTimer   - dt);
+                    continue;
+                }
 
                 // ── 统一转向（唯一写 t.angle 的地方）──
                 // 每帧无条件执行：即使被沉默 / 过热 / 装填中，炮管也跟随最近的敌人，
@@ -8201,12 +8339,21 @@ function updateSynergies() {
                         target.burnTower = t;
                         t.beamOn = true; t.beamTarget = target;
                         if (!wasOn) SFX.shoot('laser');
+                        // ★ 联动眩晕：每 0.4 秒对主目标施加一次短眩晕
+                        if (syn && syn.stun > 0) {
+                            t.stunTickTimer = (t.stunTickTimer || 0) - dt;
+                            if (t.stunTickTimer <= 0) {
+                                applyStun(target, 0.3 * syn.stun);
+                                t.stunTickTimer = 0.4;
+                            }
+                        }
                     } else { t.beamOn = false; t.beamTarget = null; }
                     accumulateOverheat(t, !!t.beamOn, dt);
                     continue;
                 }
                 if (t.type === 'prism') {
-                    const picked = collectTargets(t, towerPx, towerPy, rangePx).slice(0, st.targets);
+                    const prismTargets = st.targets + (syn ? Math.floor(syn.targets) : 0);
+                    const picked = collectTargets(t, towerPx, towerPy, rangePx).slice(0, prismTargets);
                     if (picked.length) {
                         t.beamTargets = picked.map(o => o.e);
                         for (const o of picked) damageEnemy(o.e, st.dps * dt, t, false, { dot: true });
@@ -8297,7 +8444,7 @@ function updateSynergies() {
                         damage: st.damage,
                         tower: t,
                         isMax: isMax,
-                        splash: typeDef.splash || 1.2,
+                        splash: (typeDef.splash || 1.2) * (1 + (syn ? (syn.splash || 0) : 0)),
                         life: 4.0, maxLife: 4.0,
                         color: '#c44aff'
                     });
@@ -8343,9 +8490,10 @@ function updateSynergies() {
                         const d2 = Math.hypot(e.x - towerPx, e.y - towerPy);
                         if (d2 > rangePx) continue;
                         if (!enemyVisibleFromTower(e, t, d2)) continue;
-                        const mech = MECH_TYPES.has(e.type);
+                                                const mech = MECH_TYPES.has(e.type);
                         damageEnemy(e, st.damage * (mech && isMax ? 1.5 : 1), t);
-                        const finalStun = Math.min(st.stun * (mech ? 1.5 : 1), st.cooldown * 0.9);
+                        const stunMul = 1 + (syn ? (syn.stun || 0) : 0);
+                        const finalStun = Math.min(st.stun * stunMul * (mech ? 1.5 : 1), st.cooldown * 0.9);
                         applyStun(e, finalStun);
                         hitAny = true;
                     }
@@ -8363,13 +8511,14 @@ function updateSynergies() {
                     const hit = new Set();
                     let cur = target, dmg = st.damage;
                     let fromX = towerPx, fromY = towerPy;
-                    const maxJumps = typeDef.chainJumps + Math.floor(t.level / 2);
+                    const maxJumps = typeDef.chainJumps + Math.floor(t.level / 2) + (syn ? Math.floor(syn.chain) : 0);
                     const jumpR = 1.8 * CELL;
                     const pts = [];
                     for (let j = 0; j < maxJumps && cur; j++) {
                         hit.add(cur);
                         damageEnemy(cur, dmg, t);
-                        if (isMax && Math.random() < 0.15) applyStun(cur, 0.2);
+                        if (isMax && Math.random() < 0.15) applyStun(cur, 0.2 * (1 + (syn ? (syn.stun || 0) : 0)));
+                        if (syn && syn.stun > 0 && Math.random() < 0.15) applyStun(cur, 0.3 * syn.stun);
                         pts.push(fromX, fromY, cur.x, cur.y);
                         fromX = cur.x; fromY = cur.y;
                         let next = null, nd = jumpR;
@@ -8390,6 +8539,7 @@ function updateSynergies() {
                 if (t.type === 'sniper') {
                     const crit = isMax && (target.slowTimer > 0 || target.stunTimer > 0);
                     damageEnemy(target, st.damage * (crit ? 2 : 1), t);
+                    if (syn && syn.stun > 0) applyStun(target, 0.4 * syn.stun);
                     projectiles.push({
                         kind: 'beam', fromX: towerPx, fromY: towerPy,
                         toX: target.x, toY: target.y,
@@ -8405,7 +8555,8 @@ function updateSynergies() {
                     const dl = Math.hypot(dx, dy) || 1;
                     const ux = dx / dl, uy = dy / dl;
                     const bLen = clipRayToMap(towerPx, towerPy, ux, uy, rangePx);
-                    const hw = (isMax ? typeDef.beamWidth * 2 : typeDef.beamWidth) * CELL;
+                    const pierceMul = 1 + (syn ? (syn.pierce || 0) : 0);
+                    const hw = (isMax ? typeDef.beamWidth * 2 : typeDef.beamWidth) * CELL * pierceMul;
                     const endX = towerPx + ux * bLen;
                     const endY = towerPy + uy * bLen;
                     for (const e of enemies) {
@@ -8418,6 +8569,7 @@ function updateSynergies() {
                         if (perp > hw + ENEMY_TYPES[e.type].size * 0.5 * (CELL / baseCellPx)) continue;
                         if (!enemyVisibleFromTower(e, t, Math.hypot(ex, ey))) continue;
                         damageEnemy(e, st.damage, t);
+                        if (syn && syn.stun > 0) applyStun(e, 0.4 * syn.stun);
                     }
                     projectiles.push({
                         kind: 'railbeam', fromX: towerPx, fromY: towerPy,
@@ -8428,10 +8580,11 @@ function updateSynergies() {
                     t.cooldown = actualCooldown;
                     continue;
                 }
-                if (t.type === 'temporal') {
+                                if (t.type === 'temporal') {
                     if (!ENEMY_TYPES[target.type].immuneSlow) {
+                        const slowVal = Math.min(1, st.slow * (1 + (syn ? (syn.slow || 0) : 0)));
                         target.slowTimer = Math.max(target.slowTimer, st.duration);
-                        target.slowFactor = Math.min(target.slowFactor, st.slow);
+                        target.slowFactor = Math.min(target.slowFactor, slowVal);
                     }
                     projectiles.push({
                         kind: 'ring', x: target.x, y: target.y, radius: 22 * (CELL / baseCellPx),
@@ -8447,7 +8600,8 @@ function updateSynergies() {
                         if (d > rangePx) continue;
                         if (!enemyVisibleFromTower(e, t, d)) continue;
                         damageEnemy(e, st.damage, t);
-                        if (isMax && Math.random() < 0.2) applyStun(e, 0.1);
+                        if (isMax && Math.random() < 0.2) applyStun(e, 0.1 * (1 + (syn ? (syn.stun || 0) : 0)));
+                        if (syn && syn.stun > 0) applyStun(e, 0.4 * syn.stun);
                     }
                     projectiles.push({
                         kind: 'shockwave', x: towerPx, y: towerPy, radius: rangePx,
@@ -8472,9 +8626,12 @@ function updateSynergies() {
                     let dmgToTarget = st.damage;
                     if (t.type === 'flak' && isMax && Math.random() < 0.25) dmgToTarget *= 3;
                     damageEnemy(target, dmgToTarget, t);
-                    if (t.type === 'cannon' && isMax) applyStun(target, 0.25);
+                    if (t.type === 'cannon') {
+                        if (isMax) applyStun(target, 0.25 * (1 + (syn ? (syn.stun || 0) : 0)));
+                        else if (syn && syn.stun > 0) applyStun(target, 0.4 * syn.stun);
+                    }
                     if (typeDef.splash) {
-                        let splashR = typeDef.splash * CELL;
+                        let splashR = typeDef.splash * CELL * (1 + (syn ? (syn.splash || 0) : 0));
                         let ratio = typeDef.splashRatio || 0.5;
                         if (t.type === 'missile' && isMax) { splashR *= 2; ratio = 1.0; }
                         for (const e of enemies) {
@@ -8748,7 +8905,14 @@ function updateSynergies() {
                 return;
             }
             if (ascGamePanelRect && hitRect(mx, my, ascGamePanelRect)) {
-                canvas.style.cursor = 'default';
+                canvas.style.cursor = (my <= ascGamePanelRect.y + ASC_GAME_HDR_H) ? 'pointer' : 'default';
+                return;
+            }
+
+            // Roguelike 面板：悬停标题栏显示手型
+            for (const pr of [affixPanelRect, towerUpPanelRect, enemyModPanelRect]) {
+                if (!pr || !hitRect(mx, my, pr)) continue;
+                canvas.style.cursor = (my <= pr.y + ROGUE_PANEL_HDR_H) ? 'pointer' : 'default';
                 return;
             }
 
@@ -8927,8 +9091,37 @@ function updateSynergies() {
                 return;
             }
 
-            // 进阶难度面板拦截点击
-            if (ascGamePanelRect && hitRect(mx, my, ascGamePanelRect)) return;
+            // 进阶难度面板：点击标题栏折叠/展开
+            if (ascGamePanelRect && hitRect(mx, my, ascGamePanelRect)) {
+                if (my <= ascGamePanelRect.y + ASC_GAME_HDR_H) {
+                    ascGameCollapsed = !ascGameCollapsed;
+                    SFX.click();
+                }
+                return;
+            }
+
+            // Roguelike 面板：点击标题栏折叠/展开
+            if (affixPanelRect && hitRect(mx, my, affixPanelRect)) {
+                if (my <= affixPanelRect.y + ROGUE_PANEL_HDR_H) {
+                    affixCollapsed = !affixCollapsed;
+                    SFX.click();
+                }
+                return;
+            }
+            if (towerUpPanelRect && hitRect(mx, my, towerUpPanelRect)) {
+                if (my <= towerUpPanelRect.y + ROGUE_PANEL_HDR_H) {
+                    towerUpCollapsed = !towerUpCollapsed;
+                    SFX.click();
+                }
+                return;
+            }
+            if (enemyModPanelRect && hitRect(mx, my, enemyModPanelRect)) {
+                if (my <= enemyModPanelRect.y + ROGUE_PANEL_HDR_H) {
+                    enemyModCollapsed = !enemyModCollapsed;
+                    SFX.click();
+                }
+                return;
+            }
 
             const clickedEnemy = getEnemyAt(mx, my);
             if (clickedEnemy) {
