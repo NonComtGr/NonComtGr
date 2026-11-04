@@ -40,6 +40,9 @@ canvas{
   .stat span i.ti{font-size:1.05em;vertical-align:-0.12em;margin-right:3px}
   .hp b{color:#ff7b7b}.atk b{color:#ffb454}.def b{color:#6cbcff}.fl b{color:#7fe3a0}
   .ky b{color:#e8c14a}.kb b{color:#6cbcff}.kr b{color:#ff5c6e}
+  .gold b{color:#ffd75c}
+  .time b{color:#c7cde8}
+  .dif  b{color:#ff8fb0}
   .eq-bonus{color:#8affc0;font-size:12px;margin-left:2px;font-weight:400}
   .tips{font-size:13px;color:#7c86ad;line-height:1.8}
   #toast{
@@ -48,6 +51,7 @@ canvas{
     padding:10px 22px;border-radius:9px;font-size:16px;
     opacity:0;transition:.22s;pointer-events:none;z-index:999;
   }
+  
   #toast.show{opacity:1;transform:translate(-50%,0)}
   #overlay{
     position:fixed;inset:0;background:rgba(10,13,22,.9);display:none;
@@ -61,6 +65,26 @@ canvas{
     border-radius:9px;font-size:16px;cursor:pointer;transition:.15s;
   }
   button:hover{background:#40508a}
+  button:disabled{cursor:not-allowed}
+
+  /* ===== 经验条 ===== */
+  .exp-row{padding:6px 0}
+  .exp-bar{
+    position:relative;height:20px;background:#161b2b;
+    border:1px solid #3a4360;border-radius:6px;overflow:hidden;
+  }
+  .exp-fill{
+    position:absolute;left:0;top:0;bottom:0;width:0;
+    background:linear-gradient(90deg,#3ddc84,#6cbcff);
+    transition:width .25s ease;
+    box-shadow:0 0 8px rgba(61,220,132,.45);
+  }
+  .exp-label{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:11.5px;color:#eef1ff;letter-spacing:.5px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    font-variant-numeric:tabular-nums;
+  }
 
   /* ===== 地图下方：左装备栏(占地图一半宽) / 右方向键 ===== */
   #bottomRow{
@@ -73,6 +97,49 @@ canvas{
   }
   #equipPanel h3{margin:0 0 8px;font-size:13px}
 
+  /* ===== 装备悬停提示 ===== */
+#eqTip{
+  position:fixed;left:0;top:0;z-index:1300;pointer-events:none;
+  min-width:190px;max-width:290px;
+  background:linear-gradient(180deg,#252d49,#1a2033);
+  border:1px solid #4a5a8a;border-radius:12px;
+  padding:12px 14px;
+  box-shadow:0 14px 44px rgba(0,0,0,.72),
+             0 0 0 1px rgba(255,255,255,.03) inset;
+  opacity:0;transform:translateY(6px) scale(.97);
+  transition:opacity .13s ease,transform .13s ease;
+}
+#eqTip.show{opacity:1;transform:translateY(0) scale(1)}
+
+.eq-tip-head{
+  display:flex;align-items:center;gap:10px;
+  padding-bottom:9px;margin-bottom:9px;
+  border-bottom:1px solid #2e3752;
+}
+.eq-tip-emoji{
+  font-size:26px;line-height:1;flex-shrink:0;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.55));
+}
+.eq-tip-title{font-size:15px;color:#eef1ff;font-weight:600;line-height:1.25}
+.eq-tip-lv{
+  display:inline-block;margin-top:5px;font-size:10.5px;
+  padding:1px 7px;border-radius:5px;line-height:1.5;
+  border:1px solid currentColor;
+  background:rgba(255,255,255,.05);
+  font-variant-numeric:tabular-nums;
+}
+.eq-tip-stats{display:flex;flex-direction:column;gap:4px}
+.eq-tip-stat{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;font-size:12.5px;line-height:1.4;
+}
+.eq-tip-k{color:#9aa2c0;letter-spacing:.3px;white-space:nowrap}
+.eq-tip-v{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.eq-tip-recipe{
+  margin-top:9px;padding-top:8px;
+  border-top:1px dashed #2e3752;
+  font-size:11.5px;color:#7c86ad;line-height:1.65;
+}
   .pad{
     flex:1 1 0;min-width:0;
     display:flex;align-items:center;justify-content:center;
@@ -96,6 +163,8 @@ canvas{
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
   .tool-btn:last-child{margin-bottom:0}
+  .tool-btn:disabled{opacity:.38;cursor:not-allowed}
+  .tool-btn:disabled:hover{background:#334067}
 
   .modal{
     position:fixed;inset:0;background:rgba(10,13,22,.85);display:none;
@@ -164,6 +233,25 @@ canvas{
   .floor-btn:hover:not(:disabled):not(.current){background:#33406a}
   .floor-btn.current{background:#3b4a78;border-color:#6c7fc4;color:#fff;cursor:default}
   .floor-btn:disabled{opacity:.28;cursor:not-allowed}
+  .floor-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:12px 0 10px;   /* 覆盖原来的 padding:16px 0 */
+}
+.floor-btn.has-remain{ border-color:#5a4430; }
+.floor-btn.has-remain .floor-num{ color:#ffb454; }
+.floor-num{ font-size:16px; line-height:1.1; }
+.floor-badge{
+  font-size:10px;
+  line-height:1;
+  color:#ffb454;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  opacity:.9;
+}
 
   .key-hint{
     display:inline-block;margin-left:6px;padding:1px 7px;
@@ -233,14 +321,18 @@ canvas{
   .equip-slot:not(.filled):hover .eq-slot-hint{opacity:1;color:#8fa2d8}
 
   .eq-section{
-    font-size:13px;color:#8e98bd;letter-spacing:2px;
-    margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid #2e3752;
-  }
+  font-size:12px;letter-spacing:1.5px;
+  margin:10px 0 0;padding:2px 6px;
+  border-bottom:none;border-left:3px solid currentColor;
+  border-radius:2px;
+}
+.eq-row{padding:5px 6px}
   .eq-section:first-child{margin-top:0}
   .eq-row{
-    display:flex;align-items:center;gap:10px;padding:8px 6px;
+    display:flex;align-items:center;gap:10px;padding:6px 6px;
     border-bottom:1px dashed #2e3752;border-radius:6px;
   }
+  .eq-row:last-child{border-bottom:none}
   .eq-row[draggable="true"]{cursor:grab}
   .eq-row[draggable="true"]:active{cursor:grabbing}
   .eq-row:hover{background:#28304a}
@@ -268,6 +360,24 @@ canvas{
   }
   .eq-act:hover:not([disabled]){background:#40508a;border-color:#6c7fc4}
   .eq-act[disabled]{opacity:.32;cursor:not-allowed}
+
+  /* ===== 商店 ===== */
+  .shop-row{
+    display:flex;align-items:center;gap:12px;padding:10px 0;
+    border-bottom:1px dashed #2e3752;font-size:15px;
+  }
+  .shop-row:last-child{border-bottom:none}
+  .shop-icon{font-size:24px;width:40px;text-align:center;flex-shrink:0;line-height:1}
+  .shop-body{flex:1;min-width:0}
+  .shop-name{color:#dfe4ff;font-size:15px}
+  .shop-desc{font-size:12px;color:#8e98bd;margin-top:3px;line-height:1.5}
+  .shop-buy{
+    padding:8px 14px;font-size:13px;border-radius:7px;flex-shrink:0;
+    background:#334067;border:1px solid #4a5a8a;color:#ffd75c;
+    cursor:pointer;transition:.12s;font-variant-numeric:tabular-nums;
+  }
+  .shop-buy:hover:not(:disabled){background:#40508a;border-color:#6c7fc4}
+  .shop-buy:disabled{opacity:.35;cursor:not-allowed;color:#8e98bd}
 
   /* ================= 主菜单 ================= */
   #menu{
@@ -335,6 +445,7 @@ canvas{
     background:#2a3149;border:1px solid #3a4360;
     font-size:11px;color:#a9b4d8;margin-right:2px;
   }
+  .guide-chip i.ti{font-size:13px;vertical-align:-0.12em}
 @media (max-width: 1000px){
   #game{ flex-direction: column; align-items: stretch; }
   #leftCol{ order: 1; width: 100%; max-width: 100%; flex: none; }
@@ -382,10 +493,6 @@ canvas{
       <b id="menuDropRateVal">60%</b>
     </div>
     <div class="menu-row">
-      <label>数值系数（每 200 层 ×）</label>
-      <input type="number" id="menuMult" min="1.1" max="10" step="0.1" value="2">
-    </div>
-    <div class="menu-row">
       <label>地图大小</label>
       <input type="range" id="menuMapSize" min="5" max="25" step="2" value="13">
       <b id="menuMapSizeVal">13 × 13</b>
@@ -397,8 +504,9 @@ canvas{
     <p class="tips">
       1–200 层：每 10 层对应一个怪物编号区间（第 1–10 层使用编号 1–10 的怪物，依此类推）。<br>
       201 层起进入无尽模式，怪物编号区间循环使用；每 100 层所有怪物额外获得一种属性。<br>
-      每通过 200 层，怪物血量/攻防、血瓶与攻防宝石数值乘以一次「数值系数」。<br>
+      每通过 200 层，怪物血量/攻防 ×4000；血瓶与攻防宝石数值 ×2。<br>
       「怪物难度」直接放大怪物的生命、攻击、防御；「装备爆率」影响击杀掉落的概率。<br>
+      击杀怪物获得经验与金币，升级提升基础属性；每层有 20% 概率出现商店。<br>
       3 件相同的高阶装备可合成下一级：属性 ×3，并随机附赠一条增益。
     </p>
   </div>
@@ -411,15 +519,25 @@ canvas{
     <div class="panel">
       <h3>状 态</h3>
       <div class="stat fl"><span>层数</span><b id="hudFloor">1 / 200</b></div>
+      <div class="stat time"><span>⏱️ 时间</span><b id="hudTime">00:00</b></div>
+      <div class="stat dif"><span>💀 怪物难度</span><b id="hudDiff">2.0×</b></div>
       <div class="stat hp"><span>生命</span><b id="hudHp">3000 / 3000</b></div>
+      <div class="exp-row">
+        <div class="exp-bar">
+          <div class="exp-fill" id="hudExpFill" style="width:0%"></div>
+          <span class="exp-label" id="hudExpLabel">Lv.1　0 / 100</span>
+        </div>
+      </div>
       <div class="stat atk"><span>攻击</span><b id="hudAtk">20</b></div>
       <div class="stat def"><span>防御</span><b id="hudDef">20</b></div>
+      <div class="stat gold"><span>💰 金币</span><b id="hudGold">0</b></div>
       <div class="stat ky"><span>🗝️ 黄钥匙</span><b id="hudYk">0</b></div>
       <div class="stat kb"><span><i class="ti ti-key" style="color:#4d9aff"></i> 蓝钥匙</span><b id="hudBk">0</b></div>
       <div class="stat kr"><span><i class="ti ti-key" style="color:#ff4d5e;-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill"></i> 红钥匙</span><b id="hudRk">0</b></div>
     </div>
     <div class="panel">
       <h3>工 具</h3>
+      <button id="shopBtn" class="tool-btn" disabled>🏪 商店（本层无）</button>
       <button id="bookBtn" class="tool-btn">📖 怪物手册 <span class="key-hint" id="hintBook">F</span></button>
       <button id="teleBtn" class="tool-btn">🚪 楼层传送 <span class="key-hint" id="hintTele">G</span></button>
       <button id="equipBtn" class="tool-btn">⚒️ 背包与合成 <span class="key-hint" id="hintEquip">R</span></button>
@@ -460,6 +578,7 @@ canvas{
 </div>
 
 <div id="toast"></div>
+<div id="eqTip"></div>
 
 <div id="overlay">
   <h1 id="ovTitle">通 关 !</h1>
@@ -533,6 +652,20 @@ canvas{
   </div>
 </div>
 
+<!-- ================= 商店 ================= -->
+<div id="shopModal" class="modal">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-head">
+      <span>🏪 商 店</span>
+      <button class="modal-close" data-close="shopModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="shopGoldBar"></div>
+      <div id="shopList"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ================= 游戏简介 ================= -->
 <div id="guideModal" class="modal">
   <div class="modal-box" style="max-width:760px">
@@ -580,24 +713,46 @@ canvas{
       </div>
 
       <div class="guide-sec">
+        <h4>⭐ 经验与升级</h4>
+        <p>击败怪物可获得 <b style="color:#8affc0">经验（EXP）</b> 与 <b style="color:#ffd75c">金币</b>：</p>
+        <ul>
+          <li>经验条位于<b>状态面板的生命与攻击之间</b>，显示当前等级与升级进度。</li>
+          <li>每升一级，<b>基础攻击、基础防御、当前生命与生命上限各提升 5%</b>（可无限叠加）。</li>
+          <li>升级所需经验随等级提高而增加；怪物越强，掉落的经验与金币越多。</li>
+          <li>金币可在<b>商店</b>购买宝石、药水、钥匙与装备。</li>
+        </ul>
+      </div>
+
+      <div class="guide-sec">
         <h4>🗺️ 地图元素</h4>
         <ul>
           <li><b>🧙 勇者</b>：你的角色。</li>
           <li><b>怪物</b>：显示表情与预计损失 HP；带小圆点表示拥有怪物属性（黄点 1–2 个，红点 ≥3 个）。</li>
           <li><b>物品</b>：
-            <span class="guide-chip">⚔️ 攻击宝石</span>
-            <span class="guide-chip">🛡️ 防御宝石</span>
-            <span class="guide-chip">❤️ 红药水</span>
-            <span class="guide-chip">💙 蓝药水</span>
+            <span class="guide-chip"><i class="ti ti-diamond" style="color:#ff5252"></i> 攻击宝石</span>
+            <span class="guide-chip"><i class="ti ti-diamond" style="color:#4d9aff"></i> 防御宝石</span>
+            <span class="guide-chip"><i class="ti ti-flask-2" style="color:#ff5c7a"></i> 红药水</span>
+            <span class="guide-chip"><i class="ti ti-flask-2" style="color:#4dd2ff"></i> 蓝药水</span>
             <span class="guide-chip">🗝️ 黄钥匙</span>
-            <span class="guide-chip">🔑 蓝钥匙</span>
-            <span class="guide-chip">🔐 红钥匙</span>
+            <span class="guide-chip"><i class="ti ti-key" style="color:#4d9aff"></i> 蓝钥匙</span>
+            <span class="guide-chip"><i class="ti ti-key" style="color:#ff4d5e"></i> 红钥匙</span>
             <span class="guide-chip">装备</span>
           </li>
           <li><b>门</b>：黄门 / 蓝门 / 红门，需要对应钥匙才能打开。</li>
           <li><b>墙</b>：无法通行。</li>
         </ul>
-        <p>攻击宝石与防御宝石、红蓝药水的数值，会随层数按“数值系数”阶段性放大。</p>
+        <p>攻击宝石与防御宝石、红蓝药水的数值，会随层数按 2 倍成长阶段性放大。</p>
+      </div>
+
+      <div class="guide-sec">
+        <h4>🏪 商店</h4>
+        <ul>
+          <li>每层有 <b>20%</b> 的概率出现商店，进入该层后可在左侧“工具”面板打开。</li>
+          <li>商店出售：<b>攻击宝石、防御宝石、红药水、蓝药水、三种钥匙</b>，以及 <b>10 件随机装备</b>。</li>
+          <li>购买需要消耗金币，<b>层数越高，价格越高</b>；同一件商品售出后不可重复购买。</li>
+          <li>每层商店的商品在生成时固定，来回传送不会刷新。</li>
+          <li>无尽模式中，攻防宝石数值会获得额外加成：201–400 层 +1，401–600 层 +2，601–800 层 +3，依此类推。</li>
+        </ul>
       </div>
 
       <div class="guide-sec">
@@ -616,7 +771,8 @@ canvas{
           <span class="guide-chip">高级 Lv.3 × 20</span>
         </p>
         <p>装备栏每格<b>右上角数字</b>即装备等级，颜色随等级变化：Lv.1 灰、Lv.2 紫、Lv.3 橙，更高等级另配专属颜色。</p>
-        <p>击杀怪物有概率掉落<b>初级装备</b>，精英与 BOSS 掉落概率更高、数量更多（可在主菜单调节“装备爆率”）。</p>
+        <p>击杀怪物有概率掉落<b>初级装备</b>，精英与 BOSS 掉落概率更高、数量更多（可在主菜单调节“装备爆率”）。<br>
+        <b style="color:#8affc0">无尽模式（201 层起）</b>中，每只怪物固定掉落 2 件装备（初级/中级/高级各 1/3 概率），每 200 层掉落数量 +1。</p>
       </div>
 
       <div class="guide-sec">
@@ -640,7 +796,7 @@ canvas{
           <li><b>减益 / 控制类</b>：诅咒、弱化、迟缓、眩晕、定身、腐蚀、恐惧、冰霜……</li>
           <li><b>特殊类</b>：偷窃、成长、进化、死亡爆炸、分裂、圣盾、狂血、审判、处刑、自爆、暗影、王权、虚无、压倒……</li>
         </ul>
-        <p>按 <span class="guide-kbd">F</span> 打开<b>怪物手册</b>，可查看本层所有怪物的生命 / 攻击 / 防御、属性标签（悬停可看说明）以及预计损失 HP。</p>
+        <p>按 <span class="guide-kbd">F</span> 打开<b>怪物手册</b>，可查看本层所有怪物的生命 / 攻击 / 防御 / 经验 / 金币、属性标签（悬停可看说明）以及预计损失 HP。</p>
       </div>
 
       <div class="guide-sec">
@@ -649,7 +805,8 @@ canvas{
           <li>前 <b>200 层</b>为固定爬塔；抵达第 200 层上楼楼梯即通关。</li>
           <li>进入无尽模式后，<b>怪物编号区间循环使用</b>（第 201 层起从第 1 组怪物重新开始）。</li>
           <li>每 <b>100 层</b>，所有怪物额外获得一种属性（属性可叠加）。</li>
-          <li>每通过 <b>200 层</b>，怪物生命 / 攻击 / 防御、血瓶与攻防宝石数值乘以一次「数值系数」（默认 2 倍）。</li>
+          <li>每通过 <b>200 层</b>，怪物生命 / 攻击 / 防御 ×4000；血瓶与攻防宝石数值 ×2。</li>
+          <li>无尽模式中，怪物掉落装备数量固定为 <b>2 件</b>（每 200 层 +1 件），初级/中级/高级概率均等。</li>
         </ul>
       </div>
 
@@ -659,8 +816,8 @@ canvas{
           <li><b>事件密度</b>：地图上怪物 + 物品的总密度，越高越拥挤。</li>
           <li><b>物品占比</b>：事件中物品所占比例，越高物品越多、怪物越少。</li>
           <li><b>怪物难度</b>：直接放大怪物的生命、攻击、防御（0.5× – 3×）。</li>
-          <li><b>装备爆率</b>：影响击杀怪物掉落装备的概率（10% – 200%）。</li>
-          <li><b>数值系数</b>：每 200 层对怪物与宝石数值的放大倍数（1.1× – 10×）。</li>
+          <li><b>装备爆率</b>：影响击杀怪物掉落装备的概率（10% – 200%），无尽模式不受此影响。</li>
+          <li><b>怪物成长</b>：每通过 200 层，怪物血量/攻防额外 ×4000；血瓶与攻防宝石数值 ×2（无尽模式商店中攻防宝石额外获得层数加成）。</li>
         </ul>
         <p>以上设置仅在<b>开始新游戏</b>时生效，游戏中不可修改。</p>
       </div>
@@ -701,6 +858,145 @@ canvas{
 
 let GW = 13, GH = 13, CELL = 48;
 const BASE_FLOORS = 200;
+
+/* ==================================================================
+   ★ 装备悬停提示
+   ================================================================== */
+const STAT_ORDER = [
+  'hp','atk','def','pen','critChance','dmgRed','flatRed','dotRes',
+  'antiArmor','antiDodge','antiShield','antiRegen','antiReborn','antiFirst',
+  'antiCombo','antiPierce','antiCurse','antiThorns','antiBomb','antiStun','keyGuard'
+];
+
+const STAT_COLOR = {
+  atk:'#ffb454', pen:'#ffb454', critChance:'#ffb454',
+  def:'#6cbcff', dmgRed:'#6cbcff', flatRed:'#6cbcff',
+  hp:'#ff7b7b',  dotRes:'#c6a0ff'
+};
+
+function statColor(k){
+  if (STAT_COLOR[k]) return STAT_COLOR[k];
+  if (k.indexOf('anti') === 0 || k === 'keyGuard') return '#8affc0';
+  return '#a9b4d8';
+}
+
+function buildEquipTipHtml(id){
+  const e = getEquipDef(id);
+  if (!e) return '';
+  const col = lvColor(e.lv);
+
+  const keys = [];
+  for (const k of STAT_ORDER) if (e.stats[k] !== undefined) keys.push(k);
+  for (const k in e.stats)    if (STAT_ORDER.indexOf(k) < 0) keys.push(k);
+
+  let rows = '';
+  for (const k of keys){
+    const info = STAT_INFO[k];
+    const name = info ? info.n : k;
+    const val  = info ? info.f(e.stats[k]) : '+' + e.stats[k];
+    rows += '<div class="eq-tip-stat">'
+          +   '<span class="eq-tip-k">' + name + '</span>'
+          +   '<span class="eq-tip-v" style="color:' + statColor(k) + '">' + val + '</span>'
+          + '</div>';
+  }
+
+  let recipe = '';
+  if (e.lv >= 3){
+    recipe = '升级：3 × ' + e.name + '（Lv.' + e.lv + '）';
+    if (e.recipe){
+      recipe += '<br>合成：' + e.recipe.map(r => {
+        const d = getEquipDef(r);
+        return d ? d.name : r;
+      }).join(' + ');
+    }
+  } else if (e.recipe){
+    recipe = '合成：' + e.recipe.map(r => {
+      const d = getEquipDef(r);
+      return d ? d.name : r;
+    }).join(' + ');
+  }
+
+  return '<div class="eq-tip-head">'
+       +   '<span class="eq-tip-emoji">' + e.emoji + '</span>'
+       +   '<div style="min-width:0">'
+       +     '<div class="eq-tip-title">' + e.name + '</div>'
+       +     '<span class="eq-tip-lv" style="color:' + col + '">Lv.' + e.lv + ' · ' + lvLabel(e.lv) + '</span>'
+       +   '</div>'
+       + '</div>'
+       + '<div class="eq-tip-stats">' + rows + '</div>'
+       + (recipe ? '<div class="eq-tip-recipe">' + recipe + '</div>' : '');
+}
+
+const tipEl = document.getElementById('eqTip');
+let tipTimer = null;
+let tipAnchor = null;
+
+function hideEquipTip(){
+  clearTimeout(tipTimer);
+  tipAnchor = null;
+  if (tipEl) tipEl.classList.remove('show');
+}
+
+function showEquipTip(id, anchor){
+  if (!tipEl || !anchor || !anchor.isConnected) return;
+  const html = buildEquipTipHtml(id);
+  if (!html) return;
+
+  tipEl.innerHTML = html;
+  tipEl.style.visibility = 'hidden';
+  tipEl.classList.remove('show');
+  tipEl.style.left = '0px';
+  tipEl.style.top  = '0px';
+
+  const tw = tipEl.offsetWidth;
+  const th = tipEl.offsetHeight;
+  const r  = anchor.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const gap = 12;
+
+  let x = r.right + gap;
+  let y = r.top;
+
+  if (x + tw > vw - 8) x = r.left - tw - gap;
+  if (x < 8) x = Math.min(Math.max(8, r.left), Math.max(8, vw - tw - 8));
+  if (y + th > vh - 8) y = vh - th - 8;
+  if (y < 8) y = 8;
+
+  tipEl.style.left = Math.round(x) + 'px';
+  tipEl.style.top  = Math.round(y) + 'px';
+  tipEl.style.visibility = '';
+  tipEl.classList.add('show');
+}
+
+/* --- 事件委托：装备栏 / 背包列表 / 商店 --- */
+document.addEventListener('mouseover', e => {
+  const t = e.target && e.target.closest ? e.target.closest('[data-tip-equip]') : null;
+  if (!t){
+    if (tipAnchor) hideEquipTip();
+    return;
+  }
+  if (t === tipAnchor) return;
+
+  tipAnchor = t;
+  clearTimeout(tipTimer);
+  const id = t.getAttribute('data-tip-equip');
+  tipTimer = setTimeout(() => {
+    if (tipAnchor === t) showEquipTip(id, t);
+  }, 110);
+});
+
+document.addEventListener('mouseout', e => {
+  const t = e.target && e.target.closest ? e.target.closest('[data-tip-equip]') : null;
+  if (!t) return;
+  const to = e.relatedTarget;
+  if (to && t.contains(to)) return;
+  if (tipAnchor === t) hideEquipTip();
+});
+
+window.addEventListener('scroll', hideEquipTip, true);
+document.addEventListener('dragstart', hideEquipTip);
+document.addEventListener('touchstart', hideEquipTip, { passive: true });
 
 /* ==================================================================
    怪物表：共 200 个（125 普通 / 50 精英 / 25 BOSS）
@@ -1337,6 +1633,11 @@ defEquip('high_abyss_judge',   '深渊裁决者',     '⚖️', 'high', {atk:150
 defEquip('high_eternal_crown', '永恒王冠',       '👑', 'high', {def:120, hp:4000, dmgRed:20},                ['iron_helm','mid_life_gem']);
 
 const BASIC_IDS = EQUIP_LIST.filter(e => e.tier === 'basic').map(e => e.id);
+const TIER_EQUIPS = {
+  basic: EQUIP_LIST.filter(e => e.tier === 'basic'),
+  mid:   EQUIP_LIST.filter(e => e.tier === 'mid'),
+  high:  EQUIP_LIST.filter(e => e.tier === 'high')
+};
 
 /* ---------------- Lv.4+ 无限合成：随机增益池 ---------------- */
 const RANDOM_BONUS_POOL = [
@@ -1681,10 +1982,17 @@ function extraTraitCountForLevel(L){
   return Math.min(TRAIT_KEYS.length, Math.floor((L - 201) / 100) + 1);
 }
 
+/* 物品缩放：每 200 层 ×2（乘数固定为 2，不显示在菜单） */
 function floorMultiplier(L){
   const power = Math.floor((L - 1) / 200);
-  const mult = (S.settings && S.settings.mult) || 1;
+  const mult = (S.settings && S.settings.mult) || 2;
   return Math.pow(mult, power);
+}
+
+/* 怪物缩放：每 200 层 ×4000（201 层起生效） */
+function monsterMultiplier(L){
+  const power = Math.floor((L - 1) / 200);
+  return Math.pow(4000, power);
 }
 
 function pickExtraTraits(baseTraits, n){
@@ -1937,6 +2245,9 @@ function generateFloor(i){
   if (exit.x === entry.x && exit.y === entry.y) exit = pickFarthest(g, entry);
 
   const populated = populateFloorEx(g, entry, exit, L);
+
+  const hasShop = Math.random() < 0.20;
+
   const floor = {
     grid: g,
     entry: { x: entry.x, y: entry.y },
@@ -1945,8 +2256,10 @@ function generateFloor(i){
     items: populated.items,
     monsterTraits: populated.monsterTraits,
     level: L,
-    multiplier: floorMultiplier(L),
-    extraTraitCount: extraTraitCountForLevel(L)
+    multiplier: monsterMultiplier(L),
+    extraTraitCount: extraTraitCountForLevel(L),
+    hasShop,
+    shopStock: hasShop ? makeShopStock(L) : null
   };
 
   weakenMonstersOnPathEx(floor);
@@ -1959,11 +2272,14 @@ const inB = (x, y) => x >= 0 && x < GW && y >= 0 && y < GH;
 
 function fmtNum(n){
   if (!isFinite(n)) return '∞';
-  if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Q';
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
-  if (n >= 1e9)  return (n / 1e9).toFixed(2) + 'B';
-  if (n >= 1e6)  return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  const abs = Math.abs(n);
+  if (abs >= 1e21) return n.toExponential(2).replace('e+', 'e');
+  if (abs >= 1e18) return (n / 1e18).toFixed(2) + 'Qi';
+  if (abs >= 1e15) return (n / 1e15).toFixed(2) + 'Q';
+  if (abs >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+  if (abs >= 1e9)  return (n / 1e9).toFixed(2) + 'B';
+  if (abs >= 1e6)  return (n / 1e6).toFixed(2) + 'M';
+  if (abs >= 1000) return (n / 1000).toFixed(1) + 'k';
   return String(Math.round(n));
 }
 
@@ -1977,9 +2293,14 @@ const S = {
   slots: [null,null,null,null,null,null],
   inv: {},
   hpBonus: 0,
+  level: 1,
+  exp: 0,
+  gold: 0,
   over: false,
   win: false,
   endless: false,
+  startTime: 0,      // 新增：开始计时的时间戳（0 = 未开始）
+  endTime: 0,        // 新增：停止计时的时间戳（0 = 仍在计时）
   autoEquip: true,
   autoPickup: true,
   autoKillZero: true,
@@ -1987,6 +2308,256 @@ const S = {
 };
 
 const visitedFloors = new Set();
+
+/* ======================= 游戏计时 ======================= */
+let gameTimerInterval = null;
+
+function formatClock(ms){
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const p = n => String(n).padStart(2, '0');
+  return h > 0 ? (h + ':' + p(m) + ':' + p(s)) : (p(m) + ':' + p(s));
+}
+
+function updateTimerDisplay(){
+  const el = document.getElementById('hudTime');
+  if (!el) return;
+  if (!S.startTime){ el.textContent = '00:00'; return; }
+  const end = S.endTime || Date.now();
+  el.textContent = formatClock(end - S.startTime);
+}
+
+function ensureGameTimerStarted(){
+  if (S.startTime) return;             // 已经开始了
+  S.startTime = Date.now();
+  S.endTime = 0;
+  if (!gameTimerInterval){
+    gameTimerInterval = setInterval(updateTimerDisplay, 500);
+  }
+  updateTimerDisplay();
+}
+
+/* ======================= 经验 / 金币 ======================= */
+function expNeededForLevel(lv){
+  return Math.max(1, Math.round(100 * Math.pow(lv, 1.5)));
+}
+
+function expGainOf(m){
+  return Math.max(1, Math.round((Math.sqrt(m.hp) * 2.5 + m.atk + m.def * 2) * 0.5));
+}
+
+function goldGainOf(m){
+  return Math.max(1, Math.round((Math.sqrt(m.hp) * 1.2 + m.atk * 0.3 + m.def) * 0.5));
+}
+
+function applyLevelUp(){
+  const p = S.player;
+  const atkG = Math.max(1, Math.round(p.atk * 0.05));
+  const defG = Math.max(1, Math.round(p.def * 0.05));
+  const hpG  = Math.max(1, Math.round(p.maxHp * 0.05));
+  p.atk   += atkG;
+  p.def   += defG;
+  p.maxHp += hpG;
+  p.hp    += hpG;
+}
+
+function gainCombatRewards(m){
+  const exp  = expGainOf(m);
+  const gold = goldGainOf(m);
+  S.exp  += exp;
+  S.gold += gold;
+
+  let ups = 0;
+  let guard = 0;
+  while (guard++ < 200){
+    const need = expNeededForLevel(S.level);
+    if (S.exp < need) break;
+    S.exp -= need;
+    S.level++;
+    applyLevelUp();
+    ups++;
+  }
+  return { exp, gold, ups };
+}
+
+/* ======================= 商店 ======================= */
+function shopEquipPool(L){
+  if (L <= 10) return EQUIP_LIST.filter(e => e.tier === 'basic');
+  if (L <= 40) return EQUIP_LIST.filter(e => e.tier === 'basic' || e.tier === 'mid');
+  if (L <= 90) return EQUIP_LIST.filter(e => e.tier === 'mid' || e.tier === 'high');
+  return EQUIP_LIST.slice();
+}
+
+function makeShopStock(L){
+  const mul   = floorMultiplier(L);
+  const scale = 1 + (L - 1) * 0.30;
+  const stock = [];
+
+  // 无尽模式攻防宝石额外加成：201-400 层 +1，401-600 层 +2，601-800 层 +3……
+  let gemBonus = 0;
+  if (L > BASE_FLOORS) {
+    gemBonus = Math.floor((L - 1) / 200);
+  }
+
+  const atkVal = Math.max(1, Math.round(2.5 * mul) + gemBonus);
+  const defVal = Math.max(1, Math.round(2.5 * mul) + gemBonus);
+  const hp1Val = Math.max(1, Math.round(400 * mul));
+  const hp2Val = Math.max(1, Math.round(1000 * mul));
+
+  stock.push({
+    kind:'atk', name:'攻击宝石', emoji:'⚔️',
+    icon:'ti-diamond', color:'#ff5252',
+    desc:'攻击 +' + fmtNum(atkVal), value: atkVal,
+    price: Math.round(60 * scale)
+  });
+  stock.push({
+    kind:'def', name:'防御宝石', emoji:'🛡️',
+    icon:'ti-diamond', color:'#4d9aff',
+    desc:'防御 +' + fmtNum(defVal), value: defVal,
+    price: Math.round(60 * scale)
+  });
+  stock.push({
+    kind:'hp1', name:'红药水', emoji:'❤️',
+    icon:'ti-flask-2', color:'#ff5c7a',
+    desc:'生命 +' + fmtNum(hp1Val), value: hp1Val,
+    price: Math.round(40 * scale)
+  });
+  stock.push({
+    kind:'hp2', name:'蓝药水', emoji:'💙',
+    icon:'ti-flask-2', color:'#4dd2ff',
+    desc:'生命 +' + fmtNum(hp2Val), value: hp2Val,
+    price: Math.round(90 * scale)
+  });
+  stock.push({
+    kind:'ykey', name:'黄钥匙', emoji:'🗝️', color:'#e8c14a',
+    desc:'获得 1 把黄钥匙', price: Math.round(30 * scale)
+  });
+  stock.push({
+    kind:'bkey', name:'蓝钥匙', emoji:'🔑',
+    icon:'ti-key', color:'#4d9aff',
+    desc:'获得 1 把蓝钥匙', price: Math.round(70 * scale)
+  });
+  stock.push({
+    kind:'rkey', name:'红钥匙', emoji:'🔐',
+    icon:'ti-key', color:'#ff4d5e', bold:true,
+    desc:'获得 1 把红钥匙', price: Math.round(150 * scale)
+  });
+
+  const pool = shuffleArr(shopEquipPool(L).slice());
+  for (let i = 0; i < 10; i++){
+    const e = pool[i % pool.length];
+    const basePrice = e.tier === 'high' ? 900 : (e.tier === 'mid' ? 300 : 90);
+    stock.push({
+      kind:'equip', equipId: e.id, name: e.name, emoji: e.emoji,
+      icon: EQUIP_ICONS[e.id] || '', color: TIER_COLOR[e.tier],
+      desc: describeStats(e.stats),
+      price: Math.max(1, Math.round(basePrice * scale))
+    });
+  }
+
+  return stock;
+}
+
+function renderShop(){
+  hideEquipTip();
+  const fl = S.floors[S.floorIdx];
+  const list = document.getElementById('shopList');
+  const goldBar = document.getElementById('shopGoldBar');
+  if (!fl || !list) return;
+
+  if (goldBar){
+    goldBar.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;'
+      + 'font-size:15px;color:#dfe4ff;margin-bottom:8px">'
+      +   '<span>第 ' + (S.floorIdx + 1) + ' 层 · 商品</span>'
+      +   '<span style="color:#ffd75c">💰 ' + fmtNum(S.gold) + '</span>'
+      + '</div>';
+  }
+
+  if (!fl.shopStock){
+    list.innerHTML = '<div class="book-empty">本层没有商店</div>';
+    return;
+  }
+
+  let html = '';
+  fl.shopStock.forEach((it, i) => {
+    const sold = !!it.sold;
+    const canBuy = !sold && S.gold >= it.price;
+    const iconHtml = it.icon
+      ? '<i class="ti ' + it.icon + '"></i>'
+      : it.emoji;
+    html += '<div class="shop-row"' +
+            (it.kind === 'equip' ? ' data-tip-equip="' + it.equipId + '"' : '') + '>'
+          +   '<div class="shop-icon" style="color:' + (it.color || '#dfe4ff') + '">'
+          +     iconHtml
+          +   '</div>'
+          +   '<div class="shop-body">'
+          +     '<div class="shop-name">' + it.name + '</div>'
+          +     '<div class="shop-desc">' + it.desc + '</div>'
+          +   '</div>'
+          +   '<button class="shop-buy" data-idx="' + i + '"' + (canBuy ? '' : ' disabled') + '>'
+          +     (sold ? '已售出' : '💰 ' + fmtNum(it.price))
+          +   '</button>'
+          + '</div>';
+  });
+  list.innerHTML = html;
+
+  list.querySelectorAll('.shop-buy[data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => buyShopItem(+btn.dataset.idx));
+  });
+}
+
+function buyShopItem(index){
+  const fl = S.floors[S.floorIdx];
+  if (!fl || !fl.shopStock) return;
+  const item = fl.shopStock[index];
+  if (!item || item.sold) return;
+  if (S.gold < item.price){ toast('金币不足'); return; }
+
+  S.gold -= item.price;
+  item.sold = true;
+
+  if (item.kind === 'atk'){
+    S.player.atk += item.value;
+  } else if (item.kind === 'def'){
+    S.player.def += item.value;
+  } else if (item.kind === 'hp1' || item.kind === 'hp2'){
+    S.player.hp    += item.value;
+    S.player.maxHp += item.value;
+  } else if (item.kind === 'ykey'){
+    S.keys.ykey++;
+  } else if (item.kind === 'bkey'){
+    S.keys.bkey++;
+  } else if (item.kind === 'rkey'){
+    S.keys.rkey++;
+  } else if (item.kind === 'equip'){
+    pickupEquip(item.equipId);
+    renderEquipSlots();
+  }
+
+  toast('购买成功：' + item.name);
+  renderShop();
+  updateHUD();
+  render();
+}
+
+function openShop(){
+  const fl = S.floors && S.floors[S.floorIdx];
+  if (!fl || !fl.shopStock){ toast('本层没有商店'); return; }
+  renderShop();
+  document.getElementById('shopModal').classList.add('show');
+}
+
+function updateShopBtn(){
+  const btn = document.getElementById('shopBtn');
+  if (!btn) return;
+  const fl = S.floors && S.floors[S.floorIdx];
+  const has = !!(fl && fl.shopStock);
+  btn.disabled = !has;
+  btn.innerHTML = has ? '🏪 商店' : '🏪 商店（本层无）';
+}
 
 /* ======================= 装备核心逻辑 ======================= */
 function getEquipBonus(){
@@ -2048,10 +2619,8 @@ function canCraftEquip(id){
   const e = getEquipDef(id);
   if (!e) return false;
 
-  // 3 件同名合成（Lv.3+）优先
   if (e.lv >= 3 && (S.inv[id] || 0) >= 3) return true;
 
-  // 配方合成（初级 / 中级 / 高级都适用）
   if (e.recipe){
     for (let i = 0; i < e.recipe.length; i++){
       if (!(S.inv[e.recipe[i]] > 0)) return false;
@@ -2065,7 +2634,6 @@ function craftEquipCore(id){
   const e = getEquipDef(id);
   if (!e) return null;
 
-  // 1) 3 件同名合成 → 升级到下一级
   if (e.lv >= 3 && (S.inv[id] || 0) >= 3){
     S.inv[id] -= 3;
     if (S.inv[id] <= 0) delete S.inv[id];
@@ -2076,7 +2644,6 @@ function craftEquipCore(id){
     return ne;
   }
 
-  // 2) 配方合成
   if (e.recipe){
     for (let i = 0; i < e.recipe.length; i++){
       if (!(S.inv[e.recipe[i]] > 0)) return null;
@@ -2454,19 +3021,16 @@ function drawHeroHighlight(){
 
   ctx.save();
 
-  // 1. 脉动的格子底色
   const pulse = 0.5 + 0.5 * Math.sin(elapsed / 170);
   ctx.globalAlpha = (0.18 + 0.28 * pulse) * fade;
   ctx.fillStyle = '#8affc0';
   ctx.fillRect(px + 2 * u, py + 2 * u, CELL - 4 * u, CELL - 4 * u);
 
-  // 2. 脉动的方格边框
   ctx.globalAlpha = (0.45 + 0.55 * pulse) * fade;
   ctx.strokeStyle = '#8affc0';
   ctx.lineWidth = Math.max(2, 3 * u);
   ctx.strokeRect(px + 2.5 * u, py + 2.5 * u, CELL - 5 * u, CELL - 5 * u);
 
-  // 3. 向外扩散的光环
   const period = 1000;
   for (let k = 0; k < 2; k++){
     const tt = ((elapsed + k * period / 2) % period) / period;
@@ -2480,7 +3044,6 @@ function drawHeroHighlight(){
     ctx.stroke();
   }
 
-  // 4. 头顶指示箭头
   const bob = Math.sin(elapsed / 200) * 3 * u;
   const ax = cx, ay = py - 2 * u + bob;
   ctx.globalAlpha = fade;
@@ -2522,7 +3085,6 @@ function render(){
   const fl = S.floors[S.floorIdx];
   const g = fl.grid;
 
-  // ★ 缩放因子：以原 13×13 时 CELL=48 为基准
   const u = CELL / 48;
 
   ctx.clearRect(0, 0, GW * CELL, GH * CELL);
@@ -2555,7 +3117,7 @@ function render(){
           ctx.lineWidth = Math.max(1.5, 3 * u);
           ctx.strokeRect(px + 5 * u, py + 5 * u, CELL - 10 * u, CELL - 10 * u);
           ctx.lineWidth = 1;
-          drawItemGlyph(ctx, 'door' + c, px + CELL/2, py + CELL/2, 30 * u);   
+          drawItemGlyph(ctx, 'door' + c, px + CELL/2, py + CELL/2, 30 * u);
         }
       }
     }
@@ -2582,7 +3144,7 @@ function render(){
       ctx.stroke();
       ctx.lineWidth = 1;
     }
-    drawItemGlyph(ctx, fl.items[k], cx, cy, 30 * u);                       
+    drawItemGlyph(ctx, fl.items[k], cx, cy, 30 * u);
   }
 
   for (const k in fl.monsters){
@@ -2592,15 +3154,15 @@ function render(){
     const cx = x * CELL + CELL/2, cy = y * CELL + CELL/2;
 
     ctx.fillStyle = '#fff';
-    ctx.font = Math.max(16, 33 * u) + 'px serif';                          
+    ctx.font = Math.max(16, 33 * u) + 'px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(m.emoji, cx, cy + 1 * u);                                 
+    ctx.fillText(m.emoji, cx, cy + 1 * u);
 
     const tCount = Object.keys(m.traits).length;
     if (tCount > 0){
       ctx.beginPath();
-      ctx.arc(x * CELL + 8 * u, y * CELL + 8 * u, 3.5 * u, 0, Math.PI * 2);  
+      ctx.arc(x * CELL + 8 * u, y * CELL + 8 * u, 3.5 * u, 0, Math.PI * 2);
       ctx.fillStyle = tCount >= 3 ? '#ff5c5c' : '#ffd75c';
       ctx.fill();
     }
@@ -2613,50 +3175,78 @@ function render(){
       txt = fmtNum(f.back);
       col = f.back >= S.player.hp ? '#ff5c5c' : '#8fe8a0';
     }
-    ctx.font = 'bold ' + Math.max(9, 13 * u) + 'px ui-monospace,Menlo,monospace';  
+    ctx.font = 'bold ' + Math.max(9, 13 * u) + 'px ui-monospace,Menlo,monospace';
     const tw = ctx.measureText(txt).width;
     ctx.fillStyle = 'rgba(0,0,0,.72)';
-    ctx.fillRect(x * CELL + CELL - tw - 7 * u,                             
-                 y * CELL + CELL - 18 * u,                                 
-                 tw + 7 * u,                                               
-                 18 * u);                                                  
+    ctx.fillRect(x * CELL + CELL - tw - 7 * u,
+                 y * CELL + CELL - 18 * u,
+                 tw + 7 * u,
+                 18 * u);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = col;
-    ctx.fillText(txt, x * CELL + CELL - 3.5 * u,                           
-                      y * CELL + CELL - 2.5 * u);                          
+    ctx.fillText(txt, x * CELL + CELL - 3.5 * u,
+                      y * CELL + CELL - 2.5 * u);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
   }
 
-  /* ★ 开局勇士位置高亮（画在勇者下方） */
   if (performance.now() < heroHighlightEnd) drawHeroHighlight();
 
   ctx.fillStyle = '#fff';
-  ctx.font = Math.max(16, 33 * u) + 'px serif';                            
+  ctx.font = Math.max(16, 33 * u) + 'px serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('🧙', S.hero.x * CELL + CELL/2,
-                     S.hero.y * CELL + CELL/2 + 1 * u);                    
+                     S.hero.y * CELL + CELL/2 + 1 * u);
 }
 
 /* ======================= HUD ======================= */
 function updateHUD(){
   const E = getEquipBonus();
   const total = S.endless ? '∞' : BASE_FLOORS;
-  document.getElementById('hudFloor').textContent = (S.floorIdx + 1) + ' / ' + total;
-  document.getElementById('hudHp').textContent    = S.player.hp + ' / ' + S.player.maxHp;
-  document.getElementById('hudAtk').innerHTML =
+
+  const elDiff = document.getElementById('hudDiff');
+  if (elDiff) elDiff.textContent =
+    ((S.settings && S.settings.difficulty) || 1).toFixed(1) + '×';
+
+  const elFloor = document.getElementById('hudFloor');
+  if (elFloor) elFloor.textContent = (S.floorIdx + 1) + ' / ' + total;
+
+  const elHp = document.getElementById('hudHp');
+  if (elHp) elHp.textContent = S.player.hp + ' / ' + S.player.maxHp;
+
+  const elAtk = document.getElementById('hudAtk');
+  if (elAtk) elAtk.innerHTML =
     S.player.atk + (E.atk ? '<span class="eq-bonus">+' + E.atk + '</span>' : '');
-  document.getElementById('hudDef').innerHTML =
+
+  const elDef = document.getElementById('hudDef');
+  if (elDef) elDef.innerHTML =
     S.player.def + (E.def ? '<span class="eq-bonus">+' + E.def + '</span>' : '');
-  document.getElementById('hudYk').textContent = S.keys.ykey;
-  document.getElementById('hudBk').textContent = S.keys.bkey;
-  document.getElementById('hudRk').textContent = S.keys.rkey;
+
+  const elGold = document.getElementById('hudGold');
+  if (elGold) elGold.textContent = fmtNum(S.gold);
+
+  const elYk = document.getElementById('hudYk');
+  if (elYk) elYk.textContent = S.keys.ykey;
+  const elBk = document.getElementById('hudBk');
+  if (elBk) elBk.textContent = S.keys.bkey;
+  const elRk = document.getElementById('hudRk');
+  if (elRk) elRk.textContent = S.keys.rkey;
+
+  const need = expNeededForLevel(S.level);
+  const pct  = Math.max(0, Math.min(100, S.exp / need * 100));
+  const fill = document.getElementById('hudExpFill');
+  if (fill) fill.style.width = pct.toFixed(1) + '%';
+  const label = document.getElementById('hudExpLabel');
+  if (label) label.textContent = 'Lv.' + S.level + '　' + fmtNum(S.exp) + ' / ' + fmtNum(need);
+
+  updateShopBtn();
 }
 
 /* ======================= 装备栏渲染 ======================= */
 function renderEquipSlots(){
+  hideEquipTip();
   const grid = document.getElementById('equipGrid');
   if (!grid) return;
   let html = '';
@@ -2666,7 +3256,7 @@ function renderEquipSlots(){
     if (eq){
       const col = lvColor(eq.lv);
       html += '<div class="equip-slot filled" data-slot="' + i + '" draggable="true" '
-            + 'title="' + eq.name + ' Lv.' + eq.lv + '&#10;' + describeStats(eq.stats) + '&#10;点击卸下">'
+            + 'data-tip-equip="' + id + '">'
             +   '<span class="eq-emoji">' + eq.emoji + '</span>'
             +   '<span class="eq-lv" style="color:' + col + ';border-color:' + col + '">' + eq.lv + '</span>'
             + '</div>';
@@ -2748,7 +3338,8 @@ function equipRowHtml(e){
   }
   if (!acts) acts = '<span class="eq-have" style="color:#5b6585">未获得</span>';
 
-  return '<div class="eq-row"' + (owned > 0 ? ' draggable="true" data-eqid="' + e.id + '"' : '') + '>'
+  return '<div class="eq-row" data-tip-equip="' + e.id + '"'
+       + (owned > 0 ? ' draggable="true" data-eqid="' + e.id + '"' : '') + '>'
        +   '<div class="eq-icon">' + e.emoji + '</div>'
        +   '<div class="eq-body">'
        +     '<div class="eq-title">' + e.name
@@ -2767,6 +3358,7 @@ function equipRowHtml(e){
 }
 
 function renderEquipList(){
+  hideEquipTip();
   const list = document.getElementById('equipList');
   if (!list) return;
 
@@ -2792,8 +3384,8 @@ function renderEquipList(){
   lvs.forEach(lv => {
     const col = lvColor(lv);
     const label = (lv <= 3)
-      ? (lvLabel(lv) + ' 装 备')
-      : ('Lv.' + lv + ' 装 备');
+      ? (lvLabel(lv) + ' 装备')
+      : ('Lv.' + lv + ' 装备');
     html += '<div class="eq-section" style="color:' + col + '">' + label + '</div>';
 
     const arr = groups[lv];
@@ -3024,24 +3616,40 @@ function dropEquip(m, silent){
     ? S.settings.dropRate
     : 0.6;
 
+  const L = S.floorIdx + 1;
   let n = 0;
-  if (m.kind === 'boss'){
-    for (let i = 0; i < 3; i++){
-      if (Math.random() < Math.min(1, rate * 2)) n++;
-    }
-  } else if (m.kind === 'elite'){
-    for (let i = 0; i < 2; i++){
-      if (Math.random() < Math.min(1, rate * 1.5)) n++;
-    }
+
+  if (L > BASE_FLOORS){
+    // 无尽模式：固定掉落 N 件装备（201-400 层 2 件，401-600 层 3 件……）
+    n = 1 + Math.floor((L - 1) / 200);
   } else {
-    if (Math.random() < Math.min(1, rate)) n = 1;
+    if (m.kind === 'boss'){
+      for (let i = 0; i < 3; i++){
+        if (Math.random() < Math.min(1, rate * 2)) n++;
+      }
+    } else if (m.kind === 'elite'){
+      for (let i = 0; i < 2; i++){
+        if (Math.random() < Math.min(1, rate * 1.5)) n++;
+      }
+    } else {
+      if (Math.random() < Math.min(1, rate)) n = 1;
+    }
   }
 
   if (!n) return [];
 
   const got = [];
+  const tiers = ['basic', 'mid', 'high'];
   for (let i = 0; i < n; i++){
-    const id = BASIC_IDS[Math.floor(Math.random() * BASIC_IDS.length)];
+    let id;
+    if (L > BASE_FLOORS){
+      // 无尽模式：初级/中级/高级各 1/3 概率
+      const tier = tiers[Math.floor(Math.random() * tiers.length)];
+      const tierEquips = TIER_EQUIPS[tier];
+      id = tierEquips[Math.floor(Math.random() * tierEquips.length)].id;
+    } else {
+      id = BASIC_IDS[Math.floor(Math.random() * BASIC_IDS.length)];
+    }
     const r = pickupEquip(id);
     got.push(r.equipped ? r.name + '(已装备)' : r.name);
   }
@@ -3083,12 +3691,12 @@ function updateAutoKillBtn(){
 }
 
 function autoKillZeroMonsters(silent){
-  if (S.over || S.win) return 0;
-  if (!S.autoKillZero)   return 0;
+  const result = { killed: 0, exp: 0, gold: 0, ups: 0 };
+  if (S.over || S.win) return result;
+  if (!S.autoKillZero) return result;
   const fl = S.floors && S.floors[S.floorIdx];
-  if (!fl) return 0;
+  if (!fl) return result;
 
-  let killed = 0;
   const allGot = [];
   let guard = 0;
 
@@ -3119,24 +3727,33 @@ function autoKillZeroMonsters(silent){
         }
       }
 
+      const rw = gainCombatRewards(m);
+      result.exp  += rw.exp;
+      result.gold += rw.gold;
+      result.ups  += rw.ups;
+
       const got = dropEquip(m, true);
       if (got && got.length) allGot.push.apply(allGot, got);
-      killed++;
+      result.killed++;
       killedThisPass++;
     }
 
     if (!killedThisPass) break;
   }
 
-  if (killed > 0){
+  if (result.killed > 0){
     if (!silent){
-      let msg = '⚔️ 自动击杀 ' + killed + ' 只零伤怪物';
+      let msg = '⚔️ 自动击杀 ' + result.killed + ' 只零伤怪物';
+      if (result.exp)  msg += ' · EXP +' + fmtNum(result.exp);
+      if (result.gold) msg += ' · 💰 +' + fmtNum(result.gold);
+      if (result.ups)  msg += ' · ⭐Lv.' + S.level;
       if (allGot.length) msg += '，获得 ' + allGot.join('、');
       toast(msg);
     }
     renderEquipSlots();
+    updateHUD();
   }
-  return killed;
+  return result;
 }
 
 /* ======================= 上下楼 ======================= */
@@ -3154,7 +3771,7 @@ function goUp(){
   updateHUD();
   if (S.autoKillZero) autoKillZeroMonsters(true);
   if (S.autoPickup)   autoPickupItems();
-  toast('进入第 ' + (next + 1) + ' 层');
+  toast('进入第 ' + (next + 1) + ' 层' + (nf.hasShop ? ' · 🏪 有商店' : ''));
 }
 
 function goDown(){
@@ -3172,7 +3789,7 @@ function goDown(){
   updateHUD();
   if (S.autoKillZero) autoKillZeroMonsters(true);
   if (S.autoPickup)   autoPickupItems();
-  toast('回到第 ' + (prev + 1) + ' 层');
+  toast('回到第 ' + (prev + 1) + ' 层' + (pf.hasShop ? ' · 🏪 有商店' : ''));
 }
 
 /* ======================= 移动 ======================= */
@@ -3229,11 +3846,21 @@ function tryMove(dx, dy){
       }
     }
 
-    dropEquip(m);
+    const rw = gainCombatRewards(m);
+    const drops = dropEquip(m, true);
+
+    let msg = 'EXP +' + fmtNum(rw.exp) + ' · 💰 +' + fmtNum(rw.gold);
+    if (rw.ups > 0) msg += ' · ⭐Lv.' + S.level;
+    if (drops && drops.length) msg += ' · 装备：' + drops.join('、');
+    toast(msg);
+
+    if (rw.ups > 0) renderEquipSlots();
   }
 
   S.hero.x = nx;
   S.hero.y = ny;
+
+  ensureGameTimerStarted();   // ← 新增：第一步移动后开始计时
 
   const ik = fl.items[key];
   let footMsg = '';
@@ -3242,10 +3869,17 @@ function tryMove(dx, dy){
     delete fl.items[key];
   }
 
-  const killedN = autoKillZeroMonsters(true);
-  autoPickupItems(footMsg, killedN > 0 ? ('⚔️ 击杀 ' + killedN + ' 只零伤怪') : '');
+  const ak = autoKillZeroMonsters(true);
+  let prefix = '';
+  if (ak.killed > 0){
+    prefix = '⚔️ 击杀 ' + ak.killed + ' 只零伤怪';
+    if (ak.exp)  prefix += ' · EXP +' + fmtNum(ak.exp);
+    if (ak.gold) prefix += ' · 💰 +' + fmtNum(ak.gold);
+    if (ak.ups)  prefix += ' · ⭐Lv.' + S.level;
+  }
+  autoPickupItems(footMsg, prefix);
 
-  if (killedN > 0) { render(); updateHUD(); }
+  if (ak.killed > 0) { render(); updateHUD(); }
 
   if (nx === fl.exit.x && ny === fl.exit.y){
     if (S.floorIdx === BASE_FLOORS - 1 && !S.endless){
@@ -3335,6 +3969,8 @@ function tryClickMove(clientX, clientY){
   const path = findClearPath(S.hero.x, S.hero.y, x, y);
   if (!path){ toast('无法到达该位置（被障碍物挡住）'); return; }
 
+  ensureGameTimerStarted();
+
   const isExit  = fl.exit  && x === fl.exit.x  && y === fl.exit.y;
   const isEntry = fl.entry && x === fl.entry.x && y === fl.entry.y;
 
@@ -3367,6 +4003,8 @@ cv.addEventListener('click', e => { tryClickMove(e.clientX, e.clientY); });
 
 /* ======================= 通关 / 无尽 ======================= */
 function showClearOverlay(){
+  if (S.startTime && !S.endTime) S.endTime = Date.now();
+  updateTimerDisplay();
   document.getElementById('ovTitle').textContent = '通 关 !';
   document.getElementById('ovDesc').textContent  =
     '你已征服 200 层魔塔！可以继续挑战无尽模式。';
@@ -3377,6 +4015,7 @@ function showClearOverlay(){
 window.enterEndless = function(){
   S.endless = true;
   S.win = false;
+  S.endTime = 0;                                           
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('endlessBtn').style.display = 'none';
   goUp();
@@ -3435,7 +4074,9 @@ function renderBook(){
           +     '<div class="book-stats">'
           +       '<span class="book-hp">HP ' + fmtNum(m.hp) + '</span> · '
           +       '<span class="book-atk">ATK ' + fmtNum(m.atk) + '</span> · '
-          +       '<span class="book-def">DEF ' + fmtNum(m.def) + '</span>'
+          +       '<span class="book-def">DEF ' + fmtNum(m.def) + '</span> · '
+          +       '<span style="color:#8affc0">EXP ' + fmtNum(expGainOf(m)) + '</span> · '
+          +       '<span style="color:#ffd75c">💰 ' + fmtNum(goldGainOf(m)) + '</span>'
           +     '</div>'
           +     (traitHtml ? '<div class="book-traits">' + traitHtml + '</div>' : '')
           +   '</div>'
@@ -3455,11 +4096,25 @@ function renderTeleport(){
   for (let i = 0; i <= maxVisited; i++){
     if (!visitedFloors.has(i)) continue;
     const current = i === S.floorIdx;
-    if (current){
-      html += '<button class="floor-btn current">' + (i + 1) + '</button>';
-    } else {
-      html += '<button class="floor-btn" data-floor="' + i + '">' + (i + 1) + '</button>';
+    const fl = S.floors[i];
+
+    // ← 新增：统计该层剩余怪物 / 物品
+    const mCnt = (fl && fl.monsters) ? Object.keys(fl.monsters).length : 0;
+    const iCnt = (fl && fl.items)    ? Object.keys(fl.items).length    : 0;
+
+    let badge = '';
+    if (mCnt || iCnt){
+      const parts = [];
+      if (mCnt) parts.push('👹' + mCnt);
+      if (iCnt) parts.push('🎁' + iCnt);
+      badge = '<span class="floor-badge">' + parts.join(' ') + '</span>';
     }
+
+    html += '<button class="floor-btn' + (current ? ' current' : '')+ ((mCnt || iCnt) ? ' has-remain' : '') + '"'
+          + (current ? '' : ' data-floor="' + i + '"') + '>'
+          +   '<span class="floor-num">' + (i + 1) + '</span>'
+          +   badge
+          + '</button>';
   }
   html += '</div>';
   list.innerHTML = html;
@@ -3482,10 +4137,11 @@ function teleportTo(f){
   document.getElementById('teleportModal').classList.remove('show');
   render();
   updateHUD();
-  toast('传送至第 ' + (f + 1) + ' 层');
+  toast('传送至第 ' + (f + 1) + ' 层' + (nf.hasShop ? ' · 🏪 有商店' : ''));
 }
 
 /* ======================= 工具按钮 ======================= */
+document.getElementById('shopBtn').addEventListener('click', openShop);
 document.getElementById('bookBtn').addEventListener('click', openBook);
 document.getElementById('teleBtn').addEventListener('click', openTeleport);
 document.getElementById('equipBtn').addEventListener('click', openEquipPanel);
@@ -3512,8 +4168,8 @@ document.getElementById('autoKillBtn').addEventListener('click', () => {
   S.autoKillZero = !S.autoKillZero;
   updateAutoKillBtn();
   if (S.autoKillZero){
-    const n = autoKillZeroMonsters(false);
-    if (!n) toast('⚔️ 零伤清扫：已开启（本层暂无零伤怪物）');
+    const r = autoKillZeroMonsters(false);
+    if (!r.killed) toast('⚔️ 零伤清扫：已开启（本层暂无零伤怪物）');
     render(); updateHUD();
   } else {
     toast('⚔️ 零伤清扫：已关闭');
@@ -3578,8 +4234,8 @@ document.getElementById('equipGrid').addEventListener('click', function(e){
    ================================================================== */
 function startGame(settings){
   S.settings = settings;
+  if (!S.settings.mult) S.settings.mult = 2;
 
-  // 应用地图尺寸
   let size = settings.mapSize || 13;
   size = Math.max(5, Math.min(25, size));
   if (size % 2 === 0) size = Math.min(25, size + 1);
@@ -3595,9 +4251,15 @@ function startGame(settings){
   S.slots = [null,null,null,null,null,null];
   S.inv = { rusty_sword: 1 };
   S.hpBonus = 0;
+  S.level = 1;
+  S.exp   = 0;
+  S.gold  = 0;
   S.over = false;
   S.win = false;
   S.endless = false;
+  S.startTime = 0;
+  S.endTime = 0;
+  if (gameTimerInterval){ clearInterval(gameTimerInterval); gameTimerInterval = null; }
   S.autoPickup = true;
   S.autoEquip  = true;
   S.autoKillZero = true;
@@ -3611,6 +4273,7 @@ function startGame(settings){
   document.getElementById('teleportModal').classList.remove('show');
   document.getElementById('keybindModal').classList.remove('show');
   document.getElementById('equipModal').classList.remove('show');
+  document.getElementById('shopModal').classList.remove('show');
   document.getElementById('guideModal').classList.remove('show');
   capturingAction = null;
 
@@ -3627,8 +4290,8 @@ function startGame(settings){
   updateAutoKillBtn();
   updateAutoEquipBtn();
 
-  /* ★ 开局高亮勇士位置 */
   triggerHeroHighlight(3400);
+  updateTimerDisplay();
 }
 
 /* ---- 主菜单事件 ---- */
@@ -3657,10 +4320,6 @@ function startGame(settings){
       const density    = (+document.getElementById('menuDensity').value) / 100;
       const otherRatio = (+document.getElementById('menuOtherRatio').value) / 100;
 
-      let mult = parseFloat(document.getElementById('menuMult').value);
-      if (!isFinite(mult) || mult < 1.1) mult = 1.1;
-      if (mult > 10) mult = 10;
-
       let difficulty = parseFloat(document.getElementById('menuDifficulty').value);
       if (!isFinite(difficulty) || difficulty < 0.5) difficulty = 1;
       if (difficulty > 3) difficulty = 3;
@@ -3669,20 +4328,18 @@ function startGame(settings){
       if (!isFinite(dropRate) || dropRate < 0.1) dropRate = 0.6;
       if (dropRate > 2) dropRate = 2;
 
-      // 地图尺寸
       let mapSize = parseInt(document.getElementById('menuMapSize').value, 10);
       if (!Number.isFinite(mapSize)) mapSize = 13;
       mapSize = Math.max(5, Math.min(25, mapSize));
       if (mapSize % 2 === 0) mapSize = Math.min(25, mapSize + 1);
 
-      startGame({ density, otherRatio, mult, difficulty, dropRate, mapSize });
+      startGame({ density, otherRatio, mult: 2, difficulty, dropRate, mapSize });
     });
   }
 })();
 
 /* ======================= 键盘输入 ======================= */
 window.addEventListener('keydown', e => {
-  /* 简介弹窗优先处理 */
   const guideModal = document.getElementById('guideModal');
   if (guideModal && guideModal.classList.contains('show')){
     if (e.key === 'Escape') guideModal.classList.remove('show');
