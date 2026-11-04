@@ -226,6 +226,9 @@
 
         const TOWER_DRAFT_INTERVAL = 6; // 每 6 波选塔
         const ENEMY_BOOST_INTERVAL = 5; // 每 5 波怪物强化
+        const SYNERGY_MOD_SCALE = 2.0; //卡牌联动系数
+        const SYNERGY_SCALE_MAX = 666.0;   // 联动共振可叠加上限
+        const SYNERGY_SCALE_STEP = 0.5; // 每次「联动共振」叠加量
         function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
         function lcm(a, b) { return a / gcd(a, b) * b; }
 
@@ -255,24 +258,24 @@
         const ASCENSION_MODIFIERS = [
             { id: 1,  name: '弹药限制',   desc: '每座塔有 50 发子弹，打空后需扣除金币自动装填（资金不足则停火）。' },
             { id: 2,  name: '终极狂潮',   desc: '最后一波的怪物数量翻倍。' },
-            { id: 3,  name: '死亡沉默',   desc: '隐形怪被击杀时，会使周围 2.5 格内的防御塔失效 1 秒。' },
-            { id: 4,  name: '绝对制空',   desc: '飞行怪只会被防空塔攻击。' },
+            { id: 3,  name: '梦魇重生',   desc: '首领怪死亡时，会在原地分裂出 2 只拥有其 30% 生命值的"小首领"。' },
+            { id: 4,  name: '深渊泥潭',   desc: '地图上会随机生成多处泥潭，建在上面的塔射速降低 20%；每 5 波会在地图剩余位置再次生成泥潭。' },
             { id: 5,  name: '资源匮乏',   desc: '初始资金降低 30%。' },
-            { id: 6,  name: '建筑限额',   desc: '造塔次数不能超过 20 座（无尽模式不受此限制）。' },
+            { id: 6,  name: '反伤装甲',   desc: '盾甲兵受到攻击时，有 20% 概率使攻击的塔减速（射速降低 50%）持续 2 秒。' },
             { id: 7,  name: '迟缓归巢',   desc: '被抢走的核心从掉落到回到基地的移动速度减半。' },
             { id: 8,  name: '经济衰退',   desc: '击杀金币获取量 = 原本收益 × (基地核心数 / 20)。' },
             { id: 9,  name: '血怒狂暴',   desc: '怪物生命值低于 30% 时，移动速度提升 100%。' },
             { id: 10, name: '萨满图腾',   desc: '萨满的治疗量翻倍，且治疗范围扩大至全图。' },
-            { id: 11, name: '武器过热',   desc: '所有防御塔连续攻击 5 秒后会过热停机 1 秒。' },
+            { id: 11, name: '通货膨胀',   desc: '每过 10 波，所有塔的造价和升级费用上涨 20 金币（最多涨 100 金币）。' },
             { id: 12, name: '精英降临',   desc: '每波有 10% 的怪物随机变异为精英怪（生命值和速度提升 1.5 倍，体型更大）。' },
             { id: 13, name: '核心破坏',   desc: '怪物抢走核心时，会同时扣除当前资金的 10%。' },
             { id: 14, name: '暗影迷雾',   desc: '隐形怪移动速度 +20%；防御塔对隐形单位的侦测半径缩减 30%，但不会小于自身射程的 35%。' },
-            { id: 15, name: '火力衰减',   desc: '随着波次推进，所有防御塔的伤害每 10 波降低 10%（最多衰减 50%）。' },
-            { id: 16, name: '通货膨胀',   desc: '每过 10 波，所有塔的造价和升级费用上涨 20 金币（最多涨 100 金币）。' },
-            { id: 17, name: '反伤装甲',   desc: '盾甲兵受到攻击时，有 20% 概率使攻击的塔减速（射速降低 50%）持续 2 秒。' },
-            { id: 18, name: '深渊泥潭',   desc: '地图上会随机生成多处泥潭，建在上面的塔射速降低 20%；每 5 波会在地图剩余位置再次生成泥潭。' },
-            { id: 19, name: '梦魇重生',   desc: '首领怪死亡时，会在原地分裂出 2 只拥有其 30% 生命值的“小首领”。' },
-            { id: 20, name: '最终审判',   desc: '最后一波必定出现双倍数量的终极首领，且所有怪物每秒恢复 1% 最大生命值。' }
+            { id: 15, name: '最终审判',   desc: '最后一波必定出现双倍数量的终极首领，且所有怪物每秒恢复 1% 最大生命值。' },
+            { id: 16, name: '武器过热',   desc: '所有防御塔连续攻击 5 秒后会过热停机 1 秒。' },
+            { id: 17, name: '建筑限额',   desc: '造塔次数不能超过 20 座（无尽模式不受此限制）。' },
+            { id: 18, name: '绝对制空',   desc: '飞行怪只会被防空塔攻击。' },
+            { id: 19, name: '死亡沉默',   desc: '隐形怪被击杀时，会使周围 2.5 格内的防御塔失效 1 秒。' },
+            { id: 20, name: '火力衰减',   desc: '随着波次推进，所有防御塔的伤害每 10 波降低 10%（最多衰减 50%）。' }
         ];
         let selectedAscension = 0;
         let ascensionState = null;
@@ -338,9 +341,12 @@
             { id:'coreSpeed',    name:'核心回收', rarity:'uncommon', icon:'💨',
   desc:'核心返回基地速度 +20%',
   apply:(s)=>{ s.bonus.coreReturnSpeed *= 1.20; } },
-{ id:'jammerReduce', name:'信号屏蔽', rarity:'common',   icon:'📶',
+  { id:'jammerReduce', name:'信号屏蔽', rarity:'common',   icon:'📶',
   desc:'干扰者干扰范围 -15%',
   apply:(s)=>{ s.bonus.jammerRangeMul *= 0.85; } },
+  { id:'antiJam',      name:'抗干扰',   rarity:'uncommon', icon:'🛡️',
+  desc:'所有防御塔抗干扰 +20%（缩短干扰者沉默时长）',
+  apply:(s)=>{ s.bonus.jamResist = Math.min(0.85, (s.bonus.jamResist || 0) + 0.20); } },
             { id:'sellPlus',  name:'回收专家', rarity:'uncommon', icon:'♻️', desc:'出售返还比例 +25%',       apply:(s)=>{ s.bonus.sellMul = Math.min(1.0, s.bonus.sellMul + 0.25); } },
             { id:'freeUp',    name:'免费升级', rarity:'uncommon', icon:'⬆️', desc:'随机一座塔免费升 1 级',    apply:(s)=>{ s._pendingFreeUp = true; } },
             { id:'coreRepair',name:'核心修复', rarity:'rare',     icon:'💠', desc:'恢复 1 枚核心到基地',     apply:(s)=>{ s._pendingCoreRepair = true; } },
@@ -353,6 +359,14 @@
                 apply:(s)=>{ s.bonus.ignoreShield = true; } },
             { id:'doubleShot',name:'双重射击', rarity:'epic',     icon:'🔀', desc:'攻击命中时有15%的概率向附近敌人弹射',
                 apply:(s)=>{ s.bonus.doubleShotStacks = (s.bonus.doubleShotStacks || 0) + 1; s.bonus.doubleShotChance = 1 - Math.pow(0.85, s.bonus.doubleShotStacks); } },
+            { id:'synBoost', name:'联动共振', rarity:'rare', icon:'🔗',
+  desc:'所有联动加成系数提升',          // ← 不再写死数字，交给 drawDraftPanel 动态填
+  requireSynergy:true,
+  apply:(s)=>{
+      const cur  = s.bonus.synergyScale || 1.0;
+      const next = Math.min(SYNERGY_SCALE_MAX, cur + SYNERGY_SCALE_STEP);
+      s.bonus.synergyScale = next;
+  } },
             { id:'killAll',   name:'末日审判', rarity:'epic',     icon:'☠️', desc:'立即秒杀全屏所有敌人',    apply:(s)=>{ s._pendingKillAll = true; } },
             { id:'stunAll',   name:'时间静止', rarity:'rare',     icon:'⏳', desc:'全屏敌人眩晕 5 秒',       apply:(s)=>{ s._pendingStunAll = true; } },
             { id:'currentHpDmg', name:'生命汲取', rarity:'rare',  icon:'🩸', desc:'塔的攻击附带 1% 当前生命值伤害（线性叠加，上限 20%）', apply:(s)=>{ s.bonus.currentHpDamage = Math.min(0.20, s.bonus.currentHpDamage + 0.01); } },
@@ -390,10 +404,10 @@ const SYN_MOD_TEXT = {
 
 const ROGUE_SYNERGIES = [
     // ══════════ A = 机枪塔 ══════════
-    { id:'sy_gun_cannon',     a:'gun', b:'cannon',     name:'穿甲弹链', cap:5, mods:{ dmg:0.12 } },
-    { id:'sy_gun_missile',    a:'gun', b:'missile',    name:'追踪弹幕', cap:5, mods:{ rate:0.10 } },
-    { id:'sy_gun_temporal',   a:'gun', b:'temporal',   name:'寒霜弹链', cap:4, mods:{ crit:0.06 } },
-    { id:'sy_gun_laser',      a:'gun', b:'laser',      name:'激光校准', cap:5, mods:{ range:0.06 } },
+    { id:'sy_gun_cannon',     a:'gun', b:'cannon',     name:'穿甲弹链', cap:5, mods:{ dmg:0.12} },
+    { id:'sy_gun_missile',    a:'gun', b:'missile',    name:'追踪弹幕', cap:5, mods:{ rate:0.10} },
+    { id:'sy_gun_temporal',   a:'gun', b:'temporal',   name:'寒霜弹链', cap:4, mods:{ crit:0.06} },
+    { id:'sy_gun_laser',      a:'gun', b:'laser',      name:'激光校准', cap:5, mods:{ range:0.06} },
     { id:'sy_gun_shock',      a:'gun', b:'shock',      name:'电磁供弹', cap:4, mods:{ rate:0.08 } },
     { id:'sy_gun_chain',      a:'gun', b:'chain',      name:'导电弹头', cap:5, mods:{ dmg:0.10 } },
     { id:'sy_gun_sniper',     a:'gun', b:'sniper',     name:'精准校准', cap:3, mods:{ crit:0.07 } },
@@ -1866,9 +1880,15 @@ function rollSynergyCount() {
         };
 for (const s of ROGUE_SYNERGIES) {
     s.icon = '🔗';
-    s.cap = Math.min(s.cap, 8);      // ★ 所有联动卡上限统一压到 8（或你要的数）
-    s.desc = buildSynergyDesc(s);
+    s.cap = Math.min(s.cap, 8);
+    // ① 先按「设计值」评稀有度（不受 MOD_SCALE 影响，保留设计意图）
     s.rarity = calcSynergyRarity(s);
+    // ② 再把 mods 烘焙上全局系数（保留 4 位小数防浮点误差）
+    for (const k in s.mods) {
+        s.mods[k] = +(s.mods[k] * SYNERGY_MOD_SCALE).toFixed(4);
+    }
+    // ③ 描述用烘焙后的值，卡牌显示 = 实际生效
+    s.desc = buildSynergyDesc(s);
     s.isSynergy = true;
 }
 
@@ -1965,7 +1985,7 @@ function makeSeededRng(seed) {
             const waveCount = isEndless ? 9999 : (isGrind ? 99 : storyWaveCount(levelIdx));
             const baseHp = (26 + difficulty * 8) * hpMul * 8.0;     //怪物血量
             const baseSpeed = 1.04 + difficulty * 0.032;
-            const GRIND_GROWTH = 1.030, GRIND_WAVES = 99, ENDLESS_GROWTH = 1.020;
+            const GRIND_GROWTH = 1.020, GRIND_WAVES = 99, ENDLESS_GROWTH = 1.020;
             const hpGrowth = isGrind ? GRIND_GROWTH : 1.090;
             function waveScale(w) {
                 if (isEndless) {
@@ -2226,6 +2246,12 @@ function makeSeededRng(seed) {
             screen = s;
             closeBuildMenu(); closeTowerMenu(); hideTip();
             selectedEnemy = null; 
+            if (s !== 'game') {
+                draftPanel = null;
+                draftQueue = [];
+                pendingAutoEnemyBoost = false;
+            }
+
             const isGame = s === 'game';
             hud.classList.toggle('hidden', !isGame);
             infoBar.classList.toggle('hidden', !isGame);
@@ -2417,23 +2443,24 @@ function makeSeededRng(seed) {
                 lvl: selectedAscension,
                 ammo: selectedAscension >= 1,
                 finalWaveDouble: selectedAscension >= 2,
-                stealthDeathSilence: selectedAscension >= 3,
-                airOnlyFlak: selectedAscension >= 4,
-                limitTowers: selectedAscension >= 6 ? 20 : 999,
+                bossSplit: selectedAscension >= 3,                  
+                mudPit: selectedAscension >= 4,                     
+                // 5 资源匮乏无独立字段
+                reflect: selectedAscension >= 6,                    
                 coreNoReturn: selectedAscension >= 7,
                 ecoNerf: selectedAscension >= 8,
                 bloodFury: selectedAscension >= 9,
                 shamanBuff: selectedAscension >= 10,
-                overheat: selectedAscension >= 11,
+                inflation: selectedAscension >= 11,                
                 elite: selectedAscension >= 12,
                 coreDestroy: selectedAscension >= 13,
                 shadowFog: selectedAscension >= 14,
-                fireDecay: selectedAscension >= 15,
-                inflation: selectedAscension >= 16,
-                reflect: selectedAscension >= 17,
-                mudPit: selectedAscension >= 18,
-                bossSplit: selectedAscension >= 19,
-                finalJudgment: selectedAscension >= 20
+                finalJudgment: selectedAscension >= 15,             
+                overheat: selectedAscension >= 16,                  
+                limitTowers: selectedAscension >= 17 ? 20 : 999,    
+                airOnlyFlak: selectedAscension >= 18,               
+                stealthDeathSilence: selectedAscension >= 19,       
+                fireDecay: selectedAscension >= 20                  
             };
             if (selectedAscension >= 5) {
                 money = Math.floor(money * 0.7);
@@ -2524,7 +2551,8 @@ function makeSeededRng(seed) {
                         rewardMul:1, revealRange:1, sellMul:0.5,
                         ignoreShield:false, doubleShotChance:0, poisonBoost:false,
                         currentHpDamage:0, charmStacks:0, charmChance:0,
-                        coreReturnSpeed: 1, jammerRangeMul: 1 
+                        coreReturnSpeed: 1, jammerRangeMul: 1 ,
+                        jamResist: 0, synergyScale: 1.0
                     },
                     moneyBonus: 0, upgrades: [], moneyPicks: 0,
                     enemyMods: {
@@ -2939,6 +2967,9 @@ function pickSummonType(selfType, waveId) {
             if (rb.charmChance > 0) parts.push(`魅惑率 ${Math.round(rb.charmChance*100)}%`);
             if (rb.coreReturnSpeed > 1.0001) parts.push(`核心回收 +${Math.round((rb.coreReturnSpeed - 1) * 100)}%`);
             if (rb.jammerRangeMul < 0.9999)  parts.push(`干扰范围 -${Math.round((1 - rb.jammerRangeMul) * 100)}%`);
+            if (rb.jamResist > 0)            parts.push(`抗干扰 ${Math.round(rb.jamResist * 100)}%`);
+            if (rb.synergyScale > 1.0001)
+    parts.push(`联动数值再 ×${rb.synergyScale.toFixed(2)}`);
             if (rb.ignoreShield) parts.push('无视护盾');
             if (rb.poisonBoost) parts.push('毒伤强化');
             if (parts.length === 0) return '';
@@ -3400,7 +3431,8 @@ function pickSummonType(selfType, waveId) {
                 angle: -Math.PI / 2, kills: 0, damageDealt: 0,
                 autoUpgrade: globalAutoUpgrade,
                 ammo: 50, isReloading: false,
-                heat: 0, overheatTimer: 0, slowTimer: 0, silenceTimer: 0
+                heat: 0, overheatTimer: 0, slowTimer: 0, silenceTimer: 0,
+                jamResist: 0
             });
             battleStats.towersBuilt++;
             SFX.build();
@@ -5256,6 +5288,11 @@ function drawRogueToggle() {
                 case 'slowAura':  return `敌人移速 -${Math.round((1 - Math.pow(0.9, count)) * 100)}%`;
                 case 'coreSpeed':    return `核心返回速度 +${Math.round((Math.pow(1.20, count) - 1) * 100)}%`;
                 case 'jammerReduce': return `干扰者干扰范围 -${Math.round((1 - Math.pow(0.85, count)) * 100)}%`;
+                case 'antiJam':      return `抗干扰 +${Math.round(Math.min(0.85, 0.20 * count) * 100)}%（干扰者沉默时长 ×${Math.max(0.1, 1 - Math.min(0.85, 0.20 * count)).toFixed(2)}）`;
+                case 'synBoost': {
+    const cur = Math.min(SYNERGY_SCALE_MAX, 1.0 + SYNERGY_SCALE_STEP * count);
+    return `联动数值再 ×${cur.toFixed(2)}（已叠加 ${count} 张）`;
+}
                 case 'sellPlus':  return `出售返还 +${Math.min(50, 25 * count)}%`;
                 case 'crit':      return `暴击率 ${Math.round((1 - Math.pow(0.88, count)) * 100)}%（倍率 ×${((rogueState && rogueState.bonus.critDmgMul) || 2).toFixed(1)}）`;
                 case 'critDmg':   return `暴击伤害倍率 ×${((rogueState && rogueState.bonus.critDmgMul) || 2).toFixed(1)}`;
@@ -5570,6 +5607,7 @@ function drawRogueToggle() {
                 const upPool = ROGUE_UPGRADES.filter(u => {
                     if (u.once && pickedIds.has(u.id)) return false;
                     if (u.requireCrit && !(rogueState.bonus.critChance > 0)) return false;
+                    if (u.requireSynergy && (!rogueState.synergies || rogueState.synergies.length === 0)) return false;  // ★ 新增
                     return true;
                 });
                 while (picked.length < 3 && upPool.length > 0) {
@@ -5881,7 +5919,12 @@ function applySynergy(s) {
                 ctx.textAlign = 'center';
                 ctx.fillText(up.name, r.x + r.w / 2, r.y + 150);
 
-                const desc = up.desc || '';
+                let desc = up.desc || '';
+if (up.id === 'synBoost' && rogueState) {
+    const cur  = rogueState.bonus.synergyScale || 1.0;
+    const next = Math.min(SYNERGY_SCALE_MAX, cur + SYNERGY_SCALE_STEP);
+    desc = `所有联动数值再 ×${cur.toFixed(2)} → ×${next.toFixed(2)}`;
+}
                 const descMaxW = r.w - 36;
                 const descStartY = r.y + 172;
                 const descMaxY = r.y + r.h - 46;
@@ -7939,13 +7982,15 @@ function applySynergy(s) {
                 if (ENEMY_TYPES[e.type].jammer) {
     const jamRangeMul = (rogueState && rogueState.bonus && rogueState.bonus.jammerRangeMul) || 1;
     const jamR = 2.5 * CELL * jamRangeMul;
+    const baseResist = Math.min(0.9, (rogueState && rogueState.bonus && rogueState.bonus.jamResist) || 0);
     for (const t of towers) {
         const d = Math.hypot(
             cellCenterX(t.col) - e.x,
             cellCenterY(t.row) - e.y
         );
         if (d <= jamR) {
-            t.silenceTimer = Math.max(t.silenceTimer || 0, 0.25);
+            const totalResist = Math.min(0.9, baseResist + (t.jamResist || 0));
+            t.silenceTimer = Math.max(t.silenceTimer || 0, 0.25 * (1 - totalResist));
         }
     }
 }
@@ -8123,6 +8168,13 @@ function updateSynergies() {
         for (const t of towers) { if (t.syn) t.syn = null; }
         return;
     }
+    // ★ 联动系数：优先取 rogueState 里的（可被卡牌/词条修改），否则用默认常量
+    const cardScale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergyScale === 'number')
+        ? rogueState.bonus.synergyScale
+        : 1.0;
+const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergyScale === 'number')
+    ? rogueState.bonus.synergyScale
+    : 1.0;
     const posCache = new Map();
     for (const t of towers) {
         posCache.set(t, { x: cellCenterX(t.col), y: cellCenterY(t.row) });
@@ -8152,7 +8204,7 @@ function updateSynergies() {
                 };
             }
             for (const k in s.mods) {
-                syn[k] = (syn[k] || 0) + s.mods[k] * n;
+                syn[k] = (syn[k] || 0) + s.mods[k] * n * scale;
             }
         }
         t.syn = syn;
