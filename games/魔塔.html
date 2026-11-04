@@ -1,0 +1,3245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>魔塔 · 无尽</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/tabler-icons.min.css">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;min-height:100vh;
+    background:radial-gradient(circle at 50% 0%,#232a42,#131724 70%);
+    color:#e6e8f2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;justify-content:center;align-items:center;padding:20px;
+  }
+  #game{display:none;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+  #leftCol{
+  display:flex;flex-direction:column;gap:14px;
+  flex-shrink:0;
+}
+  canvas{background:#1b2135;border:2px solid #3a4360;border-radius:12px;display:block;
+         box-shadow:0 16px 50px rgba(0,0,0,.65)}
+  #side{width:310px;display:flex;flex-direction:column;gap:14px}
+  .panel{background:#212840;border:1px solid #3a4360;border-radius:12px;padding:14px 16px}
+  .panel h3{margin:0 0 10px;font-size:15px;letter-spacing:2px;color:#8e98bd;font-weight:600}
+  .stat{display:flex;justify-content:space-between;font-size:17px;padding:5px 0}
+  .stat b{font-variant-numeric:tabular-nums}
+  .stat span i.ti{font-size:1.05em;vertical-align:-0.12em;margin-right:3px}
+  .hp b{color:#ff7b7b}.atk b{color:#ffb454}.def b{color:#6cbcff}.fl b{color:#7fe3a0}
+  .ky b{color:#e8c14a}.kb b{color:#6cbcff}.kr b{color:#ff5c6e}
+  .eq-bonus{color:#8affc0;font-size:12px;margin-left:2px;font-weight:400}
+  .tips{font-size:13px;color:#7c86ad;line-height:1.8}
+  #toast{
+    position:fixed;left:50%;top:20px;transform:translate(-50%,-20px);
+    background:#3a2430;border:1px solid #b3404f;color:#ffc2c2;
+    padding:10px 22px;border-radius:9px;font-size:16px;
+    opacity:0;transition:.22s;pointer-events:none;z-index:999;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #overlay{
+    position:fixed;inset:0;background:rgba(10,13,22,.9);display:none;
+    flex-direction:column;justify-content:center;align-items:center;gap:18px;z-index:900;
+  }
+  #overlay.show{display:flex}
+  #overlay h1{font-size:48px;margin:0;letter-spacing:8px}
+  #overlay p{color:#9aa2c0;margin:0;font-size:17px;text-align:center;line-height:1.7;max-width:520px}
+  button{
+    background:#334067;color:#dfe4ff;border:1px solid #4a5a8a;padding:12px 30px;
+    border-radius:9px;font-size:16px;cursor:pointer;transition:.15s;
+  }
+  button:hover{background:#40508a}
+  .pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin-top:6px}
+  .pad button{padding:14px 0;font-size:22px}
+  .pad .sp{visibility:hidden}
+
+  .tool-btn{
+    width:100%;padding:12px 0;font-size:16px;margin-bottom:10px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .tool-btn:last-child{margin-bottom:0}
+
+  .modal{
+    position:fixed;inset:0;background:rgba(10,13,22,.85);display:none;
+    justify-content:center;align-items:center;z-index:800;padding:16px;
+  }
+  .modal.show{display:flex}
+  .modal-box{
+    background:#212840;border:1px solid #3a4360;border-radius:14px;
+    max-width:620px;width:100%;max-height:82vh;display:flex;flex-direction:column;
+    box-shadow:0 16px 50px rgba(0,0,0,.65);
+  }
+  .modal-head{
+    padding:16px 20px;border-bottom:1px solid #2e3752;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:17px;letter-spacing:2px;color:#dfe4ff;flex-shrink:0;
+  }
+  .modal-close{
+    background:transparent;border:none;color:#9aa2c0;font-size:26px;
+    cursor:pointer;padding:0 4px;line-height:1;
+  }
+  .modal-close:hover{color:#dfe4ff}
+  .modal-body{overflow-y:auto;padding:14px 20px;flex:1}
+
+  .book-row{
+    display:flex;align-items:center;gap:12px;padding:9px 0;
+    border-bottom:1px dashed #2e3752;font-size:15px;
+  }
+  .book-row:last-child{border-bottom:none}
+  .book-emoji{font-size:28px;width:40px;text-align:center;flex-shrink:0}
+  .book-info{flex:1;min-width:0}
+  .book-name{color:#dfe4ff;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .book-tag{
+    display:inline-block;font-size:11px;padding:1px 7px;border-radius:4px;
+    margin-left:5px;vertical-align:1px;
+  }
+  .book-tag.normal{background:#2a3149;color:#9aa2c0}
+  .book-tag.elite{background:#3a2a55;color:#c6a0ff}
+  .book-tag.boss{background:#4a2a24;color:#ff9a7a}
+  .book-stats{font-size:13px;color:#8e98bd;margin-top:3px}
+  .book-hp{color:#ff7b7b}.book-atk{color:#ffb454}.book-def{color:#6cbcff}
+  .book-dmg{
+    font-size:13px;padding:4px 10px;border-radius:5px;
+    background:#1b2135;flex-shrink:0;font-variant-numeric:tabular-nums;
+  }
+  .book-dmg.ok{color:#8fe8a0}
+  .book-dmg.danger{color:#ff5c5c}
+  .book-empty{font-size:15px;color:#6b7499;text-align:center;padding:20px 0}
+
+  .book-traits{margin-top:5px;display:flex;flex-wrap:wrap;gap:4px}
+  .trait-tag{
+    font-size:11px;padding:1px 6px;border-radius:4px;
+    background:#1b2135;border:1px solid #3a4360;color:#a9b4d8;
+    cursor:help;white-space:nowrap;
+  }
+  .trait-tag.atk{color:#ffb454;border-color:#5a4430}
+  .trait-tag.def{color:#6cbcff;border-color:#2e4560}
+  .trait-tag.debuff{color:#c6a0ff;border-color:#3d2e55}
+  .trait-tag.special{color:#7fe3a0;border-color:#2e5540}
+
+  .floor-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:8px 0}
+  .floor-btn{
+    padding:16px 0;font-size:16px;border-radius:9px;cursor:pointer;
+    background:#2a3149;border:1px solid #3a4360;color:#c7cde8;
+    transition:.12s;font-variant-numeric:tabular-nums;
+  }
+  .floor-btn:hover:not(:disabled):not(.current){background:#33406a}
+  .floor-btn.current{background:#3b4a78;border-color:#6c7fc4;color:#fff;cursor:default}
+  .floor-btn:disabled{opacity:.28;cursor:not-allowed}
+
+  .key-hint{
+    display:inline-block;margin-left:6px;padding:1px 7px;
+    font-size:11px;font-family:ui-monospace,Menlo,monospace;
+    background:#1b2135;border:1px solid #3a4360;border-radius:4px;
+    color:#8e98bd;letter-spacing:0;vertical-align:1px;
+  }
+  .keybind-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-bottom:1px dashed #2e3752;font-size:15px;color:#dfe4ff;
+  }
+  .keybind-row:last-child{border-bottom:none}
+  .keybind-btn{
+    min-width:110px;padding:7px 14px;font-size:14px;
+    background:#2a3149;border:1px solid #3a4360;border-radius:7px;
+    color:#c7cde8;cursor:pointer;
+    font-family:ui-monospace,Menlo,monospace;transition:.12s;
+  }
+  .keybind-btn:hover{background:#33406a;border-color:#6c7fc4}
+  .keybind-btn.capturing{
+    background:#3b4a78;border-color:#8affc0;color:#8affc0;
+    animation:keypulse 1s infinite;
+  }
+  @keyframes keypulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(138,255,192,.45)}
+    50%{box-shadow:0 0 0 6px rgba(138,255,192,0)}
+  }
+
+  .equip-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .equip-slot{
+    position:relative;height:64px;border:2px dashed #3a4360;border-radius:10px;
+    background:#1b2135;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:.15s;user-select:none;overflow:hidden;
+  }
+  .equip-slot:not(.filled):hover{
+    border-color:#6c7fc4;background:#232a42;
+    box-shadow:0 0 0 2px rgba(108,127,196,.18);
+  }
+  .equip-slot.filled{border-style:solid;border-color:#6c7fc4;background:#2a3149}
+  .equip-slot.filled:hover{border-color:#8affc0;background:#2e4a3c}
+  .equip-slot.dragover{
+    border-color:#8affc0;background:#2e4a3c;
+    box-shadow:0 0 0 3px rgba(138,255,192,.25);
+  }
+  .equip-slot.dragging{opacity:.35}
+  .eq-emoji{font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+  .eq-tier{position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%}
+  .eq-tier.basic{background:#8e98bd}
+  .eq-tier.mid{background:#c6a0ff;box-shadow:0 0 6px #c6a0ff}
+  .eq-tier.high{background:#ffb454;box-shadow:0 0 8px #ffb454}
+  .eq-empty{font-size:26px;color:#3a4360;font-weight:300;transition:.15s}
+  .equip-slot:not(.filled):hover .eq-empty{color:#6c7fc4}
+  .eq-slot-hint{
+    position:absolute;bottom:3px;left:0;right:0;text-align:center;
+    font-size:9px;color:#5b6585;letter-spacing:0;opacity:0;transition:.15s;
+    pointer-events:none;white-space:nowrap;
+  }
+  .equip-slot:not(.filled):hover .eq-slot-hint{opacity:1;color:#8fa2d8}
+
+  .eq-section{
+    font-size:13px;color:#8e98bd;letter-spacing:2px;
+    margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid #2e3752;
+  }
+  .eq-section:first-child{margin-top:0}
+  .eq-row{
+    display:flex;align-items:center;gap:10px;padding:8px 6px;
+    border-bottom:1px dashed #2e3752;border-radius:6px;
+  }
+  .eq-row[draggable="true"]{cursor:grab}
+  .eq-row[draggable="true"]:active{cursor:grabbing}
+  .eq-row:hover{background:#28304a}
+  .eq-icon{font-size:24px;width:32px;text-align:center;flex-shrink:0}
+  .eq-body{flex:1;min-width:0}
+  .eq-title{
+    font-size:14px;color:#dfe4ff;display:flex;align-items:center;
+    gap:6px;flex-wrap:wrap;
+  }
+  .eq-badge{font-size:10px;padding:1px 6px;border-radius:4px}
+  .eq-badge.basic{background:#2a3149;color:#9aa2c0}
+  .eq-badge.mid{background:#3a2a55;color:#c6a0ff}
+  .eq-badge.high{background:#4a3520;color:#ffb454}
+  .eq-stats{font-size:12px;color:#8fe8a0;margin-top:3px;line-height:1.5}
+  .eq-recipe{font-size:11px;color:#7c86ad;margin-top:3px;line-height:1.5}
+  .eq-recipe .have{color:#8affc0}
+  .eq-recipe .lack{color:#7c86ad;text-decoration:line-through;opacity:.6}
+  .eq-have{font-size:11px;color:#8affc0}
+  .eq-craftable{font-size:11px;color:#ffd75c;margin-left:4px}
+  .eq-actions{display:flex;gap:6px;flex-shrink:0}
+  .eq-act{
+    padding:6px 12px;font-size:12px;border-radius:6px;
+    background:#334067;border:1px solid #4a5a8a;color:#dfe4ff;
+    cursor:pointer;transition:.12s;
+  }
+  .eq-act:hover:not([disabled]){background:#40508a;border-color:#6c7fc4}
+  .eq-act[disabled]{opacity:.32;cursor:not-allowed}
+
+  /* ================= 主菜单 ================= */
+  #menu{
+    position:fixed;inset:0;background:radial-gradient(circle at 50% 0%,#232a42,#0f1320 75%);
+    display:none;justify-content:center;align-items:center;z-index:950;padding:20px;
+  }
+  #menu.show{display:flex}
+  .menu-box{
+    background:#212840;border:1px solid #3a4360;border-radius:18px;
+    padding:34px 36px;max-width:480px;width:100%;
+    box-shadow:0 24px 80px rgba(0,0,0,.7);
+  }
+  .menu-box h1{margin:0 0 6px;font-size:32px;letter-spacing:8px;text-align:center;color:#dfe4ff}
+  .menu-box .sub{margin:0 0 24px;text-align:center;color:#7c86ad;font-size:13px;line-height:1.6}
+  .menu-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;font-size:14px;color:#aab2d4}
+  .menu-row label{width:150px;flex-shrink:0}
+  .menu-row input[type=range]{flex:1;accent-color:#8affc0}
+  .menu-row b{width:56px;text-align:right;color:#8affc0;font-variant-numeric:tabular-nums}
+  .menu-row input[type=number]{
+    width:90px;background:#1b2135;border:1px solid #3a4360;border-radius:6px;
+    color:#dfe4ff;padding:6px 8px;font-size:14px;
+  }
+  .start-btn{
+    width:100%;margin-top:8px;padding:14px 0;font-size:17px;letter-spacing:4px;
+    border-radius:10px;background:linear-gradient(135deg,#3b4a78,#2f6a52);
+    border:1px solid #4adf9a;color:#eafff4;cursor:pointer;transition:.15s;
+  }
+  .start-btn:hover{filter:brightness(1.15)}
+  .menu-box .tips{margin:18px 0 0;font-size:11px;color:#5b6585;line-height:1.8}
+</style>
+</head>
+<body>
+
+<!-- ================= 主菜单 ================= -->
+<div id="menu" class="show">
+  <div class="menu-box">
+    <h1>魔 塔 · 无 尽</h1>
+    <p class="sub">从零开始，登顶 200 层，挑战无尽深渊</p>
+
+    <div class="menu-row">
+      <label>事件密度</label>
+      <input type="range" id="menuDensity" min="0" max="100" value="60" step="5">
+      <b id="menuDensityVal">60%</b>
+    </div>
+    <div class="menu-row">
+      <label>物品占比</label>
+      <input type="range" id="menuOtherRatio" min="0" max="100" value="45" step="5">
+      <b id="menuOtherRatioVal">45%</b>
+    </div>
+    <div class="menu-row">
+      <label>怪物难度</label>
+      <input type="range" id="menuDifficulty" min="0.5" max="3" value="2" step="0.5">
+      <b id="menuDifficultyVal">2.0×</b>
+    </div>
+    <div class="menu-row">
+      <label>装备爆率</label>
+      <input type="range" id="menuDropRate" min="10" max="200" value="60" step="10">
+      <b id="menuDropRateVal">60%</b>
+    </div>
+    <div class="menu-row">
+      <label>数值系数（每 200 层 ×）</label>
+      <input type="number" id="menuMult" min="1.1" max="10" step="0.1" value="2">
+    </div>
+
+    <button id="startGameBtn" class="start-btn">开 始 游 戏</button>
+
+    <p class="tips">
+      1–200 层：每 10 层对应一个怪物编号区间（第 1–10 层使用编号 1–10 的怪物，依此类推）。<br>
+      201 层起进入无尽模式，怪物编号区间循环使用；每 100 层所有怪物额外获得一种属性。<br>
+      每通过 200 层，怪物血量/攻防、血瓶与攻防宝石数值乘以一次「数值系数」。<br>
+      「怪物难度」直接放大怪物的生命、攻击、防御；「装备爆率」影响击杀掉落的概率。
+    </p>
+  </div>
+</div>
+
+<!-- ================= 游戏 ================= -->
+<div id="game">
+  <div id="leftCol">
+    <canvas id="cv"></canvas>
+
+    <div class="panel">
+      <h3>装 备 栏 <span style="font-size:11px;letter-spacing:0;color:#5b6585;font-weight:400">（点空位开背包）</span></h3>
+      <div id="equipGrid" class="equip-grid"></div>
+    </div>
+
+    <div class="pad">
+      <button class="sp"></button><button data-d="up">↑</button><button class="sp"></button>
+      <button data-d="left">←</button><button data-d="down">↓</button><button data-d="right">→</button>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="panel">
+      <h3>状 态</h3>
+      <div class="stat fl"><span>层数</span><b id="hudFloor">1 / 200</b></div>
+      <div class="stat hp"><span>生命</span><b id="hudHp">3000 / 3000</b></div>
+      <div class="stat atk"><span>攻击</span><b id="hudAtk">20</b></div>
+      <div class="stat def"><span>防御</span><b id="hudDef">20</b></div>
+      <div class="stat ky"><span>🗝️ 黄钥匙</span><b id="hudYk">0</b></div>
+      <div class="stat kb"><span><i class="ti ti-key" style="color:#4d9aff"></i> 蓝钥匙</span><b id="hudBk">0</b></div>
+      <div class="stat kr"><span><i class="ti ti-key" style="color:#ff4d5e;-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill"></i> 红钥匙</span><b id="hudRk">0</b></div>
+    </div>
+    <div class="panel">
+      <h3>工 具</h3>
+      <button id="bookBtn" class="tool-btn">📖 怪物手册 <span class="key-hint" id="hintBook">F</span></button>
+      <button id="teleBtn" class="tool-btn">🚪 楼层传送 <span class="key-hint" id="hintTele">G</span></button>
+      <button id="equipBtn" class="tool-btn">⚒️ 背包与合成 <span class="key-hint" id="hintEquip">R</span></button>
+      <button id="keybindBtn" class="tool-btn">⌨️ 快捷键设置</button>
+      <button id="autoEquipBtn" class="tool-btn">🎒 自动装备：开</button>
+      <button id="autoPickupBtn" class="tool-btn">🧲 自动拾取：开</button>
+      <button id="autoKillBtn" class="tool-btn">⚔️ 击杀 0 伤怪物</button>
+    </div>
+    <div class="panel tips">
+      ← ↑ → ↓ / WASD 移动<br>
+      撞怪战斗 · 踩物拾取 · 撞门开锁<br>
+      绿色箭头=上楼 · 蓝色箭头=下楼<br>
+      F=怪物手册 · G=楼层传送 · R=背包<br>
+      拖动可交换 · 点击已装备卸下 · 点击空位打开背包
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="overlay">
+  <h1 id="ovTitle">通 关 !</h1>
+  <p id="ovDesc"></p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <button id="endlessBtn" onclick="enterEndless()" style="display:none;border-color:#4adf9a;color:#8affc0">进入无尽模式</button>
+    <button onclick="restart()">回到主界面</button>
+  </div>
+</div>
+
+<div id="monsterBook" class="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>📖 怪 物 手 册</span>
+      <button class="modal-close" data-close="monsterBook">×</button>
+    </div>
+    <div class="modal-body" id="bookList"></div>
+  </div>
+</div>
+
+<div id="teleportModal" class="modal">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <span>🚪 楼 层 传 送</span>
+      <button class="modal-close" data-close="teleportModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:#7c86ad;margin-bottom:4px">仅可传送至已到过的楼层</div>
+      <div id="floorList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="keybindModal" class="modal">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <span>⌨️ 快 捷 键 设 置</span>
+      <button class="modal-close" data-close="keybindModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:#7c86ad;margin-bottom:10px">
+        点击右侧按钮，按下新按键即可修改。Esc 取消。
+      </div>
+      <div id="keybindList"></div>
+      <div style="margin-top:14px;font-size:12px;color:#7c86ad;line-height:1.75">
+        · 默认 <b style="color:#8affc0">F</b> = 怪物手册 · <b style="color:#8affc0">G</b> = 楼层传送 · <b style="color:#8affc0">R</b> = 背包与合成；<br>
+        · 若把快捷键绑到 A / S 等移动键，会覆盖对应的移动方向；<br>
+        · 请避免使用浏览器保留键（如 F5、Ctrl 组合等）。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="equipModal" class="modal">
+  <div class="modal-box" style="max-width:700px">
+    <div class="modal-head">
+      <span>⚒️ 背 包 与 合 成</span>
+      <button class="modal-close" data-close="equipModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button id="craftAllBtn" class="eq-act" style="padding:8px 18px;font-size:13px;border-color:#4adf9a;color:#8affc0">⚡ 一键合成</button>
+      </div>
+      <div style="font-size:12px;color:#7c86ad;margin-bottom:10px;line-height:1.7">
+        此处只显示<b style="color:#8affc0">已获得</b>或<b style="color:#ffd75c">可合成</b>的装备。<br>
+        击杀怪物可获得初级装备（精英/BOSS 掉更多）。中级由 2 件初级合成，高级由 初级 + 中级 合成。<br>
+        也可以把背包里的装备<b style="color:#8affc0">直接拖到左侧装备栏</b>中。
+      </div>
+      <div id="equipList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const GW = 13, GH = 13, CELL = 48;
+const BASE_FLOORS = 200;   // 前 200 层为固定爬塔；之后进入无尽模式
+
+/* ==================================================================
+   怪物表：共 200 个（125 普通 / 50 精英 / 25 BOSS）
+   ================================================================== */
+const MONSTER_DEFS = [];
+
+(function buildMonsters(){
+  const base = [
+    ['绿头怪','🐛'], ['红头怪','🦀'],
+    ['小蝙蝠','🦇'], ['骷髅人','💀'],
+    ['兽人','👹'],   ['石头人','🗿'],
+    ['麻衣法师','🧙'],['骷髅队长','☠️'],
+    ['双手剑士','🤺'],['暗黑骑士','🦹'],
+    ['兽人武士','🦍'],['恶魔战士','😈'],
+    ['幽灵','👻'],   ['血影','👤'],
+    ['冥灵魔王','👽'],['红衣魔王','🧛'],
+    ['白衣武士','🥷'],['黄衣魔王','👺'],
+    ['魔龙','🐉'],   ['冥王','👑']
+  ];
+  base.forEach(([name, emoji], i) => {
+    const tier   = Math.floor(i / 2) + 1;
+    const strong = i % 2 === 1;
+    MONSTER_DEFS.push({
+      name, emoji, kind: 'normal',
+      hp : Math.round((strong ? 32 : 20) * Math.pow(1.42, tier - 1)),
+      atk: (strong ? 20 : 16) + 4 * (tier - 1),
+      def: (strong ? 2 : 1) + 2 * (tier - 1)
+    });
+  });
+
+  const normals1 = [
+    ['铁甲虫','🐞',        800,  58, 21],
+    ['腐化史莱姆','🦠',     860,  59, 21],
+    ['毒蜘蛛','🕷️',        920,  60, 22],
+    ['沼泽巨鳄','🐊',       990,  62, 22],
+    ['岩石守卫','🐘',      1060,  63, 23],
+    ['荒野狼王','🐺',      1140,  65, 24],
+    ['暗影刺客','🕵️',      1220,  66, 24],
+    ['沼泽巨蟒','🐍',      1310,  68, 25],
+    ['荒野狂猪','🐗',      1400,  69, 26],
+    ['食人花','🦑',        1500,  71, 26],
+    ['腐骨弓手','🧝',      1610,  73, 27],
+    ['洞穴巨蜥','🦎',      1720,  74, 28],
+    ['熔岩虫','🪱',        1840,  76, 28],
+    ['冰霜蝙蝠','🐦‍⬛',    1970,  78, 29],
+    ['岩壳蟹','🦞',        2110,  80, 30],
+    ['毒刺蜂','🐝',        2260,  82, 30],
+    ['亡灵法师','🧙‍♀️',    2410,  84, 31],
+    ['白骨战士','🧟',      2580,  86, 32],
+    ['沼地蟾蜍','🐸',      2760,  88, 33],
+    ['铁笼囚徒','🤡',      2950,  90, 33],
+    ['烈焰蜥蜴','🦖',      3160,  92, 34],
+    ['寒风幽灵','🎃',      3380,  95, 35],
+    ['沙暴蝎','🦂',        3610,  97, 36],
+    ['深海章鱼','🐙',      3870, 100, 37],
+    ['血蝠','🐭',          4140, 102, 38],
+    ['石像鬼','🧌',        4430, 105, 39],
+    ['疯狂矿工','🧔',      4740, 108, 40],
+    ['腐肉秃鹫','🦅',      5070, 110, 41],
+    ['淤泥怪','💩',        5430, 113, 42],
+    ['钢甲犀','🦏',        5810, 116, 43]
+  ];
+  normals1.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'normal' });
+  });
+
+  const normals2 = [
+    ['铁甲龟','🐢',          6200, 122, 44],
+    ['荒漠沙鼠','🐁',        6560, 124, 45],
+    ['腐化鼠王','🐀',        6940, 126, 46],
+    ['地穴仓鼠','🐹',        7340, 128, 46],
+    ['荒野兔怪','🐰',        7760, 130, 47],
+    ['腐化兔王','🐇',        8200, 132, 48],
+    ['刺猬怪','🦔',          8660, 134, 48],
+    ['洞穴獾','🦡',          9150, 136, 49],
+    ['臭鼬妖','🦨',          9660, 138, 50],
+    ['水獭怪','🦦',         10200, 140, 51],
+    ['河狸怪','🦫',         10770, 142, 51],
+    ['沙袋鼠','🦘',         11370, 144, 52],
+    ['羊驼怪','🦙',         12000, 146, 53],
+    ['驯鹿怪','🦌',         12660, 148, 54],
+    ['山羊怪','🐐',         13360, 150, 54],
+    ['绵羊怪','🐏',         14100, 152, 55],
+    ['松鼠怪','🐿️',         14880, 154, 56],
+    ['牛头怪','🐄',         15700, 156, 57],
+    ['公牛怪','🐂',         16560, 158, 57],
+    ['野牛怪','🐃',         17470, 160, 58],
+    ['野马怪','🐎',         18430, 162, 59],
+    ['铁甲马','🐴',         19440, 164, 60],
+    ['斑马怪','🦓',         20500, 166, 60],
+    ['独角兽','🦄',         21620, 168, 61],
+    ['猪怪','🐖',           22800, 170, 62],
+    ['小猪怪','🐷',         24040, 172, 63],
+    ['骆驼怪','🐪',         25350, 174, 63],
+    ['双峰骆驼','🐫',       26730, 176, 64],
+    ['长颈鹿怪','🦒',       28180, 178, 65],
+    ['树懒怪','🦥',         29710, 180, 66],
+    ['猎豹怪','🐆',         31320, 182, 66],
+    ['老虎怪','🐅',         33020, 184, 67],
+    ['狮子怪','🦁',         34810, 186, 68],
+    ['剑齿虎','🐯',         36700, 188, 69],
+    ['熊怪','🐻',           38690, 190, 69],
+    ['熊猫怪','🐼',         40790, 192, 70],
+    ['考拉怪','🐨',         43000, 194, 71],
+    ['猴子怪','🐵',         45330, 196, 72],
+    ['蒙眼猴','🙈',         47790, 198, 72],
+    ['捂耳猴','🙉',         50380, 200, 73],
+    ['闭嘴猴','🙊',         53120, 202, 74],
+    ['长臂猴','🐒',         56000, 204, 75],
+    ['猩猩怪','🦧',         59040, 206, 75],
+    ['狗怪','🐶',           62250, 208, 76],
+    ['猎犬','🐕',           65630, 210, 77],
+    ['军犬','🐕‍🦺',        69190, 212, 78],
+    ['贵宾犬','🐩',         72940, 214, 78],
+    ['猫怪','🐈',           76890, 216, 79],
+    ['黑猫怪','🐈‍⬛',       81040, 218, 80],
+    ['公鸡怪','🐓',         85420, 220, 81],
+    ['母鸡怪','🐔',         90040, 222, 81],
+    ['雏鸡怪','🐣',         94900, 224, 82],
+    ['小鸡怪','🐤',        100030, 226, 83],
+    ['幼鸡怪','🐥',        105430, 228, 84],
+    ['鸭子怪','🦆',        111120, 230, 84],
+    ['猫头鹰怪','🦉',      117120, 232, 85],
+    ['鸟怪','🐦',          123440, 234, 86],
+    ['企鹅怪','🐧',        130100, 236, 87],
+    ['鸽子怪','🕊️',        137120, 238, 87],
+    ['火烈鸟怪','🦩',      144500, 240, 88],
+    ['孔雀怪','🦚',        152280, 242, 89],
+    ['鹦鹉怪','🦜',        160460, 244, 90],
+    ['火鸡怪','🦃',        169080, 246, 90],
+    ['腕龙怪','🦕',        178160, 248, 91],
+    ['海豹怪','🦭',        187740, 250, 92],
+    ['猛犸象','🦣',        197820, 252, 93],
+    ['河马怪','🦛',        208440, 254, 93],
+    ['鱼怪','🐟',          219620, 256, 94],
+    ['河豚怪','🐡',        231400, 258, 95],
+    ['热带鱼怪','🐠',      243830, 260, 96],
+    ['鲨鱼怪','🦈',        256940, 262, 96],
+    ['虾怪','🦐',          270780, 264, 97],
+    ['贝壳怪','🐚',        285360, 266, 98],
+    ['甲虫怪','🪲',        300740, 268, 99],
+    ['蝴蝶怪','🦋',        316940, 270, 99]
+  ];
+  normals2.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'normal' });
+  });
+
+  const elites = [
+    ['精英·黑铁骑士','🦹‍♂️',   8000, 130,  50],
+    ['精英·烈焰法师','🧙‍♂️',   8800, 135,  52],
+    ['精英·寒霜巨魔','🧝‍♂️',   9700, 140,  54],
+    ['精英·雷霆战将','🧞‍♂️',  10700, 146,  56],
+    ['精英·剧毒巫医','🧞‍♀️',  11800, 152,  58],
+    ['精英·钢甲卫士','🦸‍♂️',  13000, 158,  60],
+    ['精英·暗影游侠','🧝‍♀️',  14300, 165,  63],
+    ['精英·血怒狂战','👿',    15700, 172,  66],
+    ['精英·圣殿审判','🦸',    17300, 179,  69],
+    ['精英·深渊术士','🧜‍♂️',  19000, 187,  72],
+    ['精英·熔岩巨人','🧜‍♀️',  21000, 195,  75],
+    ['精英·冰封巨兽','🧟‍♀️',  23100, 203,  79],
+    ['精英·雷霆领主','🤖',    25400, 212,  83],
+    ['精英·腐化树精','🧚',    27900, 221,  87],
+    ['精英·噬魂幽灵','🧚‍♂️',  30700, 231,  91],
+    ['精英·赤炎狮王','🧛‍♂️',  33800, 241,  95],
+    ['精英·黑曜石像','🧜',    37200, 252, 100],
+    ['精英·血族伯爵','🧛‍♀️',  40900, 263, 105],
+    ['精英·狂沙刺客','👾',    45000, 275, 110],
+    ['精英·星陨哨兵','🦹‍♀️',  49500, 287, 115],
+    ['精英·月光祭司','🧚‍♀️',  54500, 300, 120],
+    ['精英·沙漠法王','🧞',    60000, 314, 126],
+    ['精英·光辉骑士','🦸‍♀️',  66000, 328, 132],
+    ['精英·腐化骑士','🧟',    72600, 343, 138],
+    ['精英·不眠守卫','🧟‍♂️',  79900, 359, 145],
+    ['精英·幻影刺客','🎭',    87900, 375, 152],
+    ['精英·铁蹄魔兽','🦬',    96700, 392, 160],
+    ['精英·烈焰凤凰','🐦‍🔥', 106400, 410, 168],
+    ['精英·暗夜蝠王','🦇',   117000, 429, 176],
+    ['精英·蛛后','🕷️',       128700, 449, 184],
+    ['精英·蝎王','🦂',       141600, 470, 194],
+    ['精英·巨蜥王','🦎',     155800, 491, 203],
+    ['精英·沼泽霸主','🐊',   171400, 514, 213],
+    ['精英·蛇王','🐍',       188500, 537, 223],
+    ['精英·狼王','🐺',       207400, 562, 234],
+    ['精英·狐妖','🦊',       228100, 588, 246],
+    ['精英·狮王','🦁',       250900, 615, 258],
+    ['精英·虎王','🐯',       276000, 643, 270],
+    ['精英·熊王','🐻',       303600, 673, 284],
+    ['精英·象王','🐘',       334000, 704, 298],
+    ['精英·犀王','🦏',       367400, 736, 313],
+    ['精英·河马巨兽','🦛',   404100, 770, 328],
+    ['精英·猩猩王','🦍',     444500, 806, 345],
+    ['精英·森林巨猿','🦧',   489000, 843, 362],
+    ['精英·猎豹王','🐆',     537900, 882, 380],
+    ['精英·鹰王','🦅',       591700, 923, 399],
+    ['精英·夜枭','🦉',       650900, 966, 419],
+    ['精英·深海巨妖','🐙',   716000, 1011, 440],
+    ['精英·乌贼领主','🦑',   787600, 1058, 462],
+    ['精英·鲨鱼王','🦈',     866400, 1107, 485]
+  ];
+  elites.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'elite' });
+  });
+
+  const bosses = [
+    ['BOSS·炎狱魔君','🐲',      70000, 350, 150],
+    ['BOSS·寒霜之母','🐻‍❄️',    82000, 375, 160],
+    ['BOSS·深渊领主','🪼',      96000, 400, 170],
+    ['BOSS·雷霆战神','🦄',     112000, 430, 182],
+    ['BOSS·剧毒女王','🐍',     131000, 460, 195],
+    ['BOSS·不灭骸王','🦴',     153000, 495, 208],
+    ['BOSS·苍穹巨鹰','🦅',     179000, 530, 222],
+    ['BOSS·混沌妖龙','🐉',     209000, 570, 237],
+    ['BOSS·虚无吞噬者','🌀',   244000, 615, 253],
+    ['BOSS·终焉神谕','🧿',     285000, 660, 270],
+    ['BOSS·深海霸主','🐋',     332000, 709, 288],
+    ['BOSS·汪洋巨兽','🐳',     388000, 762, 308],
+    ['BOSS·幽林鹿神','🫎',     453000, 820, 329],
+    ['BOSS·血蚊女皇','🦟',     529000, 881, 351],
+    ['BOSS·蟑螂母皇','🪳',     618000, 947, 375],
+    ['BOSS·蝗灾之王','🦗',     721000, 1018, 400],
+    ['BOSS·瘟疫蝇王','🪰',     842000, 1094, 427],
+    ['BOSS·远古龙帝','🦖',     983000, 1176, 456],
+    ['BOSS·虚空行者','🕳️',    1148000, 1264, 487],
+    ['BOSS·终焉之眼','👁️',    1340000, 1359, 520],
+    ['BOSS·蝎皇','🦂',        1565000, 1461, 555],
+    ['BOSS·蝠帝','🦇',        1827000, 1570, 593],
+    ['BOSS·深海巨妖王','🐙',  2133000, 1688, 633],
+    ['BOSS·苍穹鹰皇','🦅',    2490000, 1815, 676],
+    ['BOSS·混沌龙帝','🐲',    2908000, 1951, 722]
+  ];
+  bosses.forEach(([name, emoji, hp, atk, def]) => {
+    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'boss' });
+  });
+})();
+
+/* ==================================================================
+   50 种怪物属性 / 机制
+   ================================================================== */
+const TRAITS = {
+  combo:       { n:'连击',     i:'⚡', c:'atk', d:'每回合攻击 2 次（反击伤害 ×2）' },
+  tripleHit:   { n:'三连击',   i:'🌩️', c:'atk', d:'每回合攻击 3 次（反击伤害 ×3）' },
+  firstStrike: { n:'先攻',     i:'🗡️', c:'atk', d:'抢先出手，额外多打 1 轮' },
+  lifesteal:   { n:'吸血',     i:'🩸', c:'atk', d:'造成伤害的 30% 回复自身' },
+  crit:        { n:'暴击',     i:'💥', c:'atk', d:'25% 概率造成 2 倍伤害' },
+  pierce:      { n:'破防',     i:'🔨', c:'atk', d:'无视勇者 20 点防御' },
+  trueDmg:     { n:'真伤',     i:'✴️', c:'atk', d:'每次额外 30 点真实伤害' },
+  poison:      { n:'淬毒',     i:'🧪', c:'atk', d:'每回合额外 25 点毒伤' },
+  burn:        { n:'灼烧',     i:'🔥', c:'atk', d:'开战即造成 200 点火焰伤害' },
+  bleed:       { n:'流血',     i:'🩹', c:'atk', d:'反击伤害逐回合递增 5' },
+  curse:       { n:'诅咒',     i:'🪄', c:'debuff', d:'开战勇者攻击 -12%' },
+  weaken:      { n:'弱化',     i:'🔻', c:'debuff', d:'开战勇者防御 -25%' },
+  thorns:      { n:'反伤',     i:'🌵', c:'def', d:'勇者每次攻击受 15 点反伤' },
+  barb:        { n:'荆棘',     i:'🕸️', c:'def', d:'反弹勇者伤害的 20%' },
+  steal:       { n:'偷窃',     i:'🖐️', c:'special', d:'战斗后偷走 1 把钥匙' },
+
+  armor:       { n:'护甲',     i:'🛡️', c:'def', d:'每次受击 -20 伤害' },
+  reduce:      { n:'减伤',     i:'🧱', c:'def', d:'受到伤害 -25%' },
+  regen:       { n:'再生',     i:'💚', c:'def', d:'每回合回复 100 HP' },
+  shield:      { n:'护盾',     i:'🔵', c:'def', d:'开战获得 500 点护盾' },
+  dodge:       { n:'闪避',     i:'💨', c:'def', d:'20% 几率完全闪避' },
+  block:       { n:'格挡',     i:'🚧', c:'def', d:'30% 几率格挡一半伤害' },
+  shell:       { n:'硬壳',     i:'🐚', c:'def', d:'单次伤害 < 30 则完全免疫' },
+  reborn:      { n:'复活',     i:'♻️', c:'def', d:'死亡时半血复活一次' },
+  enrage:      { n:'狂暴',     i:'😡', c:'def', d:'血量 <50% 后攻击 +50%' },
+  fortify:     { n:'坚壁',     i:'⛰️', c:'def', d:'每 4 回合防御 +10' },
+  reflect:     { n:'镜面',     i:'🪞', c:'def', d:'每回合反弹 25 点伤害' },
+  phase:       { n:'虚化',     i:'👁️', c:'def', d:'每 4 回合闪避 1 回合' },
+  bloodShell:  { n:'血壳',     i:'🩸', c:'def', d:'首回合减伤 60%' },
+
+  haste:       { n:'急速',     i:'💫', c:'atk', d:'先攻且反击伤害 +25%' },
+  slow:        { n:'迟缓',     i:'🐌', c:'debuff', d:'出手迟缓，少打 1 轮' },
+  stun:        { n:'眩晕',     i:'🌀', c:'debuff', d:'15% 几率令勇者失去 1 回合' },
+  root:        { n:'定身',     i:'⛓️', c:'debuff', d:'开战勇者被定身，先挨一轮' },
+  grow:        { n:'成长',     i:'📈', c:'atk', d:'每回合攻击 +3' },
+  evolve:      { n:'进化',     i:'🧬', c:'def', d:'每回合防御 +2' },
+  deathBomb:   { n:'死亡爆炸', i:'💣', c:'special', d:'击杀时受到 300 点伤害' },
+  split:       { n:'分裂',     i:'🧫', c:'def', d:'死亡后分裂，等效血量 ×1.35' },
+  corrode:     { n:'腐蚀',     i:'🧴', c:'debuff', d:'开战勇者防御 -20' },
+  fear:        { n:'恐惧',     i:'😱', c:'debuff', d:'开战勇者攻击 -10' },
+  drain:       { n:'汲取',     i:'🕳️', c:'atk', d:'每次攻击额外吸取 40 HP' },
+  thunder:     { n:'雷霆',     i:'🌩️', c:'atk', d:'每 3 回合一次 50 点雷击' },
+
+  holyShield:  { n:'圣盾',     i:'✨', c:'def', d:'前 2 回合免疫伤害' },
+  berserk:     { n:'狂血',     i:'🔥', c:'def', d:'血量每降 25%，攻击 +20%' },
+  judge:       { n:'审判',     i:'⚖️', c:'atk', d:'勇者 HP >60% 时伤害 +50%' },
+  execute:     { n:'处刑',     i:'🪓', c:'atk', d:'勇者 HP <30% 时伤害 ×2.5' },
+  selfDestruct:{ n:'自爆',     i:'💥', c:'special', d:'死亡时造成其最大 HP 10% 的伤害' },
+  shadow:      { n:'暗影',     i:'🌑', c:'atk', d:'30% 闪避 + 先攻' },
+  frost:       { n:'冰霜',     i:'❄️', c:'debuff', d:'每 3 回合冻结，勇者额外失去 1 回合' },
+  king:        { n:'王权',     i:'👑', c:'special', d:'攻击、防御、血量全部 +15%' },
+  void:        { n:'虚无',     i:'🌀', c:'special', d:'无视勇者 30% 防御' },
+  overwhelm:   { n:'压倒',     i:'🗿', c:'special', d:'勇者攻击力越高，自身护甲越厚' }
+};
+
+const TRAIT_KEYS = Object.keys(TRAITS);
+
+const TRAIT_THEMES = [
+  { re:/蝙蝠|蝠/,                                       pool:['lifesteal','dodge','firstStrike','shadow','haste'] },
+  { re:/骷髅|骨|骸|亡灵|僵尸|尸|亡|噬魂|幽魂/,           pool:['reborn','curse','fear','drain','shadow'] },
+  { re:/法师|巫|术士|祭|咒|妖|法王|先知/,                pool:['curse','weaken','burn','trueDmg','poison','frost'] },
+  { re:/骑士|卫|兵|队长|战将|审判|守卫|哨兵|游侠|武士/,   pool:['armor','block','fortify','thorns','reflect','pierce'] },
+  { re:/幽灵|鬼|灵|影|幻|鬼王/,                          pool:['dodge','phase','shadow','fear','void'] },
+  { re:/史莱姆|泥|软|淤泥|腐化史/,                       pool:['split','regen','reduce','corrode'] },
+  { re:/龙|魔君|魔王|龙帝|妖龙/,                         pool:['burn','thunder','king','overwhelm','holyShield'] },
+  { re:/蛇|蝎|蛛|蜘蛛|蜂|蚊|蝗|蟑|蝇|蜥|蜈蚣|蝎皇/,       pool:['poison','pierce','bleed','combo'] },
+  { re:/狼|虎|狮|豹|熊|猩|猿|猴|狐|犬|狗|猫|狂战/,        pool:['combo','enrage','berserk','bleed','crit'] },
+  { re:/鹰|鸟|鸽|鸦|枭|鹤|雀|孔雀|鹦鹉|火烈|凤凰/,        pool:['firstStrike','dodge','haste','crit'] },
+  { re:/巨人|巨魔|巨兽|巨蜥|猛犸|象|犀|河马|牛|野牛|猪/,   pool:['shell','armor','fortify','stun','slow'] },
+  { re:/鱼|鲨|章鱼|乌贼|虾|蟹|贝壳|海豹|鲸|水母|海/,       pool:['shield','regen','reduce','void'] },
+  { re:/树|花|草|藤|森|鹿/,                              pool:['regen','split','barb','block'] },
+  { re:/恶魔|血|刺客|魔龙/,                              pool:['berserk','execute','lifesteal','judge','crit'] },
+  { re:/王|帝|皇|母|领主|霸主|终焉|混沌|神谕|吞噬者/,      pool:['king','overwhelm','void','holyShield','judge'] },
+  { re:/鸡|鸭|鹅|兔|鼠|羊|马|骆驼|长颈鹿|考拉|熊猫|树懒/,  pool:['slow','dodge','block','grow'] },
+  { re:/龟|甲|壳|铁|钢|石|岩|像|傀儡|守卫/,              pool:['shell','armor','fortify','bloodShell'] },
+  { re:/人|囚|士|战/,                                    pool:['block','thorns','pierce'] }
+];
+
+const TRAIT_EXCLUSIVE = {
+  combo:['tripleHit'], tripleHit:['combo'],
+  dodge:['shadow'],    shadow:['dodge'],
+  shield:['holyShield'], holyShield:['shield'],
+  slow:['firstStrike','haste'], firstStrike:['slow'], haste:['slow'],
+  reborn:['split'],    split:['reborn']
+};
+
+function assignTraits(){
+  MONSTER_DEFS.forEach((m, i) => {
+    let n;
+    if (m.kind === 'boss')       n = 4 + (i % 2);
+    else if (m.kind === 'elite') n = 2 + (i % 2);
+    else if (i < 20)             n = (i % 4 === 0) ? 1 : 0;
+    else if (i < 50)             n = (i % 3 === 0) ? 1 : 0;
+    else                         n = (i % 5 === 0) ? 2 : 1;
+
+    let pool = [];
+    for (const th of TRAIT_THEMES){
+      if (th.re.test(m.name)) pool = pool.concat(th.pool);
+    }
+    if (!pool.length){
+      pool = ['armor','crit','firstStrike','grow','block','dodge','combo','pierce','reduce','regen'];
+    }
+
+    const t = {};
+    let guard = 0;
+    for (let k = 0; k < n && guard < 200; k++, guard++){
+      const key = pool[(i * 7 + k * 11 + guard * 5) % pool.length];
+      if (t[key]) continue;
+      const bad = TRAIT_EXCLUSIVE[key] || [];
+      if (bad.some(b => t[b])) continue;
+      t[key] = true;
+    }
+    m.traits = t;
+  });
+
+  const used = new Set();
+  MONSTER_DEFS.forEach(m => { for (const k in m.traits) used.add(k); });
+
+  TRAIT_KEYS.filter(k => !used.has(k)).forEach((k, idx) => {
+    for (let step = 0; step < 75; step++){
+      const m = MONSTER_DEFS[125 + ((idx * 17 + step) % 75)];
+      if (m.traits[k]) break;
+      const bad = TRAIT_EXCLUSIVE[k] || [];
+      if (bad.some(b => m.traits[b])) continue;
+      m.traits[k] = true;
+      break;
+    }
+  });
+}
+assignTraits();
+
+/* ======================= 物品 / 门 ======================= */
+const ITEMS = {
+  atk  : {emoji:'⚔️', name:'攻击宝石', color:'#ff5252', icon:'ti-diamond'},
+  def  : {emoji:'🛡️', name:'防御宝石', color:'#4d9aff', icon:'ti-diamond'},
+  hp1  : {emoji:'❤️', name:'红药水',  color:'#ff5c7a', icon:'ti-flask-2'},
+  hp2  : {emoji:'💙', name:'蓝药水',  color:'#4dd2ff', icon:'ti-flask-2'},
+  ykey : {emoji:'🗝️', name:'黄钥匙',  color:'#e8c14a'},
+  bkey : {emoji:'🔑', name:'蓝钥匙',  color:'#4d9aff', icon:'ti-key'},
+  rkey : {emoji:'🔐', name:'红钥匙',  color:'#ff4d5e', icon:'ti-key', bold:true},
+  doorY: {emoji:'🚪', name:'黄门',    color:'#e8c14a', door:'Y', icon:'ti-door'},
+  doorB: {emoji:'🚪', name:'蓝门',    color:'#4d9aff', door:'B', icon:'ti-door'},
+  doorR: {emoji:'🚪', name:'红门',    color:'#ff4d5e', door:'R', icon:'ti-door'}
+};
+const ITEM_ORDER = ['atk','def','hp1','hp2','ykey','bkey','rkey','doorY','doorB','doorR'];
+const ITEM_PICKABLE = { hp1:1, hp2:1, atk:1, def:1, ykey:1, bkey:1, rkey:1 };
+
+const DOOR_KEY  = {Y:'ykey', B:'bkey', R:'rkey'};
+const DOOR_NAME = {Y:ITEMS.doorY.name, B:ITEMS.doorB.name, R:ITEMS.doorR.name};
+
+/* ==================================================================
+   Tabler 图标字体绘制工具
+   ================================================================== */
+const ICON_FONT  = '"tabler-icons"';
+const ICON_CACHE = {};
+let   ICONS_READY = false;
+
+function parseCssContent(str){
+  if (!str || str === 'none' || str === 'normal') return '';
+  let s = String(str).trim();
+  if ((s[0] === '"' && s[s.length - 1] === '"') ||
+      (s[0] === "'" && s[s.length - 1] === "'")){
+    s = s.slice(1, -1);
+  }
+  return s
+    .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/\\(.)/g, '$1');
+}
+
+function getIconChar(cls){
+  if (!cls) return '';
+  if (Object.prototype.hasOwnProperty.call(ICON_CACHE, cls)) return ICON_CACHE[cls];
+  let ch = '';
+  try {
+    const el = document.createElement('i');
+    el.className = 'ti ' + cls;
+    el.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;';
+    document.body.appendChild(el);
+    ch = parseCssContent(getComputedStyle(el, '::before').content);
+    el.remove();
+  } catch (e){ ch = ''; }
+  if (ch) ICON_CACHE[cls] = ch;
+  return ch;
+}
+
+function drawTablerIcon(g, cls, color, cx, cy, size, bold){
+  if (!ICONS_READY) return false;
+  const ch = getIconChar(cls);
+  if (!ch) return false;
+  g.save();
+  g.font = size + 'px ' + ICON_FONT;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = color;
+  if (bold){
+    g.lineWidth = Math.max(1, size * 0.08);
+    g.lineJoin = 'round';
+    g.strokeStyle = color;
+    g.strokeText(ch, cx, cy);
+  }
+  g.fillText(ch, cx, cy);
+  g.restore();
+  return true;
+}
+
+function drawItemGlyph(g, key, cx, cy, size){
+  const it = ITEMS[key];
+  if (!it) return;
+
+  if (it.icon && ICONS_READY &&
+      drawTablerIcon(g, it.icon, it.color, cx, cy, size, !!it.bold)) return;
+
+  g.save();
+  g.font = Math.round(size * 0.95) + 'px serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = it.color;
+  g.fillText(it.emoji, cx, cy + 1);
+  g.restore();
+}
+
+/* ==================================================================
+   装备系统：100 件（50 初级 / 30 中级 / 20 高级）
+   ================================================================== */
+const EQUIP_DEFS = {};
+const EQUIP_LIST = [];
+
+const STAT_INFO = {
+  atk:        {n:'攻击',       f:v=>'+'+v},
+  def:        {n:'防御',       f:v=>'+'+v},
+  hp:         {n:'生命上限',   f:v=>'+'+v},
+  pen:        {n:'无视防御',   f:v=>'+'+v},
+  critChance: {n:'暴击率',     f:v=>'+'+v+'%'},
+  dmgRed:     {n:'受伤减免',   f:v=>'+'+v+'%'},
+  flatRed:    {n:'固定减伤',   f:v=>'+'+v},
+  dotRes:     {n:'持续伤害抗性', f:v=>'+'+v+'%'},
+  antiArmor:  {n:'无视护甲',   f:()=>'✓'},
+  antiDodge:  {n:'无视闪避',   f:()=>'✓'},
+  antiShield: {n:'无视护盾',   f:()=>'✓'},
+  antiRegen:  {n:'抑制再生',   f:()=>'✓'},
+  antiReborn: {n:'禁止复活',   f:()=>'✓'},
+  antiFirst:  {n:'免疫先攻',   f:()=>'✓'},
+  antiCombo:  {n:'连击减伤',   f:v=>'+'+v+'%'},
+  antiPierce: {n:'穿透抗性',   f:v=>'+'+v+'%'},
+  antiCurse:  {n:'免疫减益',   f:()=>'✓'},
+  antiThorns: {n:'反伤减免',   f:v=>'+'+v+'%'},
+  antiBomb:   {n:'爆炸减免',   f:()=>'✓'},
+  antiStun:   {n:'免疫控制',   f:()=>'✓'},
+  keyGuard:   {n:'守护钥匙',   f:()=>'✓'}
+};
+
+function describeStats(stats){
+  return Object.keys(stats).map(k => {
+    const info = STAT_INFO[k];
+    return info ? info.n + ' ' + info.f(stats[k]) : '';
+  }).filter(Boolean).join(' · ');
+}
+
+function defEquip(id, name, emoji, tier, stats, recipe){
+  const e = { id, name, emoji, tier, stats: stats || {}, recipe: recipe || null };
+  EQUIP_DEFS[id] = e;
+  EQUIP_LIST.push(e);
+}
+
+/* ---------------- 初级装备 50 件 ---------------- */
+defEquip('rusty_sword',   '生锈短剑',     '🗡️', 'basic', {atk:6});
+defEquip('iron_sword',    '铁剑',         '⚔️', 'basic', {atk:12});
+defEquip('steel_blade',   '精钢长剑',     '🗡️', 'basic', {atk:18, pen:3});
+defEquip('twin_dagger',   '双刃匕首',     '🔪', 'basic', {atk:8, critChance:10});
+defEquip('knight_lance',  '骑士长枪',     '🔱', 'basic', {atk:10, pen:8});
+defEquip('war_axe',       '战斧',         '🪓', 'basic', {atk:22});
+defEquip('great_hammer',  '巨锤',         '🔨', 'basic', {atk:16, antiArmor:1});
+defEquip('hunting_bow',   '猎弓',         '🏹', 'basic', {atk:9, critChance:8});
+defEquip('crossbow',      '短弩',         '🎯', 'basic', {atk:11, antiDodge:1});
+defEquip('knuckle',       '拳刃',         '🥊', 'basic', {atk:7, antiCombo:10});
+defEquip('rune_staff',    '符文短杖',     '🪄', 'basic', {atk:8, antiCurse:1});
+defEquip('frost_dagger',  '冰晶匕首',     '❄️', 'basic', {atk:10, antiStun:1});
+defEquip('flame_knife',   '火焰短刀',     '🔥', 'basic', {atk:12, dotRes:10});
+defEquip('venom_dagger',  '毒牙匕首',     '🐍', 'basic', {atk:9, dotRes:15});
+defEquip('moon_rapier',   '月光细剑',     '🌙', 'basic', {atk:15, critChance:5});
+
+defEquip('cloth_robe',    '布衣',         '👕', 'basic', {def:3, hp:60});
+defEquip('leather_armor', '皮甲',         '🥼', 'basic', {def:8, hp:100});
+defEquip('chain_mail',    '铁链甲',       '⛓️', 'basic', {def:15});
+defEquip('wood_shield',   '木盾',         '🪵', 'basic', {def:10, flatRed:2});
+defEquip('iron_shield',   '铁盾',         '🛡️', 'basic', {def:16, flatRed:3});
+defEquip('tower_shield',  '塔盾',         '🚪', 'basic', {def:22, dmgRed:5});
+defEquip('iron_helm',     '铁盔',         '⛑️', 'basic', {def:7, hp:80});
+defEquip('leather_cap',   '皮帽',         '🎩', 'basic', {def:4, hp:50});
+defEquip('chest_guard',   '护心镜',       '🔰', 'basic', {def:12, hp:150});
+defEquip('scale_mail',    '锁子甲',       '🧱', 'basic', {def:18, dmgRed:6});
+defEquip('plate_armor',   '板甲',         '🏋️', 'basic', {def:25, dmgRed:8});
+defEquip('rattan_armor',  '藤甲',         '🌿', 'basic', {def:9, dotRes:15});
+defEquip('fire_cloak',    '耐火斗篷',     '🧥', 'basic', {def:6, dotRes:20});
+defEquip('leather_bracer','皮护腕',       '🧤', 'basic', {def:6, flatRed:2});
+defEquip('iron_boots',    '铁靴',         '👢', 'basic', {def:8, antiFirst:1});
+
+defEquip('wood_ring',     '木戒指',       '💍', 'basic', {hp:100});
+defEquip('iron_ring',     '铁戒指',       '💍', 'basic', {atk:4, def:4});
+defEquip('life_amulet',   '生命护符',     '🧿', 'basic', {hp:250});
+defEquip('bone_necklace', '白骨项链',     '💀', 'basic', {antiReborn:1});
+defEquip('mithril_ring',  '秘银戒指',     '💍', 'basic', {atk:6, def:6});
+defEquip('swift_boots',   '迅捷之靴',     '👟', 'basic', {antiFirst:1});
+defEquip('purify_amulet', '净化护符',     '✨', 'basic', {antiCurse:1});
+defEquip('antidote_herb', '解毒草',       '🍀', 'basic', {dotRes:25});
+defEquip('ironwall_rune', '铁壁符文',     '🧱', 'basic', {dmgRed:6});
+defEquip('armorbreak_rune','破甲符文',    '🪨', 'basic', {antiArmor:1});
+defEquip('truesight_eye', '真视之眼',     '👁️', 'basic', {antiDodge:1});
+defEquip('shieldbreak_rune','破盾符文',   '💠', 'basic', {antiShield:1});
+defEquip('stasis_amulet', '静滞护符',     '🕸️', 'basic', {antiStun:1});
+defEquip('keychain',      '钥匙扣',       '🔑', 'basic', {keyGuard:1});
+defEquip('bomb_amulet',   '拆弹护符',     '💣', 'basic', {antiBomb:1});
+defEquip('thorn_bracer',  '荆棘护腕',     '🌵', 'basic', {antiThorns:1});
+defEquip('agile_amulet',  '灵巧护符',     '🍃', 'basic', {antiCombo:15});
+defEquip('sturdy_amulet', '坚固护符',     '🗿', 'basic', {antiPierce:20});
+defEquip('suppress_ring', '抑制之环',     '⭕', 'basic', {antiRegen:1});
+defEquip('lucky_coin',    '幸运硬币',     '🪙', 'basic', {critChance:10, hp:100});
+
+/* ---------------- 中级装备 30 件 ---------------- */
+defEquip('mid_giant_sword',   '精钢巨剑',     '🗡️', 'mid', {atk:35, pen:10},                    ['iron_sword','steel_blade']);
+defEquip('mid_dawn_lance',    '破晓长枪',     '🔱', 'mid', {atk:30, pen:20},                    ['knight_lance','great_hammer']);
+defEquip('mid_twin_fang',     '双生短刃',     '🔪', 'mid', {atk:28, critChance:15, dotRes:15},  ['twin_dagger','venom_dagger']);
+defEquip('mid_flame_axe',     '烈焰战斧',     '🪓', 'mid', {atk:45, dotRes:15},                 ['war_axe','flame_knife']);
+defEquip('mid_armor_breaker', '碎甲重锤',     '🔨', 'mid', {atk:35, pen:15, antiArmor:1},       ['great_hammer','armorbreak_rune']);
+defEquip('mid_hawk_bow',      '鹰眼长弓',     '🏹', 'mid', {atk:30, critChance:20, antiDodge:1},['hunting_bow','crossbow']);
+defEquip('mid_curse_staff',   '咒印法杖',     '🪄', 'mid', {atk:28, def:10, antiCurse:1},       ['rune_staff','purify_amulet']);
+defEquip('mid_frost_blade',   '霜寒利刃',     '❄️', 'mid', {atk:32, antiFirst:1, antiStun:1},   ['frost_dagger','swift_boots']);
+defEquip('mid_moon_blade',    '月光双刃',     '🌙', 'mid', {atk:38, critChance:18},             ['moon_rapier','twin_dagger']);
+defEquip('mid_dragon_axe',    '巨龙战斧',     '🪓', 'mid', {atk:55},                            ['war_axe','great_hammer']);
+defEquip('mid_dark_armor',    '玄铁重甲',     '🛡️', 'mid', {def:45, dmgRed:12},                 ['chain_mail','plate_armor']);
+defEquip('mid_holy_shield',   '圣光之盾',     '🛡️', 'mid', {def:45, flatRed:8, dmgRed:8},       ['iron_shield','tower_shield']);
+defEquip('mid_dragon_scale',  '龙鳞护甲',     '🐲', 'mid', {def:50, dmgRed:15, dotRes:25},      ['plate_armor','fire_cloak']);
+defEquip('mid_mithril_mail',  '秘银胸甲',     '🥋', 'mid', {def:40, hp:600},                    ['scale_mail','chest_guard']);
+defEquip('mid_thorn_shield',  '荆棘之盾',     '🌵', 'mid', {def:30, flatRed:5, antiThorns:1},   ['wood_shield','thorn_bracer']);
+defEquip('mid_antimagic_cloak','反魔斗篷',    '🧥', 'mid', {def:25, dotRes:35, antiCurse:1},    ['fire_cloak','purify_amulet']);
+defEquip('mid_gale_boots',    '疾风战靴',     '👟', 'mid', {def:18, critChance:8, antiFirst:1}, ['iron_boots','swift_boots']);
+defEquip('mid_ironwall_bracer','铁壁护腕',    '🧤', 'mid', {def:22, dmgRed:10},                 ['leather_bracer','ironwall_rune']);
+defEquip('mid_life_gem',      '生命宝石项链', '🧿', 'mid', {hp:900},                            ['life_amulet','wood_ring']);
+defEquip('mid_mithril_band',  '秘银指环',     '💍', 'mid', {atk:18, def:18, hp:200},            ['mithril_ring','iron_ring']);
+defEquip('mid_break_eye',     '破魔之瞳',     '👁️', 'mid', {atk:12, antiDodge:1, antiShield:1}, ['truesight_eye','shieldbreak_rune']);
+defEquip('mid_stasis_crest',  '静滞纹章',     '🕸️', 'mid', {dotRes:30, antiStun:1},             ['stasis_amulet','antidote_herb']);
+defEquip('mid_ward_amulet',   '破邪护符',     '💀', 'mid', {antiReborn:1, antiCurse:1},         ['bone_necklace','purify_amulet']);
+defEquip('mid_suppress_core', '抑制之核',     '⭕', 'mid', {dmgRed:8, antiRegen:1},             ['suppress_ring','ironwall_rune']);
+defEquip('mid_bomb_plate',    '拆弹重铠',     '💣', 'mid', {def:30, antiBomb:1},                ['bomb_amulet','scale_mail']);
+defEquip('mid_agile_boots',   '灵巧之靴',     '🍃', 'mid', {def:15, antiCombo:30},              ['agile_amulet','iron_boots']);
+defEquip('mid_sturdy_chest',  '坚岩护胸',     '🗿', 'mid', {def:35, antiPierce:40},             ['sturdy_amulet','plate_armor']);
+defEquip('mid_lucky_ring',    '幸运之戒',     '🪙', 'mid', {atk:15, def:15, critChance:25},     ['lucky_coin','mithril_ring']);
+defEquip('mid_locksmith_belt','锁匠腰带',     '🔑', 'mid', {def:18, hp:200, keyGuard:1},        ['keychain','leather_armor']);
+defEquip('mid_shield_breaker','碎盾战锤',     '💠', 'mid', {atk:40, pen:10, antiShield:1},      ['great_hammer','shieldbreak_rune']);
+
+/* ---------------- 高级装备 20 件 ---------------- */
+defEquip('high_dragon_slayer', '屠龙圣剑',       '🗡️', 'high', {atk:90, pen:30, critChance:15},              ['steel_blade','mid_dragon_axe']);
+defEquip('high_chaos_blade',   '混沌之刃',       '🌑', 'high', {atk:85, critChance:30, antiDodge:1},         ['twin_dagger','mid_moon_blade']);
+defEquip('high_world_piercer', '破界长枪',       '🔱', 'high', {atk:80, pen:60, antiArmor:1},                ['knight_lance','mid_armor_breaker']);
+defEquip('high_flame_verdict', '烈焰裁决',       '🔥', 'high', {atk:95, dotRes:40, antiStun:1},              ['flame_knife','mid_flame_axe']);
+defEquip('high_hawk_bow',      '鹰眼神弓',       '🏹', 'high', {atk:70, critChance:35, antiDodge:1, antiShield:1}, ['hunting_bow','mid_break_eye']);
+defEquip('high_arcane_staff',  '奥术法杖',       '🪄', 'high', {atk:60, def:40, antiCurse:1, antiStun:1},    ['rune_staff','mid_stasis_crest']);
+defEquip('high_apocalypse',    '天启重铠',       '🛡️', 'high', {def:110, dmgRed:25},                         ['plate_armor','mid_dragon_scale']);
+defEquip('high_holy_bulwark',  '圣光壁垒',       '🛡️', 'high', {def:100, flatRed:20, dmgRed:18},             ['tower_shield','mid_ironwall_bracer']);
+defEquip('high_thorn_crown',   '荆棘王冠',       '🌵', 'high', {def:70, antiThorns:1, antiCombo:40},         ['wood_shield','mid_agile_boots']);
+defEquip('high_antimagic_mail','反魔战甲',       '🧥', 'high', {def:80, dotRes:40, antiCurse:1, antiPierce:50}, ['fire_cloak','mid_sturdy_chest']);
+defEquip('high_immortal_heart','不朽之心',       '❤️', 'high', {hp:3000, antiReborn:1},                      ['life_amulet','mid_ward_amulet']);
+defEquip('high_mithril_crown', '秘银冠冕',       '👑', 'high', {atk:50, def:50, hp:800, antiRegen:1},        ['mithril_ring','mid_suppress_core']);
+defEquip('high_void_ring',     '虚无吞噬者之戒', '🌀', 'high', {atk:45, critChance:30, antiDodge:1, antiShield:1}, ['truesight_eye','mid_lucky_ring']);
+defEquip('high_hourglass',     '时光沙漏',       '⏳', 'high', {def:40, critChance:15, antiFirst:1, antiStun:1}, ['swift_boots','mid_stasis_crest']);
+defEquip('high_guardian_shield','守护者之盾',    '🛡️', 'high', {def:95, dmgRed:20, antiBomb:1},               ['iron_shield','mid_bomb_plate']);
+defEquip('high_thief_blade',   '盗贼大师之刃',   '🔪', 'high', {atk:55, antiDodge:1, keyGuard:1},            ['keychain','mid_hawk_bow']);
+defEquip('high_element_heart', '元素之心',       '💠', 'high', {atk:70, def:70, dotRes:50},                  ['antidote_herb','mid_antimagic_cloak']);
+defEquip('high_dragon_fang',   '龙牙战斧',       '🐲', 'high', {atk:120, pen:40, antiShield:1},              ['war_axe','mid_shield_breaker']);
+defEquip('high_abyss_judge',   '深渊裁决者',     '⚖️', 'high', {atk:150, pen:50, critChance:35},             ['moon_rapier','mid_giant_sword']);
+defEquip('high_eternal_crown', '永恒王冠',       '👑', 'high', {def:120, hp:4000, dmgRed:20},                ['iron_helm','mid_life_gem']);
+
+const BASIC_IDS = EQUIP_LIST.filter(e => e.tier === 'basic').map(e => e.id);
+
+/* ==================================================================
+   装备注册为可拾取物品
+   ================================================================== */
+const EQUIP_ICONS = {
+  rusty_sword:'ti-sword', iron_sword:'ti-sword-off', steel_blade:'ti-blade',
+  twin_dagger:'ti-razor', knight_lance:'ti-trident', war_axe:'ti-axe',
+  great_hammer:'ti-hammer', hunting_bow:'ti-bow', crossbow:'ti-crosshair',
+  knuckle:'ti-hand-stop', rune_staff:'ti-wand', frost_dagger:'ti-snowflake',
+  flame_knife:'ti-flame', venom_dagger:'ti-biohazard', moon_rapier:'ti-moon',
+  cloth_robe:'ti-shirt', leather_armor:'ti-vest', chain_mail:'ti-link',
+  wood_shield:'ti-shield-half', iron_shield:'ti-shield-check', tower_shield:'ti-shield-lock',
+  iron_helm:'ti-helmet', leather_cap:'ti-cap-rounded', chest_guard:'ti-shield-star',
+  scale_mail:'ti-hexagon', plate_armor:'ti-shield-chevron', rattan_armor:'ti-plant-2',
+  fire_cloak:'ti-campfire', leather_bracer:'ti-fingerprint', iron_boots:'ti-shoe',
+  wood_ring:'ti-circle', iron_ring:'ti-disc', life_amulet:'ti-heart',
+  bone_necklace:'ti-bone', mithril_ring:'ti-diamond', swift_boots:'ti-run',
+  purify_amulet:'ti-sparkles', antidote_herb:'ti-leaf', ironwall_rune:'ti-wall',
+  armorbreak_rune:'ti-bolt', truesight_eye:'ti-eye', shieldbreak_rune:'ti-bolt-off',
+  stasis_amulet:'ti-hourglass', keychain:'ti-key', bomb_amulet:'ti-bomb',
+  thorn_bracer:'ti-cactus', agile_amulet:'ti-feather', sturdy_amulet:'ti-anchor',
+  suppress_ring:'ti-lock', lucky_coin:'ti-coin',
+
+  mid_giant_sword:'ti-sword-off', mid_dawn_lance:'ti-trident', mid_twin_fang:'ti-swords',
+  mid_flame_axe:'ti-flare', mid_armor_breaker:'ti-axe', mid_hawk_bow:'ti-target',
+  mid_curse_staff:'ti-atom', mid_frost_blade:'ti-droplet-half', mid_moon_blade:'ti-star',
+  mid_dragon_axe:'ti-tools', mid_shield_breaker:'ti-sword-off',
+  mid_dark_armor:'ti-shield', mid_holy_shield:'ti-sun', mid_dragon_scale:'ti-shield-chevron',
+  mid_mithril_mail:'ti-cube', mid_thorn_shield:'ti-tree', mid_antimagic_cloak:'ti-shield-off',
+  mid_gale_boots:'ti-wind', mid_ironwall_bracer:'ti-shield-lock', mid_bomb_plate:'ti-package',
+  mid_sturdy_chest:'ti-mountain', mid_life_gem:'ti-droplet', mid_mithril_band:'ti-circle-check',
+  mid_break_eye:'ti-eye-off', mid_stasis_crest:'ti-clock', mid_ward_amulet:'ti-skull',
+  mid_suppress_core:'ti-key-off', mid_agile_boots:'ti-walk', mid_lucky_ring:'ti-clover',
+  mid_locksmith_belt:'ti-lock-open',
+
+  high_dragon_slayer:'ti-sword', high_chaos_blade:'ti-infinity', high_world_piercer:'ti-sickle',
+  high_flame_verdict:'ti-torch', high_hawk_bow:'ti-radar', high_arcane_staff:'ti-planet',
+  high_apocalypse:'ti-building-castle', high_holy_bulwark:'ti-octagon', high_thorn_crown:'ti-crown',
+  high_antimagic_mail:'ti-radioactive', high_guardian_shield:'ti-tower', high_element_heart:'ti-flask-2',
+  high_immortal_heart:'ti-heartbeat', high_mithril_crown:'ti-tiara', high_void_ring:'ti-circle-dashed',
+  high_hourglass:'ti-history', high_thief_blade:'ti-razor', high_dragon_fang:'ti-swords',
+  high_abyss_judge:'ti-scale', high_eternal_crown:'ti-gem'
+};
+
+const TIER_COLOR = { basic:'#9aa2c0', mid:'#c6a0ff', high:'#ffb454' };
+
+EQUIP_LIST.forEach(e => {
+  ITEMS[e.id] = {
+    emoji  : e.emoji,
+    icon   : EQUIP_ICONS[e.id] || '',
+    name   : e.name,
+    color  : TIER_COLOR[e.tier] || '#9aa2c0',
+    isEquip: true,
+    tier   : e.tier
+  };
+});
+
+/* ==================================================================
+   程序化地图生成算法（源自地图编辑器）
+   ================================================================== */
+function randInt(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+
+function shuffleArr(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = randInt(0, i);
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function isDoorSpot(grid, x, y){
+  if (x < 1 || x > GW - 2 || y < 1 || y > GH - 2) return false;
+  const up = grid[y-1][x], dn = grid[y+1][x], lf = grid[y][x-1], rt = grid[y][x+1];
+  if (up === '#' && dn === '#' && lf === '.' && rt === '.') return true;
+  if (lf === '#' && rt === '#' && up === '.' && dn === '.') return true;
+  return false;
+}
+
+function generateDFSLogicalMaze(mazeCols, mazeRows){
+  function MazeCell(x, y){
+    this.x = x; this.y = y;
+    this.walls = [true, true, true, true];
+    this.visited = false;
+  }
+  const cells = [];
+  for (let y = 0; y < mazeRows; y++)
+    for (let x = 0; x < mazeCols; x++)
+      cells.push(new MazeCell(x, y));
+
+  function idx(x, y){
+    if (x < 0 || y < 0 || x >= mazeCols || y >= mazeRows) return -1;
+    return y * mazeCols + x;
+  }
+
+  const stack = [];
+  const start = cells[0];
+  start.visited = true;
+  stack.push(start);
+
+  while (stack.length){
+    const cur = stack[stack.length - 1];
+    const dirs = [
+      { dx: 0, dy: -1, wa: 0, wb: 2 },
+      { dx: 1, dy: 0,  wa: 1, wb: 3 },
+      { dx: 0, dy: 1,  wa: 2, wb: 0 },
+      { dx: -1, dy: 0, wa: 3, wb: 1 }
+    ];
+    const nbs = [];
+    for (const d of dirs){
+      const i = idx(cur.x + d.dx, cur.y + d.dy);
+      if (i !== -1 && !cells[i].visited) nbs.push({ cell: cells[i], ...d });
+    }
+    if (nbs.length){
+      shuffleArr(nbs);
+      const n = nbs[0];
+      cur.walls[n.wa] = false;
+      n.cell.walls[n.wb] = false;
+      n.cell.visited = true;
+      stack.push(n.cell);
+    } else {
+      stack.pop();
+    }
+  }
+
+  const outH = mazeRows * 2 + 1;
+  const outW = mazeCols * 2 + 1;
+  const logical = Array.from({ length: outH }, () => Array(outW).fill(false));
+
+  for (let y = 0; y < mazeRows; y++){
+    for (let x = 0; x < mazeCols; x++){
+      const c = cells[idx(x, y)];
+      const py = y * 2 + 1;
+      const px = x * 2 + 1;
+      logical[py][px] = true;
+      if (!c.walls[0]) logical[py - 1][px] = true;
+      if (!c.walls[1]) logical[py][px + 1] = true;
+      if (!c.walls[2]) logical[py + 1][px] = true;
+      if (!c.walls[3]) logical[py][px - 1] = true;
+    }
+  }
+  return logical;
+}
+
+function genMazeTerrain(){
+  const mW = 6, mH = 6;
+  const logical = generateDFSLogicalMaze(mW, mH);
+
+  const holes = 16 + randInt(0, 6);
+  for (let i = 0; i < holes; i++){
+    const x = 1 + randInt(0, GW - 3);
+    const y = 1 + randInt(0, GH - 3);
+    logical[y][x] = true;
+  }
+
+  const g = [];
+  for (let y = 0; y < GH; y++){
+    const row = [];
+    for (let x = 0; x < GW; x++){
+      if (x === 0 || y === 0 || x === GW - 1 || y === GH - 1) row.push('#');
+      else row.push(logical[y][x] ? '.' : '#');
+    }
+    g.push(row);
+  }
+  return g;
+}
+
+function carveToPath(g, x, y){
+  if (x < 1 || x > GW - 2 || y < 1 || y > GH - 2) return { x, y };
+  if (g[y][x] === '.') return { x, y };
+
+  let best = null, bestD = 1e9;
+  for (let yy = 1; yy < GH - 1; yy++){
+    for (let xx = 1; xx < GW - 1; xx++){
+      if (g[yy][xx] !== '.') continue;
+      const d = Math.abs(xx - x) + Math.abs(yy - y);
+      if (d < bestD){ bestD = d; best = { x: xx, y: yy }; }
+    }
+  }
+  if (!best){ g[y][x] = '.'; return { x, y }; }
+
+  let cx = x, cy = y;
+  g[cy][cx] = '.';
+  while (cx !== best.x){ cx += Math.sign(best.x - cx); g[cy][cx] = '.'; }
+  while (cy !== best.y){ cy += Math.sign(best.y - cy); g[cy][cx] = '.'; }
+  return { x, y };
+}
+
+function pickRandomPath(g){
+  const ps = [];
+  for (let y = 1; y < GH - 1; y++)
+    for (let x = 1; x < GW - 1; x++)
+      if (g[y][x] === '.') ps.push({ x, y });
+  if (!ps.length) return { x: 1, y: 1 };
+  return ps[randInt(0, ps.length - 1)];
+}
+
+function pickFarthest(g, from){
+  let best = null, bestD = -1;
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === from.x && y === from.y) continue;
+      const d = Math.abs(x - from.x) + Math.abs(y - from.y);
+      if (d > bestD){ bestD = d; best = { x, y }; }
+    }
+  }
+  return best || from;
+}
+
+function pickRandomExit(g, entry, minDist){
+  minDist = minDist || 4;
+  function collect(min){
+    const ps = [];
+    for (let y = 1; y < GH - 1; y++){
+      for (let x = 1; x < GW - 1; x++){
+        if (g[y][x] !== '.') continue;
+        if (x === entry.x && y === entry.y) continue;
+        const d = Math.abs(x - entry.x) + Math.abs(y - entry.y);
+        if (d >= min) ps.push({ x, y });
+      }
+    }
+    return ps;
+  }
+  let ps = collect(minDist);
+  if (!ps.length) ps = collect(1);
+  if (!ps.length) return { x: entry.x, y: entry.y };
+  return ps[randInt(0, ps.length - 1)];
+}
+
+function pickItemType(L){
+  let pool;
+  if (L <= 20){
+    pool = ['hp1','hp1','ykey','ykey','atk','def'];
+  } else if (L <= 80){
+    pool = ['hp1','hp2','ykey','ykey','bkey','atk','def','def'];
+  } else if (L <= 150){
+    pool = ['hp2','hp2','ykey','bkey','bkey','rkey','atk','def','def'];
+  } else {
+    pool = ['hp2','hp2','ykey','bkey','rkey','rkey','atk','def','atk','def'];
+  }
+  return pool[randInt(0, pool.length - 1)];
+}
+
+function pickDoorType(L){
+  const roll = Math.random();
+  if (L <= 30) return roll < 0.70 ? 'Y' : (roll < 0.90 ? 'B' : 'R');
+  if (L <= 120) return roll < 0.40 ? 'Y' : (roll < 0.80 ? 'B' : 'R');
+  return roll < 0.20 ? 'Y' : (roll < 0.60 ? 'B' : 'R');
+}
+
+/* ==================================================================
+   楼层 / 怪物区间 / 额外属性
+   ================================================================== */
+function monsterRangeForFloor(L){
+  let group = Math.floor((L - 1) / 10);
+  if (L > BASE_FLOORS) group = group % 20;
+  const lo = group * 10;
+  const hi = Math.min(MONSTER_DEFS.length - 1, lo + 9);
+  return { lo, hi };
+}
+
+function extraTraitCountForLevel(L){
+  if (L < 201) return 0;
+  return Math.min(TRAIT_KEYS.length, Math.floor((L - 201) / 100) + 1);
+}
+
+function floorMultiplier(L){
+  const power = Math.floor((L - 1) / 200);
+  const mult = (S.settings && S.settings.mult) || 1;
+  return Math.pow(mult, power);
+}
+
+function pickExtraTraits(baseTraits, n){
+  const result = Object.assign({}, baseTraits);
+  let added = 0;
+  let guard = 0;
+  const keys = TRAIT_KEYS;
+  while (added < n && guard < 800){
+    guard++;
+    const k = keys[Math.floor(Math.random() * keys.length)];
+    if (result[k]) continue;
+    const bad = TRAIT_EXCLUSIVE[k] || [];
+    if (bad.some(b => result[b])) continue;
+    let conflict = false;
+    for (const rk in result){
+      const rb = TRAIT_EXCLUSIVE[rk] || [];
+      if (rb.indexOf(k) !== -1){ conflict = true; break; }
+    }
+    if (conflict) continue;
+    result[k] = true;
+    added++;
+  }
+  return result;
+}
+
+function pickMonsterIdxForLevel(L){
+  const { lo, hi } = monsterRangeForFloor(L);
+  return lo + randInt(0, hi - lo);
+}
+
+function populateFloorEx(g, entry, exit, L){
+  const extraCount = extraTraitCountForLevel(L);
+  const density = S.settings.density;
+  const otherPct = Math.round(S.settings.otherRatio * 100);
+
+  const initCells = [];
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === entry.x && y === entry.y) continue;
+      if (x === exit.x && y === exit.y) continue;
+      initCells.push({ x, y });
+    }
+  }
+  const N = initCells.length;
+  const target = Math.round(N * density);
+
+  const mCount = Math.round(target * (100 - otherPct) / 100);
+  const otherCnt = Math.max(0, target - mCount);
+
+  // 门
+  const doorCands = initCells.filter(c => isDoorSpot(g, c.x, c.y));
+  shuffleArr(doorCands);
+
+  const wantDoors = Math.min(Math.round(otherCnt * 0.15), doorCands.length);
+  const placedDoorPos = new Set();
+  const doorCount = { Y: 0, B: 0, R: 0 };
+  let doorsPlaced = 0;
+
+  for (const c of doorCands){
+    if (doorsPlaced >= wantDoors) break;
+    if (!isDoorSpot(g, c.x, c.y)) continue;
+    let conflict = false;
+    for (let dy = -1; dy <= 1; dy++){
+      for (let dx = -1; dx <= 1; dx++){
+        if (placedDoorPos.has((c.x + dx) + ',' + (c.y + dy))){ conflict = true; break; }
+      }
+      if (conflict) break;
+    }
+    if (conflict) continue;
+
+    const d = pickDoorType(L);
+    g[c.y][c.x] = d;
+    doorCount[d]++;
+    placedDoorPos.add(c.x + ',' + c.y);
+    doorsPlaced++;
+  }
+
+  // 剩余空地
+  const cells = [];
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (g[y][x] !== '.') continue;
+      if (x === entry.x && y === entry.y) continue;
+      if (x === exit.x && y === exit.y) continue;
+      cells.push({ x, y });
+    }
+  }
+  shuffleArr(cells);
+  const M = cells.length;
+
+  const itemCount = Math.max(0, otherCnt - doorsPlaced);
+  const actualM = Math.min(mCount, M);
+  const iSlots = M - actualM;
+  const actualI = Math.min(itemCount, iSlots);
+
+  const monsters = {}, items = {}, monsterTraits = {};
+  let ptr = 0;
+
+  for (let i = 0; i < actualM && ptr < M; i++){
+    const c = cells[ptr++];
+    const key = c.x + ',' + c.y;
+    const idx = pickMonsterIdxForLevel(L);
+    monsters[key] = idx;
+    if (extraCount > 0){
+      monsterTraits[key] = pickExtraTraits(MONSTER_DEFS[idx].traits || {}, extraCount);
+    }
+  }
+
+  const needKeys = [];
+  for (let i = 0; i < doorCount.Y; i++) needKeys.push('ykey');
+  for (let i = 0; i < doorCount.B; i++) needKeys.push('bkey');
+  for (let i = 0; i < doorCount.R; i++) needKeys.push('rkey');
+  shuffleArr(needKeys);
+
+  let keysPlaced = 0;
+  while (keysPlaced < needKeys.length && keysPlaced < actualI && ptr < M){
+    const c = cells[ptr++];
+    items[c.x + ',' + c.y] = needKeys[keysPlaced++];
+  }
+
+  while (keysPlaced < actualI && ptr < M){
+    const c = cells[ptr++];
+    items[c.x + ',' + c.y] = pickItemType(L);
+    keysPlaced++;
+  }
+
+  return { monsters, items, monsterTraits };
+}
+
+/* ---- 最短路径 BFS ---- */
+function bfsShortestPath(grid, from, to){
+  if (!from || !to) return [];
+  if (grid[from.y] === undefined || grid[to.y] === undefined) return [];
+  if (grid[from.y][from.x] === '#' || grid[to.y][to.x] === '#') return [];
+
+  const W = GW, H = GH;
+  const prev = new Int32Array(W * H).fill(-1);
+  const seen = new Uint8Array(W * H);
+
+  const s = from.y * W + from.x;
+  const t = to.y * W + to.x;
+  const queue = [s];
+  seen[s] = 1;
+
+  const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  let found = false;
+
+  for (let qi = 0; qi < queue.length; qi++){
+    const cur = queue[qi];
+    if (cur === t){ found = true; break; }
+
+    const cx = cur % W, cy = (cur - cx) / W;
+    for (let d = 0; d < 4; d++){
+      const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (grid[ny][nx] === '#') continue;
+
+      const nk = ny * W + nx;
+      if (seen[nk]) continue;
+
+      seen[nk] = 1;
+      prev[nk] = cur;
+      queue.push(nk);
+    }
+  }
+
+  if (!found) return [];
+
+  const path = [];
+  let c = t;
+  while (c !== -1){
+    const x = c % W, y = (c - x) / W;
+    path.push({ x, y });
+    if (c === s) break;
+    c = prev[c];
+  }
+  path.reverse();
+  return path;
+}
+
+function weakenMonstersOnPathEx(floor){
+  if (!floor || !floor.grid || !floor.entry || !floor.exit) return 0;
+
+  const path = bfsShortestPath(floor.grid, floor.entry, floor.exit);
+  if (!path.length) return 0;
+
+  const { lo, hi } = monsterRangeForFloor(floor.level);
+  const total = hi - lo + 1;
+  const k = Math.max(1, Math.ceil(total * 0.2));
+  const wlo = lo, whi = Math.min(hi, lo + k - 1);
+
+  let changed = 0;
+  for (const p of path){
+    const key = p.x + ',' + p.y;
+    if (floor.monsters[key] === undefined) continue;
+    const cur = floor.monsters[key];
+    if (cur >= wlo && cur <= whi) continue;
+    floor.monsters[key] = randInt(wlo, whi);
+    changed++;
+  }
+  return changed;
+}
+
+function countPassableNeighbors(grid, x, y){
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+  let n = 0;
+  for (const [dx, dy] of DIRS){
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+    if (grid[ny][nx] !== '#') n++;
+  }
+  return n;
+}
+
+function fillDeadEndsEx(floor, L){
+  if (!floor || !floor.grid) return 0;
+  const { grid, monsters, items, entry, exit } = floor;
+  let filled = 0;
+
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (grid[y][x] !== '.') continue;
+      if (entry && entry.x === x && entry.y === y) continue;
+      if (exit  && exit.x  === x && exit.y  === y) continue;
+      if (countPassableNeighbors(grid, x, y) !== 1) continue;
+
+      const key = x + ',' + y;
+      if (items[key] !== undefined) continue;
+      if (monsters[key] !== undefined) delete monsters[key];
+      items[key] = pickItemType(L);
+      filled++;
+    }
+  }
+  return filled;
+}
+
+function generateFloor(i){
+  const L = i + 1;
+  let g = genMazeTerrain();
+
+  let entry;
+  const prev = i > 0 ? S.floors[i - 1] : null;
+  if (prev && prev.exit){
+    carveToPath(g, prev.exit.x, prev.exit.y);
+    entry = { x: prev.exit.x, y: prev.exit.y };
+  } else {
+    entry = pickRandomPath(g);
+  }
+
+  let exit = pickRandomExit(g, entry, 4);
+  if (exit.x === entry.x && exit.y === entry.y) exit = pickFarthest(g, entry);
+
+  const populated = populateFloorEx(g, entry, exit, L);
+  const floor = {
+    grid: g,
+    entry: { x: entry.x, y: entry.y },
+    exit:  { x: exit.x,  y: exit.y  },
+    monsters: populated.monsters,
+    items: populated.items,
+    monsterTraits: populated.monsterTraits,
+    level: L,
+    multiplier: floorMultiplier(L),
+    extraTraitCount: extraTraitCountForLevel(L)
+  };
+
+  weakenMonstersOnPathEx(floor);
+  fillDeadEndsEx(floor, L);
+  return floor;
+}
+
+/* ======================= 工具 ======================= */
+const inB = (x, y) => x >= 0 && x < GW && y >= 0 && y < GH;
+
+function fmtNum(n){
+  if (!isFinite(n)) return '∞';
+  if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Q';
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6)  return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(Math.round(n));
+}
+
+/* ======================= 游戏状态 ======================= */
+const S = {
+  floors: [],
+  floorIdx: 0,
+  hero: {x: 1, y: 1},
+  player: {hp: 3000, maxHp: 3000, atk: 20, def: 20},
+  keys: {ykey: 0, bkey: 0, rkey: 0},
+  slots: [null,null,null,null,null,null],
+  inv: {},
+  hpBonus: 0,
+  over: false,
+  win: false,
+  endless: false,
+  autoEquip: true,
+  autoPickup: true,
+  autoKillZero: true,
+  settings: { density: 0.6, otherRatio: 0.45, mult: 2, difficulty: 2, dropRate: 0.3 }
+};
+
+const visitedFloors = new Set();
+
+/* ======================= 装备核心逻辑 ======================= */
+function getEquipBonus(){
+  const b = {};
+  const slots = S.slots || [];
+  for (let i = 0; i < slots.length; i++){
+    const id = slots[i];
+    if (!id) continue;
+    const eq = EQUIP_DEFS[id];
+    if (!eq) continue;
+    for (const k in eq.stats) b[k] = (b[k] || 0) + eq.stats[k];
+  }
+  return b;
+}
+
+function recalcHpFromEquip(){
+  const bonus = getEquipBonus().hp || 0;
+  const diff = bonus - (S.hpBonus || 0);
+  if (diff === 0) return;
+  S.hpBonus = bonus;
+  if (diff > 0){
+    S.player.maxHp += diff;
+    S.player.hp += diff;
+  } else {
+    S.player.maxHp += diff;
+    if (S.player.hp > S.player.maxHp) S.player.hp = S.player.maxHp;
+  }
+}
+
+function addEquip(id, n){
+  n = n || 1;
+  if (!EQUIP_DEFS[id]) return;
+  S.inv[id] = (S.inv[id] || 0) + n;
+}
+
+function equipItem(id){
+  if (!(S.inv[id] > 0)) return;
+  const slot = S.slots.indexOf(null);
+  if (slot < 0){ toast('装备栏已满，请先卸下一件'); return; }
+  S.inv[id]--;
+  if (S.inv[id] <= 0) delete S.inv[id];
+  S.slots[slot] = id;
+  toast('装备：' + EQUIP_DEFS[id].name);
+  refreshEquipUI();
+}
+
+function unequipSlot(i){
+  const id = S.slots[i];
+  if (!id) return;
+  S.slots[i] = null;
+  addEquip(id, 1);
+  toast('卸下：' + EQUIP_DEFS[id].name);
+  refreshEquipUI();
+}
+
+function craftEquip(id){
+  const eq = EQUIP_DEFS[id];
+  if (!eq || !eq.recipe) return;
+  for (const r of eq.recipe){
+    if (!(S.inv[r] > 0)){ toast('材料不足'); return; }
+  }
+  for (const r of eq.recipe){
+    S.inv[r]--;
+    if (S.inv[r] <= 0) delete S.inv[r];
+  }
+  addEquip(id, 1);
+  toast('合成成功：' + eq.name);
+  refreshEquipUI();
+}
+
+/* ---------- 一键合成：从高级到低级优先，反复扫描直到无法再合成 ---------- */
+function craftAllEquip(){
+  const rank = { high: 0, mid: 1, basic: 2 };
+  const candidates = EQUIP_LIST.filter(e => e.recipe)
+    .sort((a, b) => (rank[a.tier] || 0) - (rank[b.tier] || 0));
+
+  let crafted = 0;
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 500){
+    guard++;
+    changed = false;
+    for (const e of candidates){
+      if (canCraftEquip(e)){
+        for (const r of e.recipe){
+          S.inv[r]--;
+          if (S.inv[r] <= 0) delete S.inv[r];
+        }
+        addEquip(e.id, 1);
+        crafted++;
+        changed = true;
+        break; // 重新从头扫描，保证高级优先
+      }
+    }
+  }
+
+  if (crafted > 0){
+    toast('一键合成完成，共合成 ' + crafted + ' 件装备');
+    refreshEquipUI();
+  } else {
+    toast('没有可合成的装备');
+  }
+}
+
+function refreshEquipUI(){
+  recalcHpFromEquip();
+  renderEquipSlots();
+  const modal = document.getElementById('equipModal');
+  if (modal && modal.classList.contains('show')) renderEquipList();
+  render();
+  updateHUD();
+}
+
+/* ======================= 快捷键 ======================= */
+const KEYBIND_STORAGE = 'mota_keybinds_v3';
+const KEYBINDS = { book: 'KeyF', teleport: 'KeyG', equip: 'KeyR' };
+const KEYBIND_ORDER = ['book', 'teleport', 'equip'];
+let capturingAction = null;
+
+function loadKeybinds(){
+  try{
+    const raw = localStorage.getItem(KEYBIND_STORAGE);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === 'object'){
+      for (const k of KEYBIND_ORDER){
+        if (typeof obj[k] === 'string' && obj[k]) KEYBINDS[k] = obj[k];
+      }
+    }
+  }catch(e){}
+}
+function saveKeybinds(){
+  try{ localStorage.setItem(KEYBIND_STORAGE, JSON.stringify(KEYBINDS)); }catch(e){}
+}
+
+const KEYBIND_ACTIONS = [
+  { id:'book',     name:'📖 怪物手册',   hintId:'hintBook' },
+  { id:'teleport', name:'🚪 楼层传送',   hintId:'hintTele' },
+  { id:'equip',    name:'⚒️ 背包与合成', hintId:'hintEquip' }
+];
+
+function keyLabel(code){
+  if (!code) return '未设置';
+  const map = {
+    ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→',
+    Space:'Space', Enter:'Enter', Escape:'Esc',
+    ShiftLeft:'L-Shift', ShiftRight:'R-Shift',
+    ControlLeft:'L-Ctrl', ControlRight:'R-Ctrl',
+    AltLeft:'L-Alt', AltRight:'R-Alt',
+    Backspace:'Backspace', Tab:'Tab', CapsLock:'Caps',
+    Semicolon:';', Quote:"'", Comma:',', Period:'.', Slash:'/',
+    BracketLeft:'[', BracketRight:']', Backslash:'\\',
+    Minus:'-', Equal:'=', Backquote:'`'
+  };
+  if (map[code]) return map[code];
+  if (code.startsWith('Key'))    return code.slice(3);
+  if (code.startsWith('Digit'))  return code.slice(5);
+  if (code.startsWith('Numpad')) return 'Num' + code.slice(6);
+  return code;
+}
+
+function updateKeyHints(){
+  KEYBIND_ACTIONS.forEach(a => {
+    const el = document.getElementById(a.hintId);
+    if (el) el.textContent = keyLabel(KEYBINDS[a.id]);
+  });
+}
+
+function renderKeybinds(){
+  const list = document.getElementById('keybindList');
+  if (!list) return;
+  list.innerHTML = KEYBIND_ACTIONS.map(a => {
+    const isCap = capturingAction === a.id;
+    const label = isCap ? '按任意键…' : keyLabel(KEYBINDS[a.id]);
+    return '<div class="keybind-row"><span>' + a.name + '</span>'
+         +   '<button class="keybind-btn' + (isCap ? ' capturing' : '') + '" '
+         +   'data-action="' + a.id + '">' + label + '</button>'
+         + '</div>';
+  }).join('');
+  list.querySelectorAll('.keybind-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      capturingAction = btn.dataset.action;
+      renderKeybinds();
+    });
+  });
+  updateKeyHints();
+}
+
+function openBook(){
+  renderBook();
+  document.getElementById('monsterBook').classList.add('show');
+}
+function openTeleport(){
+  renderTeleport();
+  document.getElementById('teleportModal').classList.add('show');
+}
+function openKeybind(){
+  capturingAction = null;
+  renderKeybinds();
+  document.getElementById('keybindModal').classList.add('show');
+}
+function openEquipPanel(){
+  renderEquipList();
+  document.getElementById('equipModal').classList.add('show');
+}
+
+/* ==================================================================
+   ★ 核心：战斗结算
+   ================================================================== */
+function calcFight(m){
+  const P = S.player;
+  const t = m.traits || {};
+  const E = getEquipBonus();
+
+  const eAtk    = E.atk || 0;
+  const eDef    = E.def || 0;
+  const ePen    = E.pen || 0;
+  const eCrit   = Math.min(100, E.critChance || 0);
+  const eDmgRed = Math.min(70, E.dmgRed || 0) / 100;
+  const eFlat   = E.flatRed || 0;
+  const eDot    = Math.min(80, E.dotRes || 0) / 100;
+  const eThorn  = Math.min(100, E.antiThorns || 0) / 100;
+  const eCombo  = Math.min(100, E.antiCombo || 0) / 100;
+  const ePierce = Math.min(100, E.antiPierce || 0) / 100;
+
+  let A = P.atk + eAtk, D = P.def + eDef;
+  if (!E.antiCurse){
+    if (t.curse)   A = Math.max(1, Math.floor(A * 0.88));
+    if (t.fear)    A = Math.max(1, A - 10);
+    if (t.weaken)  D = Math.max(0, Math.floor(D * 0.75));
+    if (t.corrode) D = Math.max(0, D - 20);
+  }
+
+  let mDef = m.def;
+  if (t.king) mDef = Math.floor(mDef * 1.15);
+  mDef = Math.max(0, mDef - ePen);
+
+  let pd = A - mDef;
+  if (t.armor && !E.antiArmor) pd -= 20;
+  if (t.overwhelm) pd -= Math.floor(Math.max(0, A - 50) * 0.10);
+  if (t.shell && pd < 30){
+    return { ok:false, reason:'硬壳：单次伤害不足 30，无法破防' };
+  }
+  pd = Math.max(1, pd);
+  if (t.reduce) pd = Math.max(1, Math.floor(pd * 0.75));
+  if (t.block)  pd = Math.max(1, Math.floor(pd * 0.85));
+  if (t.dodge && !E.antiDodge)  pd = Math.max(1, Math.floor(pd * 0.80));
+  if (t.shadow && !E.antiDodge) pd = Math.max(1, Math.floor(pd * 0.70));
+  if (t.phase && !E.antiDodge)  pd = Math.max(1, Math.floor(pd * 0.75));
+  if (t.fortify) pd = Math.max(1, pd - 10);
+  if (t.evolve)  pd = Math.max(1, pd - 5);
+  pd = Math.max(1, Math.floor(pd * (1 + eCrit / 100)));
+
+  let ehp = m.hp;
+  if (t.king) ehp = Math.floor(ehp * 1.15);
+  if (t.shield && !E.antiShield)     ehp += 500;
+  if (t.holyShield && !E.antiShield) ehp += pd * 2;
+  if (t.bloodShell && !E.antiShield) ehp += Math.floor(pd * 0.6);
+  if (t.reborn && !E.antiReborn)     ehp = Math.floor(ehp * 1.5);
+  if (t.split && !E.antiReborn)      ehp = Math.floor(ehp * 1.35);
+
+  let regen = 0;
+  if (!E.antiRegen){
+    if (t.regen)     regen += 100;
+    if (t.lifesteal) regen += Math.floor(Math.max(0, m.atk - D) * 0.30);
+    if (t.drain)     regen += 40;
+  }
+  let rounds = Math.ceil(ehp / pd);
+  if (regen > 0){
+    if (regen >= pd) return { ok:false, reason:'再生速度 ≥ 你的输出，无法击杀' };
+    rounds = Math.ceil(rounds / (1 - regen / pd));
+  }
+  if (rounds > 3000) return { ok:false, reason:'战斗将耗时过长，无法取胜' };
+
+  let hits = Math.max(0, rounds - 1);
+  if (!E.antiFirst && (t.firstStrike || t.haste || t.shadow)) hits += 1;
+  if (t.root && !E.antiStun) hits += 1;
+  if (t.slow) hits = Math.max(0, hits - 1);
+  if (t.stun && !E.antiStun) hits += Math.ceil(rounds * 0.15);
+  if (t.frost && !E.antiStun) hits += Math.floor(rounds / 3);
+
+  let ca = m.atk;
+  if (t.king)    ca = Math.floor(ca * 1.15);
+  if (t.enrage)  ca = Math.floor(ca * 1.25);
+  if (t.berserk) ca = Math.floor(ca * 1.30);
+  if (t.judge)   ca = Math.floor(ca * 1.25);
+  if (t.grow)    ca += 3;
+
+  let effD = D;
+  if (t.pierce) effD = Math.max(0, D - 20 * (1 - ePierce));
+  if (t.void)   effD = Math.floor(effD * (0.70 + 0.30 * ePierce));
+
+  let direct = Math.max(0, ca - effD);
+  if (t.combo)     direct *= (2 - eCombo);
+  if (t.tripleHit) direct *= (3 - 1.5 * eCombo);
+  if (t.crit)      direct = Math.floor(direct * 1.25);
+  if (t.haste)     direct = Math.floor(direct * 1.25);
+  if (t.execute)   direct = Math.floor(direct * 1.5);
+
+  let dot = 0;
+  if (t.trueDmg) dot += 30;
+  if (t.poison)  dot += 25;
+  if (t.drain)   dot += 40;
+  if (t.bleed)   dot += 5;
+  dot *= (1 - eDot);
+
+  let perHit = direct + dot;
+  perHit *= (1 - eDmgRed);
+  perHit = Math.max(0, perHit - eFlat);
+
+  let back = perHit * hits;
+
+  if (t.thunder)      back += 50 * Math.floor(rounds / 3) * (1 - eDot);
+  if (t.thorns)       back += 15 * rounds * (1 - eThorn);
+  if (t.reflect)      back += 25 * rounds * (1 - eThorn);
+  if (t.barb)         back += Math.floor(pd * 0.20 * rounds * (1 - eThorn));
+  if (t.burn)         back += 200 * (1 - eDot);
+  if (t.deathBomb)    back += 300 * (1 - eDot) * (E.antiBomb ? 0.2 : 1);
+  if (t.selfDestruct) back += Math.floor(m.hp * 0.10) * (1 - eDot) * (E.antiBomb ? 0.2 : 1);
+
+  back = Math.max(0, Math.round(back));
+  return { ok:true, rounds, hits, back, dmg:pd, cHit:perHit };
+}
+
+/* ======================= Canvas ======================= */
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+cv.width  = GW * CELL;
+cv.height = GH * CELL;
+
+function drawStair(x, y, up){
+  const px = x * CELL, py = y * CELL, s = CELL;
+  ctx.save();
+  ctx.fillStyle = up ? 'rgba(61,220,132,.18)' : 'rgba(74,163,255,.18)';
+  ctx.fillRect(px + 1, py + 1, s - 2, s - 2);
+  ctx.fillStyle = up ? '#3ddc84' : '#5ab0ff';
+  ctx.beginPath();
+  if (up){
+    ctx.moveTo(px + s/2,    py + s*0.20);
+    ctx.lineTo(px + s*0.80, py + s*0.58);
+    ctx.lineTo(px + s*0.62, py + s*0.58);
+    ctx.lineTo(px + s*0.62, py + s*0.82);
+    ctx.lineTo(px + s*0.38, py + s*0.82);
+    ctx.lineTo(px + s*0.38, py + s*0.58);
+    ctx.lineTo(px + s*0.20, py + s*0.58);
+  } else {
+    ctx.moveTo(px + s/2,    py + s*0.80);
+    ctx.lineTo(px + s*0.80, py + s*0.42);
+    ctx.lineTo(px + s*0.62, py + s*0.42);
+    ctx.lineTo(px + s*0.62, py + s*0.18);
+    ctx.lineTo(px + s*0.38, py + s*0.18);
+    ctx.lineTo(px + s*0.38, py + s*0.42);
+    ctx.lineTo(px + s*0.20, py + s*0.42);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function getMonster(idx, extraTraits, multiplier){
+  const d = MONSTER_DEFS[idx];
+  if (!d) return null;
+  const traits = Object.assign({}, d.traits || {});
+  if (extraTraits) for (const k in extraTraits) traits[k] = true;
+  const baseMul = multiplier || 1;
+  const diff = (S.settings && S.settings.difficulty) || 1;
+  const mul = baseMul * diff;
+  return {
+    idx, name:d.name, emoji:d.emoji,
+    hp : Math.max(1, Math.round(d.hp  * mul)),
+    atk: Math.max(1, Math.round(d.atk * mul)),
+    def: Math.max(0, Math.round(d.def * mul)),
+    kind:d.kind, traits
+  };
+}
+
+function render(){
+  if (!S.floors || !S.floors[S.floorIdx]) return;
+  const fl = S.floors[S.floorIdx];
+  const g = fl.grid;
+
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  for (let y = 0; y < GH; y++){
+    for (let x = 0; x < GW; x++){
+      const px = x * CELL, py = y * CELL;
+      const c = g[y][x];
+
+      if (c === '#'){
+        ctx.fillStyle = '#4a5474';
+        ctx.fillRect(px, py, CELL, CELL);
+        ctx.fillStyle = '#5f6b8f';
+        ctx.fillRect(px, py, CELL, 4);
+        ctx.fillStyle = '#3b4460';
+        ctx.fillRect(px, py + CELL - 4, CELL, 4);
+        ctx.strokeStyle = '#333b55';
+        ctx.strokeRect(px + .5, py + .5, CELL - 1, CELL - 1);
+      } else {
+        ctx.fillStyle = '#2a3149';
+        ctx.fillRect(px, py, CELL, CELL);
+        ctx.strokeStyle = '#343d5a';
+        ctx.strokeRect(px + .5, py + .5, CELL - 1, CELL - 1);
+
+        if (c === 'Y' || c === 'B' || c === 'R'){
+          const d = ITEMS['door' + c];
+          ctx.fillStyle = d.color + '2e';
+          ctx.fillRect(px + 3, py + 3, CELL - 6, CELL - 6);
+          ctx.strokeStyle = d.color;
+          ctx.lineWidth = 3;
+          ctx.strokeRect(px + 5, py + 5, CELL - 10, CELL - 10);
+          ctx.lineWidth = 1;
+          drawItemGlyph(ctx, 'door' + c, px + CELL/2, py + CELL/2, 30);
+        }
+      }
+    }
+  }
+
+  if (S.floorIdx > 0) drawStair(fl.entry.x, fl.entry.y, false);
+  drawStair(fl.exit.x, fl.exit.y, true);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const k in fl.items){
+    const [x, y] = k.split(',').map(Number);
+    const it = ITEMS[fl.items[k]];
+    if (!it) continue;
+    const cx = x * CELL + CELL/2, cy = y * CELL + CELL/2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CELL * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = it.color + '33';
+    ctx.fill();
+    if (it.isEquip){
+      ctx.strokeStyle = it.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    drawItemGlyph(ctx, fl.items[k], cx, cy, 30);
+  }
+
+  for (const k in fl.monsters){
+    const [x, y] = k.split(',').map(Number);
+    const m = getMonster(fl.monsters[k], fl.monsterTraits && fl.monsterTraits[k], fl.multiplier);
+    if (!m) continue;
+    const cx = x * CELL + CELL/2, cy = y * CELL + CELL/2;
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '33px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.emoji, cx, cy + 1);
+
+    const tCount = Object.keys(m.traits).length;
+    if (tCount > 0){
+      ctx.beginPath();
+      ctx.arc(x * CELL + 8, y * CELL + 8, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = tCount >= 3 ? '#ff5c5c' : '#ffd75c';
+      ctx.fill();
+    }
+
+    let txt, col;
+    const f = calcFight(m);
+    if (!f.ok){
+      txt = '∞'; col = '#ff5c5c';
+    } else {
+      txt = fmtNum(f.back);
+      col = f.back >= S.player.hp ? '#ff5c5c' : '#8fe8a0';
+    }
+    ctx.font = 'bold 13px ui-monospace,Menlo,monospace';
+    const tw = ctx.measureText(txt).width;
+    ctx.fillStyle = 'rgba(0,0,0,.72)';
+    ctx.fillRect(x * CELL + CELL - tw - 7, y * CELL + CELL - 18, tw + 7, 18);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = col;
+    ctx.fillText(txt, x * CELL + CELL - 3.5, y * CELL + CELL - 2.5);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '33px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🧙', S.hero.x * CELL + CELL/2, S.hero.y * CELL + CELL/2 + 1);
+}
+
+/* ======================= HUD ======================= */
+function updateHUD(){
+  const E = getEquipBonus();
+  const total = S.endless ? '∞' : BASE_FLOORS;
+  document.getElementById('hudFloor').textContent = (S.floorIdx + 1) + ' / ' + total;
+  document.getElementById('hudHp').textContent    = S.player.hp + ' / ' + S.player.maxHp;
+  document.getElementById('hudAtk').innerHTML =
+    S.player.atk + (E.atk ? '<span class="eq-bonus">+' + E.atk + '</span>' : '');
+  document.getElementById('hudDef').innerHTML =
+    S.player.def + (E.def ? '<span class="eq-bonus">+' + E.def + '</span>' : '');
+  document.getElementById('hudYk').textContent = S.keys.ykey;
+  document.getElementById('hudBk').textContent = S.keys.bkey;
+  document.getElementById('hudRk').textContent = S.keys.rkey;
+}
+
+/* ======================= 装备栏渲染 ======================= */
+function renderEquipSlots(){
+  const grid = document.getElementById('equipGrid');
+  if (!grid) return;
+  let html = '';
+  for (let i = 0; i < 6; i++){
+    const id = S.slots[i];
+    if (id){
+      const eq = EQUIP_DEFS[id];
+      html += '<div class="equip-slot filled" data-slot="' + i + '" draggable="true" '
+            + 'title="' + eq.name + '&#10;' + describeStats(eq.stats) + '&#10;点击卸下">'
+            +   '<span class="eq-emoji">' + eq.emoji + '</span>'
+            +   '<span class="eq-tier ' + eq.tier + '"></span>'
+            + '</div>';
+    } else {
+      html += '<div class="equip-slot" data-slot="' + i + '" title="点击打开背包">'
+            +   '<span class="eq-empty">+</span>'
+            +   '<span class="eq-slot-hint">开背包</span>'
+            + '</div>';
+    }
+  }
+  grid.innerHTML = html;
+}
+
+/* ======================= 装备清单渲染 ======================= */
+function isEquipRelevant(e){
+  if ((S.inv[e.id] || 0) > 0) return true;
+  if (S.slots.indexOf(e.id) >= 0) return true;
+  if (e.recipe){
+    for (const r of e.recipe){
+      if (!(S.inv[r] > 0)) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function canCraftEquip(e){
+  if (!e.recipe) return false;
+  for (const r of e.recipe){
+    if (!(S.inv[r] > 0)) return false;
+  }
+  return true;
+}
+
+function renderEquipList(){
+  const list = document.getElementById('equipList');
+  if (!list) return;
+
+  const TIERS = [
+    ['basic', '初 级 装 备'],
+    ['mid',   '中 级 装 备'],
+    ['high',  '高 级 装 备']
+  ];
+
+  let html = '';
+  let totalShown = 0;
+
+  for (let ti = 0; ti < TIERS.length; ti++){
+    const tier = TIERS[ti][0], label = TIERS[ti][1];
+    const items = EQUIP_LIST.filter(e => e.tier === tier && isEquipRelevant(e));
+    if (!items.length) continue;
+
+    html += '<div class="eq-section">' + label + '</div>';
+
+    for (let ei = 0; ei < items.length; ei++){
+      const e = items[ei];
+      totalShown++;
+
+      const owned = S.inv[e.id] || 0;
+      const equipped = S.slots.filter(x => x === e.id).length;
+      const craftable = canCraftEquip(e);
+
+      let recipeHtml = '';
+      if (e.recipe){
+        const parts = e.recipe.map(r => {
+          const have = (S.inv[r] || 0) > 0;
+          const nm = EQUIP_DEFS[r] ? EQUIP_DEFS[r].name : r;
+          return '<span class="' + (have ? 'have' : 'lack') + '">' + nm + '</span>';
+        });
+        recipeHtml = '<div class="eq-recipe">合成：' + parts.join(' + ') + '</div>';
+      }
+
+      let acts = '';
+      if (owned > 0){
+        acts += '<button class="eq-act" data-act="equip" data-id="' + e.id + '">装备</button>';
+      }
+      if (e.recipe){
+        acts += '<button class="eq-act" data-act="craft" data-id="' + e.id + '"'
+              + (craftable ? '' : ' disabled') + '>合成</button>';
+      }
+      if (!acts) acts = '<span class="eq-have" style="color:#5b6585">未获得</span>';
+
+      const tierName = tier === 'basic' ? '初级' : (tier === 'mid' ? '中级' : '高级');
+
+      html += '<div class="eq-row"' + (owned > 0 ? ' draggable="true" data-eqid="' + e.id + '"' : '') + '>'
+            +   '<div class="eq-icon">' + e.emoji + '</div>'
+            +   '<div class="eq-body">'
+            +     '<div class="eq-title">' + e.name
+            +       '<span class="eq-badge ' + e.tier + '">' + tierName + '</span>'
+            +       (owned > 0 ? '<span class="eq-have">持有 ' + owned + '</span>' : '')
+            +       (equipped > 0 ? '<span class="eq-have">已装备 ' + equipped + '</span>' : '')
+            +       (craftable && owned === 0 && equipped === 0
+                          ? '<span class="eq-craftable">可合成</span>' : '')
+            +     '</div>'
+            +     '<div class="eq-stats">' + describeStats(e.stats) + '</div>'
+            +     recipeHtml
+            +   '</div>'
+            +   '<div class="eq-actions">' + acts + '</div>'
+            + '</div>';
+    }
+  }
+
+  if (!totalShown){
+    list.innerHTML = '<div class="book-empty">暂无可用装备<br>'
+                   + '<span style="font-size:12px;color:#5b6585">击败怪物有几率获得初级装备，'
+                   + '材料齐备后可在此合成中/高级装备</span></div>';
+    return;
+  }
+
+  list.innerHTML = html;
+
+  const btns = list.querySelectorAll('.eq-act');
+  for (let i = 0; i < btns.length; i++){
+    btns[i].addEventListener('click', function(){
+      const id = this.dataset.id;
+      if (this.dataset.act === 'equip') equipItem(id);
+      else craftEquip(id);
+    });
+  }
+}
+
+/* ======================= 拖拽 ======================= */
+let dragData = null;
+
+function clearDragOver(){
+  const els = document.querySelectorAll('.equip-slot.dragover');
+  for (let i = 0; i < els.length; i++) els[i].classList.remove('dragover');
+}
+
+document.addEventListener('dragstart', function(e){
+  if (!e.target || !e.target.closest) return;
+
+  const invItem = e.target.closest('.eq-row[draggable="true"]');
+  if (invItem && invItem.dataset.eqid){
+    dragData = { type:'inv', id: invItem.dataset.eqid };
+    e.dataTransfer.effectAllowed = 'copyMove';
+    try { e.dataTransfer.setData('text/plain', invItem.dataset.eqid); } catch(err){}
+    return;
+  }
+
+  const slot = e.target.closest('.equip-slot');
+  if (slot && S.slots[+slot.dataset.slot]){
+    dragData = { type:'slot', index: +slot.dataset.slot };
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', 'slot'); } catch(err){}
+    slot.classList.add('dragging');
+    return;
+  }
+});
+
+document.addEventListener('dragend', function(){
+  dragData = null;
+  clearDragOver();
+  const els = document.querySelectorAll('.equip-slot.dragging');
+  for (let i = 0; i < els.length; i++) els[i].classList.remove('dragging');
+});
+
+document.addEventListener('dragover', function(e){
+  if (!dragData) return;
+  if (!e.target || !e.target.closest) return;
+  const slot = e.target.closest('.equip-slot');
+  if (!slot) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragData.type === 'slot' ? 'move' : 'copy';
+  clearDragOver();
+  slot.classList.add('dragover');
+});
+
+document.addEventListener('drop', function(e){
+  if (!dragData) return;
+  if (!e.target || !e.target.closest) return;
+  const slot = e.target.closest('.equip-slot');
+  if (!slot) return;
+  e.preventDefault();
+
+  const targetIdx = +slot.dataset.slot;
+
+  if (dragData.type === 'slot'){
+    const src = dragData.index;
+    if (src !== targetIdx){
+      const tmp = S.slots[targetIdx];
+      S.slots[targetIdx] = S.slots[src];
+      S.slots[src] = tmp;
+    }
+  } else {
+    const id = dragData.id;
+    if (!(S.inv[id] > 0)){ dragData = null; clearDragOver(); return; }
+    const existing = S.slots[targetIdx];
+    S.inv[id]--;
+    if (S.inv[id] <= 0) delete S.inv[id];
+    if (existing) addEquip(existing, 1);
+    S.slots[targetIdx] = id;
+  }
+
+  dragData = null;
+  clearDragOver();
+  refreshEquipUI();
+});
+
+/* ======================= 提示 ======================= */
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
+}
+
+/* ======================= 拾取生效（数值减半版） ======================= */
+function applyItem(t){
+  const L = S.floorIdx + 1;
+  const mul = floorMultiplier(L);
+
+  /* ---- 攻击/防御宝石：原 +5 → 减半为 +2.5，四舍五入取整 ---- */
+  if (t === 'atk'){
+    const v = Math.max(1, Math.round(2.5 * mul));
+    S.player.atk += v;
+    return '获得 攻击宝石 +' + v;
+  }
+  if (t === 'def'){
+    const v = Math.max(1, Math.round(2.5 * mul));
+    S.player.def += v;
+    return '获得 防御宝石 +' + v;
+  }
+  /* ---- 红药水：原 +800 → 减半为 +400 ---- */
+  if (t === 'hp1'){
+    const v = Math.max(1, Math.round(400 * mul));
+    S.player.hp += v; S.player.maxHp += v;
+    return '获得 红药水 +' + fmtNum(v);
+  }
+  /* ---- 蓝药水：原 +2000 → 减半为 +1000 ---- */
+  if (t === 'hp2'){
+    const v = Math.max(1, Math.round(1000 * mul));
+    S.player.hp += v; S.player.maxHp += v;
+    return '获得 蓝药水 +' + fmtNum(v);
+  }
+  if (t === 'ykey'){ S.keys.ykey++; return '获得 黄钥匙'; }
+  if (t === 'bkey'){ S.keys.bkey++; return '获得 蓝钥匙'; }
+  if (t === 'rkey'){ S.keys.rkey++; return '获得 红钥匙'; }
+
+  const eq = EQUIP_DEFS[t];
+if (eq){
+  const r = pickupEquip(t);
+  renderEquipSlots();
+  const modal = document.getElementById('equipModal');
+  if (modal && modal.classList.contains('show')) renderEquipList();
+  return r.equipped ? '⚡ 自动装备：' + eq.name : '获得装备：' + eq.name;
+}
+  return '获得物品';
+}
+/* ---------- 自动拾取可自由到达的物品 ---------- */
+function updateAutoPickupBtn(){
+  const btn = document.getElementById('autoPickupBtn');
+  if (!btn) return;
+  btn.innerHTML = '🧲 自动拾取：' + (S.autoPickup
+    ? '<span style="color:#8affc0">开</span>'
+    : '<span style="color:#ff7b7b">关</span>');
+}
+
+/* ---------- 可达区域计算（自动拾取 / 零伤清扫共用） ----------
+   规则：从勇者脚下出发，只在空地（'.'）上行走；
+        墙、门阻挡；怪物挡路但记为可清扫的边界；
+        所有上下楼格均视为平地，可自由通行。 */
+function computeReachableArea(fl){
+  const W = GW, H = GH;
+  const seen = new Uint8Array(W * H);
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+  const cells = new Set();
+  const adjMonsters = new Set();
+
+  const sx = S.hero.x, sy = S.hero.y;
+  seen[sy * W + sx] = 1;
+  cells.add(sx + ',' + sy);
+
+  const queue = [{ x: sx, y: sy }];
+  for (let qi = 0; qi < queue.length; qi++){
+    const c = queue[qi];
+    for (let d = 0; d < 4; d++){
+      const nx = c.x + DIRS[d][0], ny = c.y + DIRS[d][1];
+      if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1) continue;
+      const idx = ny * W + nx;
+      if (seen[idx]) continue;
+      seen[idx] = 1;
+
+      if (fl.grid[ny][nx] !== '.') continue;   // 墙 / 门 不可通行
+
+      const key = nx + ',' + ny;
+      if (fl.monsters[key] !== undefined){     // 怪物挡路，但可被清扫
+        adjMonsters.add(key);
+        continue;
+      }
+      cells.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return { cells, adjMonsters };
+}
+
+/* footMsg：脚下拾取的消息；prefixMsg：零伤清扫等附加提示 */
+function autoPickupItems(footMsg, prefixMsg){
+  const fl = S.floors && S.floors[S.floorIdx];
+  if (!fl) return false;
+
+  const msgs = [];
+  if (prefixMsg) msgs.push(prefixMsg);
+  if (footMsg)   msgs.push(footMsg);
+
+  if (S.autoPickup){
+    const reach = computeReachableArea(fl);
+    const found = [];
+    reach.cells.forEach(k => {
+      if (fl.items[k] !== undefined) found.push(k);
+    });
+
+    for (let i = 0; i < found.length; i++){
+      const k  = found[i];
+      const ik = fl.items[k];
+      if (!ik || !ITEM_PICKABLE[ik]) continue;
+      const msg = applyItem(ik);
+      delete fl.items[k];
+      if (msg) msgs.push(msg);
+    }
+  }
+
+  if (!msgs.length) return false;
+  const brief = msgs.length <= 3 ? msgs.join(' · ') : ('拾取 ' + msgs.length + ' 件物品');
+  toast('🧲 ' + brief);
+  return true;
+}
+/* ======================= 装备掉落（爆率可调） ======================= */
+function dropEquip(m, silent){
+  const rate = (S.settings && typeof S.settings.dropRate === 'number')
+    ? S.settings.dropRate
+    : 0.6;
+
+  let n = 0;
+  if (m.kind === 'boss'){
+    for (let i = 0; i < 3; i++){
+      if (Math.random() < Math.min(1, rate * 2)) n++;
+    }
+  } else if (m.kind === 'elite'){
+    for (let i = 0; i < 2; i++){
+      if (Math.random() < Math.min(1, rate * 1.5)) n++;
+    }
+  } else {
+    if (Math.random() < Math.min(1, rate)) n = 1;
+  }
+
+  if (!n) return [];
+
+  const got = [];
+  for (let i = 0; i < n; i++){
+    const id = BASIC_IDS[Math.floor(Math.random() * BASIC_IDS.length)];
+    const r = pickupEquip(id);
+    got.push(r.equipped ? r.name + '(已装备)' : r.name);
+  }
+  if (!silent) toast('获得装备：' + got.join('、'));
+  renderEquipSlots();
+  if (document.getElementById('equipModal').classList.contains('show')) renderEquipList();
+  return got;
+}
+
+/* ---------- 自动拾取装备 ---------- */
+function updateAutoEquipBtn(){
+  const btn = document.getElementById('autoEquipBtn');
+  if (!btn) return;
+  btn.innerHTML = '🎒 自动装备：' + (S.autoEquip
+    ? '<span style="color:#8affc0">开</span>'
+    : '<span style="color:#ff7b7b">关</span>');
+}
+
+function pickupEquip(id){
+  if (!EQUIP_DEFS[id]) return { equipped: false, name: '' };
+  if (S.autoEquip){
+    const slot = S.slots.indexOf(null);
+    if (slot >= 0){
+      S.slots[slot] = id;
+      recalcHpFromEquip();
+      return { equipped: true, name: EQUIP_DEFS[id].name };
+    }
+  }
+  addEquip(id, 1);
+  return { equipped: false, name: EQUIP_DEFS[id].name };
+}
+
+/* ---------- 零伤清扫（开关式，可循环直到不再产生零伤怪） ---------- */
+function updateAutoKillBtn(){
+  const btn = document.getElementById('autoKillBtn');
+  if (!btn) return;
+  btn.innerHTML = '⚔️ 零伤清扫：' + (S.autoKillZero
+    ? '<span style="color:#8affc0">开</span>'
+    : '<span style="color:#ff7b7b">关</span>');
+}
+
+/* silent=true 时不弹提示，返回击杀数量，便于与拾取提示合并 */
+function autoKillZeroMonsters(silent){
+  if (S.over || S.win) return 0;
+  if (!S.autoKillZero)   return 0;
+  const fl = S.floors && S.floors[S.floorIdx];
+  if (!fl) return 0;
+
+  let killed = 0;
+  const allGot = [];
+  let guard = 0;
+
+  /* 循环多遍：只能打“可直达”的零伤怪；
+     击杀后通路打开，下一遍重新计算可达区域，可继续清扫 */
+  while (guard++ < 20){
+    const reach = computeReachableArea(fl);
+    const killable = [];
+    reach.adjMonsters.forEach(k => killable.push(k));
+
+    let killedThisPass = 0;
+
+    for (let i = 0; i < killable.length; i++){
+      const key  = killable[i];
+      const midx = fl.monsters[key];
+      if (midx === undefined) continue;
+
+      const m = getMonster(midx, fl.monsterTraits && fl.monsterTraits[key], fl.multiplier);
+      if (!m) continue;
+
+      const f = calcFight(m);
+      if (!f.ok || f.back !== 0) continue;
+
+      delete fl.monsters[key];
+      if (fl.monsterTraits) delete fl.monsterTraits[key];
+
+      if (m.traits.steal && !(getEquipBonus().keyGuard > 0)){
+        for (const k of ['rkey','bkey','ykey']){
+          if (S.keys[k] > 0){ S.keys[k]--; break; }
+        }
+      }
+
+      const got = dropEquip(m, true);
+      if (got && got.length) allGot.push.apply(allGot, got);
+      killed++;
+      killedThisPass++;
+    }
+
+    if (!killedThisPass) break;
+  }
+
+  if (killed > 0){
+    if (!silent){
+      let msg = '⚔️ 自动击杀 ' + killed + ' 只零伤怪物';
+      if (allGot.length) msg += '，获得 ' + allGot.join('、');
+      toast(msg);
+    }
+    renderEquipSlots();
+  }
+  return killed;
+}
+
+/* ======================= 上下楼 ======================= */
+function goUp(){
+  const next = S.floorIdx + 1;
+  if (S.floors[next] === undefined){
+    S.floors[next] = generateFloor(next);
+  }
+  S.floorIdx = next;
+  visitedFloors.add(next);
+  const nf = S.floors[next];
+  S.hero.x = nf.entry.x;
+  S.hero.y = nf.entry.y;
+  render();
+  updateHUD();
+  if (S.autoKillZero) autoKillZeroMonsters(true);
+  if (S.autoPickup)   autoPickupItems();
+  toast('进入第 ' + (next + 1) + ' 层');
+}
+
+function goDown(){
+  const prev = S.floorIdx - 1;
+  if (prev < 0) return;
+  if (S.floors[prev] === undefined){
+    S.floors[prev] = generateFloor(prev);
+  }
+  S.floorIdx = prev;
+  visitedFloors.add(prev);
+  const pf = S.floors[prev];
+  S.hero.x = pf.exit.x;
+  S.hero.y = pf.exit.y;
+  render();
+  updateHUD();
+  if (S.autoKillZero) autoKillZeroMonsters(true);
+  if (S.autoPickup)   autoPickupItems();
+  toast('回到第 ' + (prev + 1) + ' 层');
+}
+
+/* ======================= 移动 ======================= */
+function tryMove(dx, dy){
+  if (S.over || S.win) return;
+  if (!S.floors || !S.floors[S.floorIdx]) return;
+
+  const fl = S.floors[S.floorIdx];
+  const nx = S.hero.x + dx, ny = S.hero.y + dy;
+  if (!inB(nx, ny)) return;
+
+  const cell = fl.grid[ny][nx];
+  if (cell === '#') return;
+
+  const key = nx + ',' + ny;
+
+  if (cell === 'Y' || cell === 'B' || cell === 'R'){
+    const need = DOOR_KEY[cell];
+    if (S.keys[need] > 0){
+      S.keys[need]--;
+      fl.grid[ny][nx] = '.';
+      toast('使用' + ITEMS[need].name + '，' + DOOR_NAME[cell] + '开了');
+    } else {
+      toast('需要' + ITEMS[need].name);
+      return;
+    }
+  }
+
+  const midx = fl.monsters[key];
+  if (midx !== undefined){
+    const m = getMonster(midx, fl.monsterTraits && fl.monsterTraits[key], fl.multiplier);
+    const f = calcFight(m);
+
+    if (!f.ok){
+      toast(m.name + '：' + f.reason);
+      return;
+    }
+    if (f.back >= S.player.hp){
+      toast('打不过 ' + m.name + '（将损失 ' + fmtNum(f.back) + ' HP）');
+      return;
+    }
+
+    S.player.hp -= f.back;
+    delete fl.monsters[key];
+    if (fl.monsterTraits) delete fl.monsterTraits[key];
+
+    if (m.traits.steal && !(getEquipBonus().keyGuard > 0)){
+      for (const k of ['rkey','bkey','ykey']){
+        if (S.keys[k] > 0){
+          S.keys[k]--;
+          toast('🗝️ 被 ' + m.name + ' 偷走了 1 把钥匙！');
+          break;
+        }
+      }
+    }
+
+    dropEquip(m);
+  }
+
+  S.hero.x = nx;
+  S.hero.y = ny;
+
+    const ik = fl.items[key];
+  let footMsg = '';
+  if (ik){
+    footMsg = applyItem(ik);
+    delete fl.items[key];
+  }
+
+  const killedN = autoKillZeroMonsters(true);
+autoPickupItems(footMsg, killedN > 0 ? ('⚔️ 击杀 ' + killedN + ' 只零伤怪') : '');
+
+if (killedN > 0) { render(); updateHUD(); }
+
+  
+
+  // 上楼
+  if (nx === fl.exit.x && ny === fl.exit.y){
+    if (S.floorIdx === BASE_FLOORS - 1 && !S.endless){
+      S.win = true;
+      showClearOverlay();
+      render();
+      updateHUD();
+      return;
+    }
+    goUp();
+    return;
+  }
+
+  // 下楼
+  if (S.floorIdx > 0 && nx === fl.entry.x && ny === fl.entry.y){
+    goDown();
+    return;
+  }
+
+  render();
+  updateHUD();
+}
+
+/* ======================= 点击寻路 ======================= */
+function canWalkOnly(x, y){
+  const fl = S.floors[S.floorIdx];
+  if (!fl || !inB(x, y)) return false;
+  if (fl.grid[y][x] !== '.') return false;
+  const key = x + ',' + y;
+  if (fl.monsters[key] !== undefined) return false;
+  if (fl.items[key]    !== undefined) return false;
+  return true;
+}
+
+function isStairCell(x, y){
+  const fl = S.floors[S.floorIdx];
+  if (!fl) return false;
+  if (fl.exit  && fl.exit.x  === x && fl.exit.y  === y) return true;
+  if (S.floorIdx > 0 && fl.entry && fl.entry.x === x && fl.entry.y === y) return true;
+  return false;
+}
+
+function findClearPath(sx, sy, tx, ty){
+  if (sx === tx && sy === ty) return [{x: sx, y: sy}];
+  if (!canWalkOnly(tx, ty)) return null;          // ← 去掉了 isStairCell 判断
+
+  const visited = new Set([sx + ',' + sy]);
+  const prev    = {};
+  const queue   = [{x: sx, y: sy}];
+  const dirs    = [[0,-1],[0,1],[-1,0],[1,0]];
+
+  while (queue.length){
+    const cur = queue.shift();
+    for (let d = 0; d < dirs.length; d++){
+      const nx = cur.x + dirs[d][0], ny = cur.y + dirs[d][1];
+      const k  = nx + ',' + ny;
+      if (visited.has(k)) continue;
+      if (!canWalkOnly(nx, ny)) continue;
+      // ← 去掉了 isStairCell(nx, ny) 的跳过
+      visited.add(k);
+      prev[k] = cur.x + ',' + cur.y;
+      if (nx === tx && ny === ty){
+        const path = [];
+        let ck = k;
+        while (ck){
+          const parts = ck.split(',');
+          path.unshift({x: +parts[0], y: +parts[1]});
+          ck = prev[ck];
+        }
+        return path;
+      }
+      queue.push({x: nx, y: ny});
+    }
+  }
+  return null;
+}
+
+function tryClickMove(clientX, clientY){
+  if (S.over || S.win) return;
+  if (document.querySelector('.modal.show')) return;
+
+  const rect = cv.getBoundingClientRect();
+  const x = Math.floor((clientX - rect.left) / CELL);
+  const y = Math.floor((clientY - rect.top ) / CELL);
+  if (!inB(x, y)) return;
+  if (x === S.hero.x && y === S.hero.y) return;
+
+  const fl  = S.floors[S.floorIdx];
+  if (!fl) return;
+  const key = x + ',' + y;
+
+  if (fl.grid[y][x] === '#'){ toast('那里是墙'); return; }
+  if (fl.grid[y][x] === 'Y' || fl.grid[y][x] === 'B' || fl.grid[y][x] === 'R'){ toast('那里有门'); return; }
+  if (fl.monsters[key] !== undefined){ toast('那里有怪物'); return; }
+  if (fl.items[key] !== undefined){ toast('那里有物品'); return; }
+
+  const path = findClearPath(S.hero.x, S.hero.y, x, y);
+  if (!path){ toast('无法到达该位置（被障碍物挡住）'); return; }
+
+  const isExit  = fl.exit  && x === fl.exit.x  && y === fl.exit.y;
+  const isEntry = fl.entry && x === fl.entry.x && y === fl.entry.y;
+
+  // 走到上楼楼梯：触发上楼（含通关判断）
+  if (isExit){
+    S.hero.x = x; S.hero.y = y;
+    if (S.floorIdx === BASE_FLOORS - 1 && !S.endless){
+      S.win = true;
+      showClearOverlay();
+      render();
+      updateHUD();
+      return;
+    }
+    goUp();
+    return;
+  }
+
+  // 走到下楼楼梯（第 1 层没有下楼，视作平地）
+  if (isEntry && S.floorIdx > 0){
+    S.hero.x = x; S.hero.y = y;
+    goDown();
+    return;
+  }
+
+  // 普通平地 / 第 1 层入口格
+  S.hero.x = x;
+  S.hero.y = y;
+  render();
+  updateHUD();
+}
+
+cv.addEventListener('click', e => { tryClickMove(e.clientX, e.clientY); });
+
+/* ======================= 通关 / 无尽 ======================= */
+function showClearOverlay(){
+  document.getElementById('ovTitle').textContent = '通 关 !';
+  document.getElementById('ovDesc').textContent  =
+    '你已征服 200 层魔塔！可以继续挑战无尽模式。';
+  document.getElementById('endlessBtn').style.display = 'inline-block';
+  document.getElementById('overlay').classList.add('show');
+}
+
+window.enterEndless = function(){
+  S.endless = true;
+  S.win = false;
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('endlessBtn').style.display = 'none';
+  goUp();
+};
+
+window.restart = function(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('menu').classList.add('show');
+};
+
+/* ======================= 怪物手册 ======================= */
+function renderBook(){
+  const fl = S.floors[S.floorIdx];
+  if (!fl) return;
+  const ids = [...new Set(Object.values(fl.monsters))].sort((a, b) => a - b);
+  const list = document.getElementById('bookList');
+
+  if (!ids.length){
+    list.innerHTML = '<div class="book-empty">本层已无怪物</div>';
+    return;
+  }
+
+  let html = '';
+  for (let i = 0; i < ids.length; i++){
+    const id = ids[i];
+    const entryKey = Object.keys(fl.monsters).find(k => fl.monsters[k] === id);
+    const extra = entryKey && fl.monsterTraits ? fl.monsterTraits[entryKey] : null;
+    const m = getMonster(id, extra, fl.multiplier);
+    if (!m) continue;
+    const tag = m.kind === 'boss' ? 'BOSS' : (m.kind === 'elite' ? '精英' : '普通');
+    const f = calcFight(m);
+
+    let dmgTxt, dmgCls;
+    if (!f.ok){
+      dmgTxt = f.reason; dmgCls = 'danger';
+    } else {
+      dmgTxt = '损失 ' + fmtNum(f.back) + ' HP';
+      dmgCls = f.back >= S.player.hp ? 'danger' : 'ok';
+    }
+
+    const tks = Object.keys(m.traits);
+    const traitHtml = tks.map(k => {
+      const t = TRAITS[k];
+      if (!t) return '';
+      return '<span class="trait-tag ' + t.c + '" title="' + t.d + '">'
+           +   t.i + ' ' + t.n + '</span>';
+    }).join('');
+
+    html += '<div class="book-row">'
+          +   '<div class="book-emoji">' + m.emoji + '</div>'
+          +   '<div class="book-info">'
+          +     '<div class="book-name">#' + (id + 1) + ' ' + m.name
+          +       '<span class="book-tag ' + m.kind + '">' + tag + '</span>'
+          +     '</div>'
+          +     '<div class="book-stats">'
+          +       '<span class="book-hp">HP ' + fmtNum(m.hp) + '</span> · '
+          +       '<span class="book-atk">ATK ' + fmtNum(m.atk) + '</span> · '
+          +       '<span class="book-def">DEF ' + fmtNum(m.def) + '</span>'
+          +     '</div>'
+          +     (traitHtml ? '<div class="book-traits">' + traitHtml + '</div>' : '')
+          +   '</div>'
+          +   '<div class="book-dmg ' + dmgCls + '">' + dmgTxt + '</div>'
+          + '</div>';
+  }
+  list.innerHTML = html;
+}
+
+/* ======================= 楼层传送 ======================= */
+function renderTeleport(){
+  const list = document.getElementById('floorList');
+  let maxVisited = 0;
+  visitedFloors.forEach(f => { if (f > maxVisited) maxVisited = f; });
+
+  let html = '<div class="floor-grid">';
+  for (let i = 0; i <= maxVisited; i++){
+    if (!visitedFloors.has(i)) continue;
+    const current = i === S.floorIdx;
+    if (current){
+      html += '<button class="floor-btn current">' + (i + 1) + '</button>';
+    } else {
+      html += '<button class="floor-btn" data-floor="' + i + '">' + (i + 1) + '</button>';
+    }
+  }
+  html += '</div>';
+  list.innerHTML = html;
+
+  list.querySelectorAll('.floor-btn[data-floor]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      teleportTo(parseInt(btn.dataset.floor, 10));
+    });
+  });
+}
+
+function teleportTo(f){
+  if (f === S.floorIdx) return;
+  if (!visitedFloors.has(f)) return;
+  if (S.floors[f] === undefined) S.floors[f] = generateFloor(f);
+  S.floorIdx = f;
+  const nf = S.floors[f];
+  S.hero.x = nf.entry.x;
+  S.hero.y = nf.entry.y;
+  document.getElementById('teleportModal').classList.remove('show');
+  render();
+  updateHUD();
+  toast('传送至第 ' + (f + 1) + ' 层');
+}
+
+/* ======================= 工具按钮 ======================= */
+document.getElementById('bookBtn').addEventListener('click', openBook);
+document.getElementById('teleBtn').addEventListener('click', openTeleport);
+document.getElementById('equipBtn').addEventListener('click', openEquipPanel);
+document.getElementById('keybindBtn').addEventListener('click', openKeybind);
+document.getElementById('autoEquipBtn').addEventListener('click', () => {
+  S.autoEquip = !S.autoEquip;
+  updateAutoEquipBtn();
+  toast(S.autoEquip ? '自动装备：已开启' : '自动装备：已关闭');
+});
+document.getElementById('autoPickupBtn').addEventListener('click', () => {
+  S.autoPickup = !S.autoPickup;
+  updateAutoPickupBtn();
+  if (S.autoPickup){
+    const changed = autoPickupItems();
+    render();
+    updateHUD();
+    if (!changed) toast('自动拾取：已开启');
+  } else {
+    toast('自动拾取：已关闭');
+  }
+});
+
+document.getElementById('autoKillBtn').addEventListener('click', () => {
+  S.autoKillZero = !S.autoKillZero;
+  updateAutoKillBtn();
+  if (S.autoKillZero){
+    const n = autoKillZeroMonsters(false);
+    if (!n) toast('⚔️ 零伤清扫：已开启（本层暂无零伤怪物）');
+    render(); updateHUD();
+  } else {
+    toast('⚔️ 零伤清扫：已关闭');
+  }
+});
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById(btn.dataset.close).classList.remove('show');
+    if (btn.dataset.close === 'keybindModal' && capturingAction){
+      capturingAction = null;
+      renderKeybinds();
+    }
+  });
+});
+
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => {
+    if (e.target === m){
+      m.classList.remove('show');
+      if (m.id === 'keybindModal' && capturingAction){
+        capturingAction = null;
+        renderKeybinds();
+      }
+    }
+  });
+});
+
+document.getElementById('equipGrid').addEventListener('click', function(e){
+  if (!e.target.closest) return;
+  const slot = e.target.closest('.equip-slot');
+  if (!slot) return;
+  const i = +slot.dataset.slot;
+
+  if (!S.slots[i]){
+    openEquipPanel();
+    return;
+  }
+  unequipSlot(i);
+});
+
+/* 一键合成按钮 */
+(function bindCraftAll(){
+  const btn = document.getElementById('craftAllBtn');
+  if (btn) btn.addEventListener('click', craftAllEquip);
+})();
+
+/* ==================================================================
+   ★ 开始游戏 / 重置
+   ================================================================== */
+function startGame(settings){
+  S.settings = settings;
+  S.floors = [];
+  S.floorIdx = 0;
+  S.player = {hp: 3000, maxHp: 3000, atk: 20, def: 20};
+  S.keys = {ykey: 0, bkey: 0, rkey: 0};
+  S.slots = [null,null,null,null,null,null];
+  S.inv = { rusty_sword: 1 };
+  S.hpBonus = 0;
+  S.over = false;
+  S.win = false;
+  S.endless = false;
+  S.autoPickup = true;
+  S.autoEquip  = true;
+  S.autoKillZero = true;
+
+  visitedFloors.clear();
+  visitedFloors.add(0);
+
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('endlessBtn').style.display = 'none';
+  document.getElementById('monsterBook').classList.remove('show');
+  document.getElementById('teleportModal').classList.remove('show');
+  document.getElementById('keybindModal').classList.remove('show');
+  document.getElementById('equipModal').classList.remove('show');
+  capturingAction = null;
+
+  document.getElementById('menu').classList.remove('show');
+  document.getElementById('game').style.display = 'flex';
+
+  S.floors[0] = generateFloor(0);
+  S.hero = {x: S.floors[0].entry.x, y: S.floors[0].entry.y};
+
+  renderEquipSlots();
+  render();
+  updateHUD();
+  updateAutoPickupBtn();
+  updateAutoKillBtn();
+  updateAutoEquipBtn();
+  // 开局不执行自动清理 / 自动拾取，第一次成功移动后再触发
+}
+
+/* ---- 主菜单事件 ---- */
+(function setupMenu(){
+  const d  = document.getElementById('menuDensity');
+  const dv = document.getElementById('menuDensityVal');
+  const o  = document.getElementById('menuOtherRatio');
+  const ov = document.getElementById('menuOtherRatioVal');
+  const dif  = document.getElementById('menuDifficulty');
+  const difv = document.getElementById('menuDifficultyVal');
+  const dr   = document.getElementById('menuDropRate');
+  const drv  = document.getElementById('menuDropRateVal');
+
+  if (d)   d.addEventListener('input', () => { dv.textContent = d.value + '%'; });
+  if (o)   o.addEventListener('input', () => { ov.textContent = o.value + '%'; });
+  if (dif) dif.addEventListener('input', () => { difv.textContent = parseFloat(dif.value).toFixed(1) + '×'; });
+  if (dr)  dr.addEventListener('input', () => { drv.textContent = dr.value + '%'; });
+
+  const btn = document.getElementById('startGameBtn');
+  if (btn){
+    btn.addEventListener('click', () => {
+      const density    = (+document.getElementById('menuDensity').value) / 100;
+      const otherRatio = (+document.getElementById('menuOtherRatio').value) / 100;
+
+      let mult = parseFloat(document.getElementById('menuMult').value);
+      if (!isFinite(mult) || mult < 1.1) mult = 1.1;
+      if (mult > 10) mult = 10;
+
+      let difficulty = parseFloat(document.getElementById('menuDifficulty').value);
+      if (!isFinite(difficulty) || difficulty < 0.5) difficulty = 1;
+      if (difficulty > 3) difficulty = 3;
+
+      let dropRate = (+document.getElementById('menuDropRate').value) / 100;
+      if (!isFinite(dropRate) || dropRate < 0.1) dropRate = 0.6;
+      if (dropRate > 2) dropRate = 2;
+
+      startGame({ density, otherRatio, mult, difficulty, dropRate });
+    });
+  }
+})();
+
+/* ======================= 键盘输入 ======================= */
+window.addEventListener('keydown', e => {
+  if (document.getElementById('menu').classList.contains('show')) return;
+
+  if (capturingAction){
+    e.preventDefault();
+    if (e.key === 'Escape'){
+      capturingAction = null;
+      renderKeybinds();
+      return;
+    }
+    if (!e.code) return;
+    if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const oldCode = KEYBINDS[capturingAction];
+    for (const k in KEYBINDS){
+      if (k !== capturingAction && KEYBINDS[k] === e.code){
+        KEYBINDS[k] = oldCode;
+      }
+    }
+    KEYBINDS[capturingAction] = e.code;
+    capturingAction = null;
+    saveKeybinds();
+    renderKeybinds();
+    return;
+  }
+
+  const kbModal = document.getElementById('keybindModal');
+  if (kbModal.classList.contains('show')){
+    if (e.key === 'Escape') kbModal.classList.remove('show');
+    return;
+  }
+
+  const MODAL_OF = {
+    book:     'monsterBook',
+    teleport: 'teleportModal',
+    equip:    'equipModal'
+  };
+  for (const action in KEYBINDS){
+    if (e.code === KEYBINDS[action]){
+      e.preventDefault();
+      const targetId = MODAL_OF[action];
+      for (const otherId of Object.values(MODAL_OF)){
+        if (otherId === targetId) continue;
+        const other = document.getElementById(otherId);
+        if (other && other.classList.contains('show')) other.classList.remove('show');
+      }
+      const target = document.getElementById(targetId);
+      if (target.classList.contains('show')){
+        target.classList.remove('show');
+      } else {
+        if (action === 'book')          openBook();
+        else if (action === 'teleport') openTeleport();
+        else                            openEquipPanel();
+      }
+      return;
+    }
+  }
+
+  if (document.querySelector('.modal.show')){
+    if (e.key === 'Escape'){
+      document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    }
+    return;
+  }
+
+  if (S.win || S.over) return;
+
+  let dx = 0, dy = 0;
+  switch (e.key){
+    case 'ArrowUp':    case 'w': case 'W': dy = -1; break;
+    case 'ArrowDown':  case 's': case 'S': dy = 1;  break;
+    case 'ArrowLeft':  case 'a': case 'A': dx = -1; break;
+    case 'ArrowRight': case 'd': case 'D': dx = 1;  break;
+    default: return;
+  }
+  e.preventDefault();
+  tryMove(dx, dy);
+});
+
+document.querySelectorAll('.pad button[data-d]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const d = btn.dataset.d;
+    if (d === 'up')    tryMove(0, -1);
+    if (d === 'down')  tryMove(0, 1);
+    if (d === 'left')  tryMove(-1, 0);
+    if (d === 'right') tryMove(1, 0);
+  });
+});
+
+/* ======================= 图标字体就绪后重绘 ======================= */
+(function waitIconFont(){
+  const FONT_SPEC = '20px ' + ICON_FONT;
+
+  function iconsUsable(){
+    try { return !!getIconChar('ti-diamond'); } catch(e){ return false; }
+  }
+
+  function waitStylesheet(){
+    return new Promise(resolve => {
+      if (iconsUsable()) return resolve();
+      const link = document.querySelector('link[href*="tabler-icons"]');
+      if (link){
+        if (link.sheet) return resolve();
+        link.addEventListener('load',  () => resolve(), {once:true});
+        link.addEventListener('error', () => resolve(), {once:true});
+      }
+      setTimeout(resolve, 5000);
+    });
+  }
+
+  function waitFont(){
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    return document.fonts.load(FONT_SPEC)
+      .then(faces => (faces && faces.length) ? null : document.fonts.ready)
+      .catch(() => {});
+  }
+
+  function refresh(){
+    if (!iconsUsable()) return;
+    ICONS_READY = true;
+    Object.keys(ICON_CACHE).forEach(k => delete ICON_CACHE[k]);
+    render();
+  }
+
+  waitStylesheet().then(waitFont).then(refresh);
+
+  if (document.fonts && document.fonts.addEventListener){
+    document.fonts.addEventListener('loadingdone', refresh);
+  }
+})();
+
+/* 初始 HUD 占位 */
+updateHUD();
+updateAutoEquipBtn();
+updateAutoPickupBtn();
+updateAutoKillBtn();
+
+})();
+</script>
+</body>
+</html>
