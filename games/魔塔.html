@@ -62,8 +62,24 @@ canvas{
     border-radius:9px;font-size:16px;cursor:pointer;transition:.15s;
   }
   button:hover{background:#40508a}
-  .pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin-top:6px}
-  .pad button{padding:14px 0;font-size:22px}
+
+  /* ===== 地图下方：左装备栏 / 右方向键 ===== */
+  #bottomRow{
+    display:flex;gap:12px;align-items:stretch;justify-content:space-between;
+  }
+  #equipPanel{
+    flex:1 1 auto;min-width:0;
+    display:flex;flex-direction:column;
+    padding:12px 14px;
+  }
+  #equipPanel h3{margin:0 0 8px;font-size:13px}
+
+  .pad{
+    display:grid;grid-template-columns:repeat(3,54px);gap:6px;
+    justify-content:center;align-content:center;
+    margin-top:0;flex:0 0 auto;
+  }
+  .pad button{padding:11px 0;font-size:20px}
   .pad .sp{visibility:hidden}
 
   .tool-btn{
@@ -167,9 +183,14 @@ canvas{
     50%{box-shadow:0 0 0 6px rgba(138,255,192,0)}
   }
 
-  .equip-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  /* ===== 装备栏：2 行 3 列 ===== */
+  .equip-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    grid-auto-rows:1fr;gap:6px;
+    flex:1 1 auto;min-height:0;
+  }
   .equip-slot{
-    position:relative;height:64px;border:2px dashed #3a4360;border-radius:10px;
+    position:relative;min-height:46px;border:2px dashed #3a4360;border-radius:10px;
     background:#1b2135;display:flex;align-items:center;justify-content:center;
     cursor:pointer;transition:.15s;user-select:none;overflow:hidden;
   }
@@ -184,12 +205,12 @@ canvas{
     box-shadow:0 0 0 3px rgba(138,255,192,.25);
   }
   .equip-slot.dragging{opacity:.35}
-  .eq-emoji{font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+  .eq-emoji{font-size:26px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
   .eq-tier{position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%}
   .eq-tier.basic{background:#8e98bd}
   .eq-tier.mid{background:#c6a0ff;box-shadow:0 0 6px #c6a0ff}
   .eq-tier.high{background:#ffb454;box-shadow:0 0 8px #ffb454}
-  .eq-empty{font-size:26px;color:#3a4360;font-weight:300;transition:.15s}
+  .eq-empty{font-size:24px;color:#3a4360;font-weight:300;transition:.15s}
   .equip-slot:not(.filled):hover .eq-empty{color:#6c7fc4}
   .eq-slot-hint{
     position:absolute;bottom:3px;left:0;right:0;text-align:center;
@@ -263,12 +284,17 @@ canvas{
   }
   .start-btn:hover{filter:brightness(1.15)}
   .menu-box .tips{margin:18px 0 0;font-size:11px;color:#5b6585;line-height:1.8}
+
   @media (max-width: 520px){
   body{padding:8px}
   #game{gap:12px}
   .menu-row{flex-wrap:wrap}
   .menu-row label{width:100%}
   .menu-row b{width:auto}
+  /* 窄屏：装备栏与方向键上下排列 */
+  #bottomRow{flex-wrap:wrap}
+  #equipPanel{flex:1 1 100%}
+  .pad{flex:1 1 100%;grid-template-columns:repeat(3,60px)}
 }
 </style>
 </head>
@@ -321,14 +347,17 @@ canvas{
   <div id="leftCol">
     <canvas id="cv"></canvas>
 
-    <div class="panel">
-      <h3>装 备 栏 <span style="font-size:11px;letter-spacing:0;color:#5b6585;font-weight:400">（点空位开背包）</span></h3>
-      <div id="equipGrid" class="equip-grid"></div>
-    </div>
+    <!-- 地图下方：左=装备栏(2行3列) 右=方向键 -->
+    <div id="bottomRow">
+      <div class="panel" id="equipPanel">
+        <h3>装 备 栏 <span style="font-size:11px;letter-spacing:0;color:#5b6585;font-weight:400">（点空位开背包）</span></h3>
+        <div id="equipGrid" class="equip-grid"></div>
+      </div>
 
-    <div class="pad">
-      <button class="sp"></button><button data-d="up">↑</button><button class="sp"></button>
-      <button data-d="left">←</button><button data-d="down">↓</button><button data-d="right">→</button>
+      <div class="pad">
+        <button class="sp"></button><button data-d="up">↑</button><button class="sp"></button>
+        <button data-d="left">←</button><button data-d="down">↓</button><button data-d="right">→</button>
+      </div>
     </div>
   </div>
 
@@ -2135,7 +2164,7 @@ function updateHUD(){
   document.getElementById('hudRk').textContent = S.keys.rkey;
 }
 
-/* ======================= 装备栏渲染 ======================= */
+/* ======================= 装备栏渲染（2 行 3 列） ======================= */
 function renderEquipSlots(){
   const grid = document.getElementById('equipGrid');
   if (!grid) return;
