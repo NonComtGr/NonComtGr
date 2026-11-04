@@ -18,6 +18,7 @@
   header p{margin:4px 0 0;font-size:12px;color:#7c86ad}
 
   .main{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+  .left-col{display:flex;flex-direction:column;gap:14px;flex:0 0 auto;min-width:0}
   .side{width:340px;display:flex;flex-direction:column;gap:12px;flex:1 1 320px}
 
   .panel{background:#212840;border:1px solid #3a4360;border-radius:10px;padding:12px 14px}
@@ -260,9 +261,11 @@
   </header>
 
   <div class="main">
-    <div class="panel">
-      <h3>地 图</h3>
-      <div id="grid"></div>
+    <div class="left-col">
+
+      <div class="panel">
+        <h3>地 图</h3>
+        <div id="grid"></div>
       <div class="legend">
         <span>🧱 墙</span><span>⬜ 地面</span>
         <span><i class="ti ti-door" style="color:#e8c14a"></i>黄门</span>
@@ -271,6 +274,19 @@
         <span>⬇️ 下楼</span><span>⬆️ 上楼</span>
         <span class="coord" id="coord">(-, -)</span>
       </div>
+    </div>
+    <div class="panel">
+        <h3>生 成 的 代 码 <button id="copyBtn" class="mini">复制</button></h3>
+        <div id="warn" class="warn"></div>
+        <pre id="code"></pre>
+      </div>
+
+      <!-- ★ 本层信息：已移到代码面板下方 -->
+      <div class="panel">
+        <h3>本 层 信 息</h3>
+        <div id="info"></div>
+      </div>
+
     </div>
 
     <div class="side">
@@ -346,6 +362,7 @@
           <div class="dual-thumb" id="monsterThumbMax"></div>
         </div>
         <div class="dual-hint">拖动两端手柄 · 一键生成只会使用该区间内的怪物（含端点）</div>
+        <div class="dual-hint" id="weakPathHint" style="text-align:left;color:#8affc0"></div>
       </div>
 
       <div class="panel">
@@ -368,19 +385,10 @@
         <div id="equipPick"></div>
       </div>
 
-      <div class="panel">
-        <h3>本 层 信 息</h3>
-        <div id="info"></div>
-      </div>
-
     </div>
   </div>
 
-  <div class="panel">
-    <h3>生 成 的 代 码 <button id="copyBtn" class="mini">复制</button></h3>
-    <div id="warn" class="warn"></div>
-    <pre id="code"></pre>
-  </div>
+  
 
 </div>
 
@@ -640,12 +648,31 @@ const MONSTER_DEFS = [];
     ['BOSS·苍穹鹰皇','🦅',    2490000, 1815, 676],
     ['BOSS·混沌龙帝','🐲',    2908000, 1951, 722]
   ];
-  bosses.forEach(([name, emoji, hp, atk, def]) => {
+    bosses.forEach(([name, emoji, hp, atk, def]) => {
     MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'boss' });
   });
 })();
 
-const MONSTER_LAST = MONSTER_DEFS.length - 1;   // 199
+/* ★ 怪物编号上界（含）：0 ~ 199 */
+const MONSTER_LAST = MONSTER_DEFS.length - 1;
+
+/* ==================================================================
+   ★ 弱怪区间：当前「怪物区间」的前 20%（含端点，至少 1 只）
+     例：
+       区间 #0 ~ #199  →  #0 ~ #39
+       区间 #100 ~ #149 →  #100 ~ #109
+   ================================================================== */
+function getWeakMonsterRange(){
+  const a = Math.max(0, Math.min(MONSTER_LAST, E.mRange.min));
+  const b = Math.max(0, Math.min(MONSTER_LAST, E.mRange.max));
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+
+  const total = hi - lo + 1;                       // 区间内怪物数量
+  const k = Math.max(1, Math.ceil(total * 0.2));   // 前 20%，至少 1 只
+
+  return { lo, hi: Math.min(hi, lo + k - 1) };
+}
 
 /* ---- 物品定义 ---- */
 const ITEMS = {
@@ -1403,6 +1430,14 @@ function drawRange(){
               '  ~  #' + E.mRange.max + ' ' + (mh.name || '');
   rngLabel.textContent = txt;
   rngLabel.title = txt;
+    /* ★ 路径弱怪提示：跟着怪物区间一起变 */
+  const weakHintEl = document.getElementById('weakPathHint');
+  if (weakHintEl){
+    const { lo, hi } = getWeakMonsterRange();
+    weakHintEl.textContent =
+      '⚠ 上下楼最短路径上的怪将被强制替换为 #' + lo + ' ~ #' + hi +
+      '（所选区间前 20%）';
+  }
 }
 
 let rngActive = false, rngWhich = null, rngDownX = 0;
@@ -1991,7 +2026,130 @@ for (let i = 0; i < actualM && ptr < M; i++){
 
   return { monsters, items };
 }
+/* ==================================================================
+   ★ 修正：上下楼最短路径上的怪物必须是编号前 20% 的弱怪
+   ------------------------------------------------------------------
+   · 可通行判定：非 '#' 即可（门 Y/B/R 视为可通行）
+   · 只替换路径上「本来就有怪」的格子，不额外补怪
+   · 已经是弱怪（编号 ≤ WEAK_MONSTER_MAX）的保持不动
+   ================================================================== */
+function bfsShortestPath(grid, from, to){
+  if (!from || !to) return [];
+  if (grid[from.y] === undefined || grid[to.y] === undefined) return [];
+  if (grid[from.y][from.x] === '#' || grid[to.y][to.x] === '#') return [];
 
+  const W = GW, H = GH;
+  const prev = new Int32Array(W * H).fill(-1);
+  const seen = new Uint8Array(W * H);
+
+  const s = from.y * W + from.x;
+  const t = to.y * W + to.x;
+  const queue = [s];
+  seen[s] = 1;
+
+  const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+  let found = false;
+
+  for (let qi = 0; qi < queue.length; qi++){
+    const cur = queue[qi];
+    if (cur === t){ found = true; break; }
+
+    const cx = cur % W, cy = (cur - cx) / W;
+    for (let d = 0; d < 4; d++){
+      const nx = cx + DIRS[d][0], ny = cy + DIRS[d][1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (grid[ny][nx] === '#') continue;
+
+      const nk = ny * W + nx;
+      if (seen[nk]) continue;
+
+      seen[nk] = 1;
+      prev[nk] = cur;
+      queue.push(nk);
+    }
+  }
+
+  if (!found) return [];
+
+  const path = [];
+  let c = t;
+  while (c !== -1){
+    const x = c % W, y = (c - x) / W;
+    path.push({ x, y });
+    if (c === s) break;
+    c = prev[c];
+  }
+  path.reverse();
+  return path;
+}
+
+function weakenMonstersOnPath(floor){
+  if (!floor || !floor.grid || !floor.entry || !floor.exit) return 0;
+
+  const path = bfsShortestPath(floor.grid, floor.entry, floor.exit);
+  if (!path.length) return 0;
+
+  /* ★ 关键：弱怪区间取自当前所选怪物区间的前 20%，而非写死 #0 ~ #39 */
+  const { lo, hi } = getWeakMonsterRange();
+
+  let changed = 0;
+  for (const p of path){
+    const key = p.x + ',' + p.y;
+    if (floor.monsters[key] === undefined) continue;
+
+    const cur = floor.monsters[key];
+    if (cur >= lo && cur <= hi) continue;     // 已在弱怪区间内，保持不动
+
+    floor.monsters[key] = randInt(lo, hi);    // 换成所选区间的前 20%
+    changed++;
+  }
+  return changed;
+}
+/* ==================================================================
+   ★ 修正：死胡同的终点必须放物品
+   ------------------------------------------------------------------
+   · 死胡同判定：四邻中只有 1 个可通行格（非 '#'；门 Y/B/R 算可通行）
+   · 死胡同终点若是空地 → 放一件物品
+   · 死胡同终点若是怪物 → 移除怪物，改放一件物品
+   · entry / exit 位置跳过（楼梯位于尽头是正常设计）
+   · 已经有物品的格子保持不动
+   ================================================================== */
+function countPassableNeighbors(grid, x, y){
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+  let n = 0;
+  for (const [dx, dy] of DIRS){
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+    if (grid[ny][nx] !== '#') n++;
+  }
+  return n;
+}
+
+function fillDeadEnds(floor, floorIdx){
+  if (!floor || !floor.grid) return 0;
+  const { grid, monsters, items, entry, exit } = floor;
+  let filled = 0;
+
+  for (let y = 1; y < GH - 1; y++){
+    for (let x = 1; x < GW - 1; x++){
+      if (grid[y][x] !== '.') continue;                  // 只看普通地面
+      if (entry && entry.x === x && entry.y === y) continue;
+      if (exit  && exit.x  === x && exit.y  === y) continue;
+      if (countPassableNeighbors(grid, x, y) !== 1) continue; // 非死胡同尽头
+
+      const key = x + ',' + y;
+      const hasMonster = monsters[key] !== undefined;
+      const hasItem    = items[key]    !== undefined;
+
+      if (hasItem) continue;                             // 已有物品，保持不动
+
+      if (hasMonster) delete monsters[key];              // 怪物 → 物品
+      items[key] = pickItemType(floorIdx);
+      filled++;
+    }
+  }
+  return filled;
+}
 function generateOneFloor(floorIdx, prevExit){
   const g = genMazeTerrain();
 
@@ -2013,15 +2171,22 @@ function generateOneFloor(floorIdx, prevExit){
   const densityIn = document.getElementById('densityIn');
   const density = densityIn ? (parseInt(densityIn.value, 10) / 100) : 0.3;
 
-  const { monsters, items } = populateFloor(g, entry, exit, floorIdx, density);
+    const { monsters, items } = populateFloor(g, entry, exit, floorIdx, density);
 
-  return {
+  const floor = {
     grid: g,
     entry: { x: entry.x, y: entry.y },
     exit : { x: exit.x,  y: exit.y  },
     monsters,
     items
   };
+
+  /* ★ 修正：把 entry → exit 最短路径上的怪全部换成编号前 20% 的弱怪 */
+  weakenMonstersOnPath(floor);
+   /* ★ 新增修正：死胡同的终点必须放物品（不能为空，也不能是怪物） */
+  fillDeadEnds(floor, floorIdx);
+
+  return floor;
 }
 
 function generateCurrentFloor(){
