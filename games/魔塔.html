@@ -1002,6 +1002,8 @@ document.addEventListener('touchstart', hideEquipTip, { passive: true });
    怪物表：共 200 个（125 普通 / 50 精英 / 25 BOSS）
    ================================================================== */
 const MONSTER_DEFS = [];
+const ELITE_MULT = 10;
+const BOSS_MULT  = 100;
 
 (function buildMonsters(){
   const base = [
@@ -1202,7 +1204,13 @@ const MONSTER_DEFS = [];
     ['精英·鲨鱼王','🦈',     866400, 1107, 485]
   ];
   elites.forEach(([name, emoji, hp, atk, def]) => {
-    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'elite' });
+    MONSTER_DEFS.push({
+      name, emoji,
+      hp : hp  * ELITE_MULT,
+      atk: atk * ELITE_MULT,
+      def: def * ELITE_MULT,
+      kind: 'elite'
+    });
   });
 
   const bosses = [
@@ -1233,7 +1241,13 @@ const MONSTER_DEFS = [];
     ['BOSS·混沌龙帝','🐲',    2908000, 1951, 722]
   ];
   bosses.forEach(([name, emoji, hp, atk, def]) => {
-    MONSTER_DEFS.push({ name, emoji, hp, atk, def, kind: 'boss' });
+    MONSTER_DEFS.push({
+      name, emoji,
+      hp : hp  * BOSS_MULT,
+      atk: atk * BOSS_MULT,
+      def: def * BOSS_MULT,
+      kind: 'boss'
+    });
   });
 })();
 
