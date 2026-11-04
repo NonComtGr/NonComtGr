@@ -8,19 +8,32 @@
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{
-    margin:0;min-height:100vh;
-    background:radial-gradient(circle at 50% 0%,#232a42,#131724 70%);
-    color:#e6e8f2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-    display:flex;justify-content:center;align-items:center;padding:20px;
-  }
-  #game{display:none;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+  margin:0;min-height:100vh;
+  background:radial-gradient(circle at 50% 0%,#232a42,#131724 70%);
+  color:#e6e8f2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;justify-content:center;align-items:flex-start;
+  padding:12px;overflow-x:hidden;
+}
+#game{
+  display:none;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;
+  width:100%;max-width:980px;margin:0 auto;
+}
   #leftCol{
   display:flex;flex-direction:column;gap:14px;
-  flex-shrink:0;
+  flex:1 1 380px;min-width:0;
+  /* 同时受宽度(624)和高度约束，矮屏自动缩小 */
+  max-width:min(624px, max(300px, calc(100vh - 320px)));
 }
-  canvas{background:#1b2135;border:2px solid #3a4360;border-radius:12px;display:block;
-         box-shadow:0 16px 50px rgba(0,0,0,.65)}
-  #side{width:310px;display:flex;flex-direction:column;gap:14px}
+canvas{
+  background:#1b2135;border:2px solid #3a4360;border-radius:12px;display:block;
+  width:100%;height:auto;margin:0 auto;
+  box-shadow:0 16px 50px rgba(0,0,0,.65);
+  touch-action:manipulation;cursor:pointer;
+}
+#side{
+  flex:0 1 310px;min-width:0;max-width:100%;
+  display:flex;flex-direction:column;gap:14px;
+}
   .panel{background:#212840;border:1px solid #3a4360;border-radius:12px;padding:14px 16px}
   .panel h3{margin:0 0 10px;font-size:15px;letter-spacing:2px;color:#8e98bd;font-weight:600}
   .stat{display:flex;justify-content:space-between;font-size:17px;padding:5px 0}
@@ -250,6 +263,13 @@
   }
   .start-btn:hover{filter:brightness(1.15)}
   .menu-box .tips{margin:18px 0 0;font-size:11px;color:#5b6585;line-height:1.8}
+  @media (max-width: 520px){
+  body{padding:8px}
+  #game{gap:12px}
+  .menu-row{flex-wrap:wrap}
+  .menu-row label{width:100%}
+  .menu-row b{width:auto}
+}
 </style>
 </head>
 <body>
@@ -1936,8 +1956,11 @@ function calcFight(m){
 /* ======================= Canvas ======================= */
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
-cv.width  = GW * CELL;
-cv.height = GH * CELL;
+
+const DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+cv.width  = GW * CELL * DPR;
+cv.height = GH * CELL * DPR;
+ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
 function drawStair(x, y, up){
   const px = x * CELL, py = y * CELL, s = CELL;
@@ -1990,7 +2013,7 @@ function render(){
   const fl = S.floors[S.floorIdx];
   const g = fl.grid;
 
-  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.clearRect(0, 0, GW * CELL, GH * CELL);
 
   for (let y = 0; y < GH; y++){
     for (let x = 0; x < GW; x++){
@@ -2770,8 +2793,8 @@ function tryClickMove(clientX, clientY){
   if (document.querySelector('.modal.show')) return;
 
   const rect = cv.getBoundingClientRect();
-  const x = Math.floor((clientX - rect.left) / CELL);
-  const y = Math.floor((clientY - rect.top ) / CELL);
+  const x = Math.floor((clientX - rect.left) / rect.width  * GW);
+  const y = Math.floor((clientY - rect.top ) / rect.height * GH);
   if (!inB(x, y)) return;
   if (x === S.hero.x && y === S.hero.y) return;
 
