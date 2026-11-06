@@ -39,12 +39,22 @@
         .tower-tip tr.cur td { color: #ffe9a8; }
         .tower-tip .tt-note { margin-top: 6px; padding-top: 5px; border-top: 1px solid #2e4a6e; font-size: 11px; color: #7a9ac0; text-align: center; }
         .tower-tip .rogue-note { white-space: normal; word-break: break-word; max-width: 100%; line-height: 1.55; text-align: center; }
+                .save-bar { display: flex; justify-content: center; align-items: center; gap: 0.6rem; margin-top: 0.6rem; min-height: 1.9rem; flex-wrap: wrap; }
+        .save-info { color: #6f8fb5; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+        #saveBtn { background: #1a3a2a; color: #7dffb0; box-shadow: inset 0 -2px 0 #2a6a4a; }
+        #loadBtn { background: #2a2a1a; color: #ffe066; box-shadow: inset 0 -2px 0 #6a5a2a; }
+        #loadBtn.disabled { background: #262a30; color: #6a7a88; box-shadow: inset 0 -2px 0 #414850; cursor: not-allowed; }
     </style>
 </head>
 <body>
 <div class="game-wrapper">
     <h1 id="gameTitle" class="hidden">⚡ 防御阵型 · 觉醒 ⚡</h1>
     <canvas id="gameCanvas" width="1480" height="1000"></canvas>
+        <div class="save-bar">
+        <button class="action" id="saveBtn">💾 存档</button>
+        <button class="action" id="loadBtn">📂 读档</button>
+        <span class="save-info" id="saveInfo">（无存档）</span>
+    </div>
     <div class="hud hidden" id="hud">
         <div class="stats">
             💰 <span id="moneyDisplay">200</span>
@@ -596,6 +606,414 @@ function rollSynergyCount() {
 
         let endlessUnlocked = false;
         let MODE_KEYS_ACTIVE = MODE_KEYS.slice();
+                // ============================================================
+        // 存档系统
+        // ============================================================
+        const SAVE_KEY = 'defense_formation_save_v1';
+
+        function captureGameState() {
+            const towerIdx = new Map();
+            for (let i = 0; i < towers.length; i++) towerIdx.set(towers[i], i);
+
+            return {
+                v: 1,
+                ts: Date.now(),
+                levelIndex, currentModeKey, routeReverse, rogueEnabled,
+                selectedAscension,
+                zoom, cellPx: CELL, offX: mapOffX, offY: mapOffY,
+                money, waveIndex, totalWaves,
+                playTime, gameClock, nextWaveAt, waveIntervalNext,
+                waveCountdownStarted, speedMultiplier, paused,
+                lostCores, totalCores, globalAutoUpgrade,
+                battleStats: battleStats ? { ...battleStats } : null,
+                bases: bases.map(b => ({ c: b.c, r: b.r, cores: b.cores })),
+                mudPits: mudPits.map(p => ({ c: p.c, r: p.r })),
+                savedMudPits: savedInitialMudPits ? savedInitialMudPits.map(p => ({ c: p.c, r: p.r })) : null,
+                towers: towers.map(t => ({
+                    col: t.col, row: t.row, type: t.type, level: t.level,
+                    cooldown: t.cooldown || 0, invested: t.invested || 0,
+                    angle: Number.isFinite(t.angle) ? t.angle : -Math.PI / 2,
+                    kills: t.kills || 0, damageDealt: t.damageDealt || 0,
+                    autoUpgrade: !!t.autoUpgrade, ammo: t.ammo == null ? 50 : t.ammo,
+                    isReloading: !!t.isReloading,
+                    heat: t.heat || 0, overheatTimer: t.overheatTimer || 0,
+                    slowTimer: t.slowTimer || 0, silenceTimer: t.silenceTimer || 0,
+                    jamResist: t.jamResist || 0
+                })),
+                enemies: enemies.map(e => ({
+                    type: e.type, waveId: e.waveId,
+                    x: e.x, y: e.y, cellC: e.cellC, cellR: e.cellR,
+                    nextC: e.nextC, nextR: e.nextR,
+                    dirC: e.dirC || 0, dirR: e.dirR || 0,
+                    nextDirC: e.nextDirC || 0, nextDirR: e.nextDirR || 0,
+                    state: e.state, carrying: e.carrying, steal: e.steal,
+                    hp: e.hp, maxHp: e.maxHp,
+                    shield: e.shield || 0, maxShield: e.maxShield || 0,
+                    speed: e.speed, reward: e.reward || 0,
+                    slowTimer: e.slowTimer || 0, slowFactor: e.slowFactor || 1,
+                    burnTimer: e.burnTimer || 0, burnDps: e.burnDps || 0,
+                    burnTowerIdx: e.burnTower ? (towerIdx.get(e.burnTower) ?? -1) : -1,
+                    poison: (e.poison || []).map(p => ({ dps: p.dps, timer: p.timer })),
+                    stunTimer: e.stunTimer || 0, healCd: e.healCd == null ? 2.0 : e.healCd,
+                    charmed: !!e.charmed, isElite: !!e.isElite,
+                    summonTimer: e.summonTimer || 0, summonCd: e.summonCd || 0,
+                    summonType: e.summonType || null,
+                    lastHitByIdx: e.lastHitBy ? (towerIdx.get(e.lastHitBy) ?? -1) : -1
+                })),
+                pendingBuilds: pendingBuilds.map(o => ({ col: o.col, row: o.row, type: o.type })),
+                looseCores: looseCores.map(c => ({
+                    x: c.x, y: c.y, cellC: c.cellC, cellR: c.cellR,
+                    nextC: c.nextC, nextR: c.nextR,
+                    dirC: c.dirC || 0, dirR: c.dirR || 0,
+                    nextDirC: c.nextDirC || 0, nextDirR: c.nextDirR || 0,
+                    delay: c.delay || 0, phase: c.phase || 0
+                })),
+                waveRuntime: waveRuntime.map(rt => ({
+                    id: rt.id, startAt: rt.startAt, total: rt.total, alive: rt.alive,
+                    spawnGap: rt.spawnGap, cleared: rt.cleared, reward: rt.reward,
+                    draftGiven: !!rt.draftGiven,
+                    queue: rt.queue.map(q => ({ ...q }))
+                })),
+                rogue: rogueState ? {
+                    affixIds: rogueState.affixes.map(a => a.id),
+                    upgradeIds: rogueState.upgrades.map(u => u.id),
+                    synergyIds: (rogueState.synergies || []).map(x => x.id),
+                    bonus: { ...rogueState.bonus },
+                    moneyBonus: rogueState.moneyBonus,
+                    moneyPicks: rogueState.moneyPicks,
+                    enemyMods: {
+                        hpMul: rogueState.enemyMods.hpMul,
+                        speedMul: rogueState.enemyMods.speedMul,
+                        stunStacks: rogueState.enemyMods.stunStacks,
+                        stunMul: rogueState.enemyMods.stunMul,
+                        dodgeStacks: rogueState.enemyMods.dodgeStacks,
+                        dodge: rogueState.enemyMods.dodge,
+                        coreLock: rogueState.enemyMods.coreLock,
+                        coreLockStacks: rogueState.enemyMods.coreLockStacks,
+                        coreDelay: rogueState.enemyMods.coreDelay,
+                        coreDelayStacks: rogueState.enemyMods.coreDelayStacks,
+                        picks: rogueState.enemyMods.picks.slice()
+                    }
+                } : null
+            };
+        }
+
+        function applySavedState(s) {
+            if (!s || s.v !== 1 || !LEVELS[s.levelIndex]) return false;
+
+            closeBuildMenu(); closeTowerMenu(); hideTip();
+            gameResult = null; resultBtnHover = false; endlessBtnHover = false;
+            selectedTower = null; selectedEnemy = null; hideSellButton();
+            draftPanel = null; draftQueue = []; pendingAutoEnemyBoost = false;
+
+            levelIndex = s.levelIndex;
+            currentModeKey = s.currentModeKey || 'story';
+            routeReverse = !!s.routeReverse;
+            rogueEnabled = !!s.rogueEnabled;
+            selectedAscension = Math.max(0, Math.min(20, s.selectedAscension | 0));
+
+            const mode = MODES[currentModeKey] || MODES.story;
+            const lv = LEVELS[levelIndex];
+            currentLevel = lv;
+
+            zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, s.zoom || 1));
+            computeLayoutForMap(mapRowCount(lv.map), mapColCount(lv.map));
+
+            ascGameCollapsed = false; affixCollapsed = false;
+            towerUpCollapsed = false; enemyModCollapsed = false;
+
+            // ── 地图网格重建 ──
+            wallGrid = []; buildableWall = []; noBuildGrid = []; straightGrid = [];
+            for (let r = 0; r < ROWS; r++) {
+                wallGrid.push(new Array(COLS).fill(false));
+                buildableWall.push(new Array(COLS).fill(false));
+                noBuildGrid.push(new Array(COLS).fill(false));
+                straightGrid.push(new Array(COLS).fill(false));
+            }
+            starts = []; exits = []; bases = [];
+            const hasExitTile = lv.map.some(row => row.indexOf('E') !== -1);
+            for (let r = 0; r < ROWS; r++) {
+                const rowStr = lv.map[r] || '';
+                for (let c = 0; c < COLS; c++) {
+                    const ch = rowStr[c];
+                    if (ch === '#') wallGrid[r][c] = true;
+                    else if (ch === 'X') { wallGrid[r][c] = true; buildableWall[r][c] = true; }
+                    else if (ch === '.') noBuildGrid[r][c] = true;
+                    else if (ch === '+') { straightGrid[r][c] = true; noBuildGrid[r][c] = true; }
+                    else if (ch === 'S') { starts.push({ c, r }); if (!hasExitTile) exits.push({ c, r }); }
+                    else if (ch === 'E') exits.push({ c, r });
+                    else if (ch === 'C') bases.push({ c, r, cores: 0 });
+                }
+            }
+            if (routeReverse && hasExitTile) { const tmp = starts; starts = exits; exits = tmp; }
+
+            if (Array.isArray(s.bases)) {
+                for (const sb of s.bases) {
+                    const b = bases.find(bb => bb.c === sb.c && bb.r === sb.r);
+                    if (b) b.cores = Math.max(0, sb.cores | 0);
+                }
+            }
+            totalCores = s.totalCores || 0;
+            lostCores = s.lostCores || 0;
+
+            ascensionState = buildAscensionState();
+            mudPits = (s.mudPits || []).map(p => ({ c: p.c, r: p.r }));
+            savedInitialMudPits = s.savedMudPits
+                ? s.savedMudPits.map(p => ({ c: p.c, r: p.r }))
+                : null;
+
+            // ── Roguelike 状态重建 ──
+            rogueState = null;
+            if (rogueEnabled && s.rogue) {
+                const affixMap = new Map(ROGUE_AFFIXES.map(a => [a.id, a]));
+                const upMap = new Map(ROGUE_UPGRADES.map(u => [u.id, u]));
+                const synMap = new Map(ROGUE_SYNERGIES.map(x => [x.id, x]));
+                const b = s.rogue.bonus || {};
+                const em = s.rogue.enemyMods || {};
+                rogueState = {
+                    affixes: (s.rogue.affixIds || []).map(id => affixMap.get(id)).filter(Boolean),
+                    synergies: (s.rogue.synergyIds || []).map(id => synMap.get(id)).filter(Boolean),
+                    upgrades: (s.rogue.upgradeIds || []).map(id => upMap.get(id)).filter(Boolean),
+                    bonus: {
+                        dmg: b.dmg ?? 1, rate: b.rate ?? 1, range: b.range ?? 1,
+                        priceMul: b.priceMul ?? 1,
+                        critStacks: b.critStacks || 0, doubleShotStacks: b.doubleShotStacks || 0,
+                        critChance: b.critChance || 0, critDmgMul: b.critDmgMul ?? 2,
+                        enemySlow: b.enemySlow ?? 1, killBonus: b.killBonus || 0,
+                        rewardMul: b.rewardMul ?? 1, revealRange: b.revealRange ?? 1,
+                        sellMul: b.sellMul ?? 0.5,
+                        ignoreShield: !!b.ignoreShield,
+                        doubleShotChance: b.doubleShotChance || 0,
+                        poisonBoost: !!b.poisonBoost,
+                        currentHpDamage: b.currentHpDamage || 0,
+                        charmStacks: b.charmStacks || 0, charmChance: b.charmChance || 0,
+                        coreReturnSpeed: b.coreReturnSpeed ?? 1,
+                        jammerRangeMul: b.jammerRangeMul ?? 1,
+                        jamResist: b.jamResist || 0,
+                        synergyScale: b.synergyScale ?? 1.0
+                    },
+                    moneyBonus: s.rogue.moneyBonus || 0,
+                    moneyPicks: s.rogue.moneyPicks || 0,
+                    enemyMods: {
+                        hpMul: em.hpMul ?? 1, speedMul: em.speedMul ?? 1,
+                        stunStacks: em.stunStacks || 0, stunMul: em.stunMul ?? 1,
+                        dodgeStacks: em.dodgeStacks || 0, dodge: em.dodge || 0,
+                        coreLock: !!em.coreLock, coreLockStacks: em.coreLockStacks || 0,
+                        coreDelay: !!em.coreDelay, coreDelayStacks: em.coreDelayStacks || 0,
+                        picks: Array.isArray(em.picks) ? em.picks.slice() : []
+                    },
+                    _pendingFreeUp: false, _pendingCoreRepair: false,
+                    _pendingKillAll: false, _pendingStunAll: false
+                };
+            }
+
+            // ── 波次重建（算法确定性一致）──
+            waves = generateWaves(levelDifficulty(lv), currentModeKey, mode.hpMul, levelIndex);
+            totalWaves = waves.length;
+            if (rogueState) {
+                for (const affix of rogueState.affixes) {
+                    const m = affix.mod || {};
+                    if (m.hpMul) {
+                        for (const w of waves) for (const g of w.groups)
+                            g.hp = Math.max(8, Math.round(g.hp * m.hpMul));
+                    }
+                    if (m.airHpMul || m.groundHpMul) {
+                        for (const w of waves) for (const g of w.groups) {
+                            const isAir = ENEMY_TYPES[g.type] && ENEMY_TYPES[g.type].air;
+                            const mul = isAir ? (m.airHpMul || 1) : (m.groundHpMul || 1);
+                            g.hp = Math.max(8, Math.round(g.hp * mul));
+                        }
+                    }
+                    if (m.enemySpeedMul) {
+                        for (const w of waves) for (const g of w.groups) g.speed *= m.enemySpeedMul;
+                    }
+                }
+            }
+
+            // ── 坐标映射（兼容不同分辨率 / 缩放）──
+            const k = (s.cellPx && s.cellPx > 0) ? CELL / s.cellPx : 1;
+            const ox0 = mapOffX - (s.offX || 0) * k;
+            const oy0 = mapOffY - (s.offY || 0) * k;
+            const mapX = (x) => ox0 + x * k;
+            const mapY = (y) => oy0 + y * k;
+
+            // ── 塔 ──
+            towers = (s.towers || []).filter(td => TOWER_TYPES[td.type]).map(td => ({
+                col: td.col, row: td.row, type: td.type,
+                level: Math.max(1, Math.min(MAX_LEVEL, td.level | 0)),
+                cooldown: td.cooldown || 0, invested: td.invested || 0,
+                beamOn: false, beamTarget: null, beamTargets: null,
+                angle: Number.isFinite(td.angle) ? td.angle : -Math.PI / 2,
+                kills: td.kills || 0, damageDealt: td.damageDealt || 0,
+                autoUpgrade: !!td.autoUpgrade,
+                ammo: td.ammo == null ? 50 : td.ammo,
+                isReloading: !!td.isReloading,
+                heat: td.heat || 0, overheatTimer: td.overheatTimer || 0,
+                slowTimer: td.slowTimer || 0, silenceTimer: td.silenceTimer || 0,
+                jamResist: td.jamResist || 0
+            }));
+            const towerAt = (i) => (i >= 0 && i < towers.length) ? towers[i] : null;
+
+            // ── 敌人 ──
+            enemies = (s.enemies || []).filter(ed => ENEMY_TYPES[ed.type]).map(ed => ({
+                type: ed.type, waveId: ed.waveId | 0,
+                x: mapX(ed.x), y: mapY(ed.y),
+                cellC: ed.cellC, cellR: ed.cellR,
+                nextC: ed.nextC, nextR: ed.nextR,
+                dirC: ed.dirC || 0, dirR: ed.dirR || 0,
+                nextDirC: ed.nextDirC || 0, nextDirR: ed.nextDirR || 0,
+                state: ed.state || 'toBase',
+                carrying: ed.carrying || 0, steal: ed.steal || 1,
+                hp: ed.hp, maxHp: ed.maxHp,
+                shield: ed.shield || 0, maxShield: ed.maxShield || 0,
+                speed: ed.speed, reward: ed.reward || 0,
+                slowTimer: ed.slowTimer || 0, slowFactor: ed.slowFactor || 1,
+                burnTimer: ed.burnTimer || 0, burnDps: ed.burnDps || 0,
+                burnTower: towerAt(ed.burnTowerIdx),
+                poison: Array.isArray(ed.poison)
+                    ? ed.poison.map(p => ({ dps: p.dps, timer: p.timer }))
+                    : [],
+                stunTimer: ed.stunTimer || 0,
+                healCd: ed.healCd == null ? 2.0 : ed.healCd,
+                charmed: !!ed.charmed, isElite: !!ed.isElite,
+                summonTimer: ed.summonTimer || 0, summonCd: ed.summonCd || 0,
+                summonType: ed.summonType || null,
+                lastHitBy: towerAt(ed.lastHitByIdx)
+            }));
+
+            // ── 预定建造 / 掉落核心 ──
+            pendingBuilds = (s.pendingBuilds || [])
+                .filter(o => TOWER_TYPES[o.type])
+                .map(o => ({ col: o.col, row: o.row, type: o.type }));
+
+            looseCores = (s.looseCores || []).map(c => ({
+                x: mapX(c.x), y: mapY(c.y),
+                cellC: c.cellC, cellR: c.cellR,
+                nextC: c.nextC, nextR: c.nextR,
+                dirC: c.dirC || 0, dirR: c.dirR || 0,
+                nextDirC: c.nextDirC || 0, nextDirR: c.nextDirR || 0,
+                delay: c.delay || 0, phase: c.phase || 0
+            }));
+
+            // ── 波次运行时 ──
+            waveRuntime = (s.waveRuntime || []).map(rt => ({
+                id: rt.id | 0,
+                startAt: rt.startAt || 0,
+                queue: (rt.queue || []).map(q => ({ ...q })),
+                total: rt.total || 0,
+                alive: rt.alive || 0,
+                spawnGap: rt.spawnGap || 0.3,
+                cleared: !!rt.cleared,
+                reward: rt.reward || 0,
+                draftGiven: !!rt.draftGiven
+            }));
+
+            // ── 计时与资源 ──
+            money = s.money || 0;
+            waveIndex = s.waveIndex | 0;
+            playTime = s.playTime || 0;
+            gameClock = s.gameClock || 0;
+            nextWaveAt = s.nextWaveAt || 0;
+            waveIntervalNext = s.waveIntervalNext || 10;
+            waveCountdownStarted = !!s.waveCountdownStarted;
+            globalAutoUpgrade = !!s.globalAutoUpgrade;
+            battleStats = s.battleStats || { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0 };
+            gameOver = false;
+            projectiles = [];
+            arrowAnimTime = 0;
+            lastShownSecond = -1;
+            lastTime = 0;
+
+            rebuildPaths();
+            rebuildActiveBaseField();
+            rebuildBackground();
+            updateUI();
+            updateTimeDisplay();
+            setScreen('game');
+
+            speedMultiplier = s.speedMultiplier || 1;
+            speedBtn.textContent = `⏩ ${speedMultiplier}x`;
+            paused = !!s.paused;
+            pauseBtn.textContent = paused ? '▶ 继续' : '⏸ 暂停';
+            pauseBtn.classList.toggle('active', paused);
+
+            gameTitle.textContent = `⚡ ${levelIndex + 1} ${lv.name} · ${mode.name}`
+                + `${rogueEnabled ? ' · Roguelike' : ''}`
+                + `${selectedAscension > 0 ? ' · 进阶' + selectedAscension : ''} ⚡`;
+            return true;
+        }
+
+        function saveGame() {
+            if (screen !== 'game' || !currentLevel || gameOver) {
+                msgDisplay.textContent = '⚠ 只有在战斗进行中才能存档';
+                SFX.error();
+                return;
+            }
+            if (draftPanel) {
+                msgDisplay.textContent = '⚠ 请先完成强化选择再存档';
+                SFX.error();
+                return;
+            }
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(captureGameState()));
+                SFX.click();
+                msgDisplay.textContent = `💾 存档成功 · ${new Date().toLocaleTimeString()}`;
+            } catch (err) {
+                msgDisplay.textContent = '⚠ 存档失败：浏览器存储空间不足或被禁用';
+                SFX.error();
+            }
+            refreshSaveInfo();
+        }
+
+        function loadGame() {
+            let raw = null;
+            try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { raw = null; }
+            if (!raw) {
+                msgDisplay.textContent = '⚠ 没有可读取的存档';
+                SFX.error();
+                return;
+            }
+            let s = null;
+            try { s = JSON.parse(raw); } catch (e) { s = null; }
+            if (!s) {
+                msgDisplay.textContent = '⚠ 存档文件已损坏';
+                SFX.error();
+                return;
+            }
+            let ok = false;
+            try { ok = applySavedState(s); } catch (e) {
+                console.error('读档失败', e);
+                ok = false;
+            }
+            if (!ok) {
+                msgDisplay.textContent = '⚠ 存档与当前版本不兼容';
+                SFX.error();
+                return;
+            }
+            SFX.click();
+            msgDisplay.textContent = '📂 存档已载入';
+            refreshSaveInfo();
+        }
+
+        function refreshSaveInfo() {
+            const infoEl = document.getElementById('saveInfo');
+            const btn = document.getElementById('loadBtn');
+            let raw = null;
+            try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { raw = null; }
+            if (!raw) {
+                if (infoEl) infoEl.textContent = '（无存档）';
+                if (btn) btn.classList.add('disabled');
+                return;
+            }
+            if (btn) btn.classList.remove('disabled');
+            let ts = 0;
+            try { ts = JSON.parse(raw).ts || 0; } catch (e) { ts = 0; }
+            if (infoEl) {
+                infoEl.textContent = ts
+                    ? '上次存档：' + new Date(ts).toLocaleString()
+                    : '已有存档';
+            }
+        }
         function initEndlessUnlock() { endlessUnlocked = false; MODE_KEYS_ACTIVE = MODE_KEYS.slice(); }
         function unlockEndless() {
             // 无尽模式不再加入模式选择列表，只能通过通关结算面板进入
@@ -2411,6 +2829,31 @@ function makeSeededRng(seed) {
                 spawned++;
             }
         }
+        function buildAscensionState() {
+            return {
+                lvl: selectedAscension,
+                ammo: selectedAscension >= 1,
+                finalWaveDouble: selectedAscension >= 2,
+                bossSplit: selectedAscension >= 3,
+                mudPit: selectedAscension >= 4,
+                reflect: selectedAscension >= 6,
+                coreNoReturn: selectedAscension >= 7,
+                ecoNerf: selectedAscension >= 8,
+                bloodFury: selectedAscension >= 9,
+                shamanBuff: selectedAscension >= 10,
+                inflation: selectedAscension >= 11,
+                elite: selectedAscension >= 12,
+                coreDestroy: selectedAscension >= 13,
+                shadowFog: selectedAscension >= 14,
+                finalJudgment: selectedAscension >= 15,
+                overheat: selectedAscension >= 16,
+                limitTowers: selectedAscension >= 17 ? 20 : 999,
+                airOnlyFlak: selectedAscension >= 18,
+                stealthDeathSilence: selectedAscension >= 19,
+                fireDecay: selectedAscension >= 20
+            };
+        }
+
         function loadLevel(idx, modeKey, reverse, rogue, keptAffixes, reuseMudPits) {
             closeBuildMenu(); closeTowerMenu();
             gameResult = null; resultBtnHover = false; endlessBtnHover = false;
@@ -2437,31 +2880,10 @@ function makeSeededRng(seed) {
             towerUpCollapsed = false;
             enemyModCollapsed = false;
 
-            
             // 进阶难度初始化
-            ascensionState = {
-                lvl: selectedAscension,
-                ammo: selectedAscension >= 1,
-                finalWaveDouble: selectedAscension >= 2,
-                bossSplit: selectedAscension >= 3,                  
-                mudPit: selectedAscension >= 4,                     
-                // 5 资源匮乏无独立字段
-                reflect: selectedAscension >= 6,                    
-                coreNoReturn: selectedAscension >= 7,
-                ecoNerf: selectedAscension >= 8,
-                bloodFury: selectedAscension >= 9,
-                shamanBuff: selectedAscension >= 10,
-                inflation: selectedAscension >= 11,                
-                elite: selectedAscension >= 12,
-                coreDestroy: selectedAscension >= 13,
-                shadowFog: selectedAscension >= 14,
-                finalJudgment: selectedAscension >= 15,             
-                overheat: selectedAscension >= 16,                  
-                limitTowers: selectedAscension >= 17 ? 20 : 999,    
-                airOnlyFlak: selectedAscension >= 18,               
-                stealthDeathSilence: selectedAscension >= 19,       
-                fireDecay: selectedAscension >= 20                  
-            };
+            ascensionState = buildAscensionState();
+            
+            
             if (selectedAscension >= 5) {
                 money = Math.floor(money * 0.7);
             }
@@ -9289,6 +9711,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 ? rogueState.affixes.slice() : null;
             loadLevel(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true);
         });
+        document.getElementById('saveBtn').addEventListener('click', saveGame);
+        document.getElementById('loadBtn').addEventListener('click', loadGame);
         document.getElementById('menuBtn').addEventListener('click', () => {
             SFX.click();
             setScreen('levels');
@@ -9363,6 +9787,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
         });
 
         initEndlessUnlock();
+        refreshSaveInfo();
         setScreen('menu');
         requestAnimationFrame(gameLoop);
     })();
