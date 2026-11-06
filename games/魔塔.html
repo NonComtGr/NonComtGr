@@ -99,7 +99,7 @@ canvas{
   #hudExtraStats .ex-v{color:#a9b4d8;font-variant-numeric:tabular-nums;text-align:right}
   #hudExtraStats .ex-cap{color:#7c86ad;font-size:11px}
 
-  /* ===== 增强卡图标网格（6 个一行） ===== */
+  /* ===== 勇士增强图标网格（6 个一行） ===== */
   .card-grid{
     display:none;
     grid-template-columns:repeat(6,1fr);
@@ -135,7 +135,7 @@ canvas{
     font-variant-numeric:tabular-nums;
     pointer-events:none;
   }
-  /* ===== 怪物增强格子（沿用增强卡样式，仅换色） ===== */
+  /* ===== 怪物增强格子（沿用勇士增强样式，仅换色） ===== */
 .card-slot.mbuff-slot:hover{
   background:#3a2433;
   border-color:#ff9ad5;
@@ -316,6 +316,8 @@ canvas{
 }
 .floor-btn.has-remain{ border-color:#5a4430; }
 .floor-btn.has-remain .floor-num{ color:#ffb454; }
+.floor-btn.has-shop{ border-color:#2e5540; }
+.floor-btn.has-shop .floor-num{ color:#8affc0; }
 .floor-num{ font-size:16px; line-height:1.1; }
 .floor-badge{
   font-size:10px;
@@ -452,23 +454,74 @@ canvas{
   .shop-buy:hover:not(:disabled){background:#40508a;border-color:#6c7fc4}
   .shop-buy:disabled{opacity:.35;cursor:not-allowed;color:#8e98bd}
 
-  /* ================= 增强卡（采用装备同款描边） ================= */
+    /* ================= 勇士增强：横向三选一 ================= */
+  #cardOfferList{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:12px;
+    padding:4px 0 6px;
+  }
   .card-item{
-    display:flex;align-items:center;gap:12px;padding:12px 14px;
-    border-radius:10px;background:#2a3149;
-    border:2px solid #6c7fc4;          /* 与已装备武器一致 */
-    cursor:pointer;transition:.13s;margin-bottom:10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    padding:18px 12px 14px;
+    border-radius:12px;
+    background:#2a3149;
+    border:2px solid #6c7fc4;
+    cursor:pointer;
+    min-height:190px;
+    transition:transform .15s, background .15s, border-color .15s, box-shadow .15s;
   }
-  .card-item:last-child{margin-bottom:0}
   .card-item:hover{
-    background:#33406a;border-color:#8affc0;transform:translateY(-1px);
-    box-shadow:0 6px 18px rgba(0,0,0,.35);
+    background:#33406a;
+    border-color:#8affc0;
+    transform:translateY(-4px);
+    box-shadow:0 10px 26px rgba(0,0,0,.45), 0 0 0 2px rgba(138,255,192,.15);
   }
-  .card-emoji{font-size:30px;width:44px;text-align:center;flex-shrink:0;line-height:1}
-  .card-body{flex:1;min-width:0}
-  .card-name{font-size:15px;color:#dfe4ff;font-weight:600}
-  .card-desc{font-size:12.5px;color:#8affc0;margin-top:3px;line-height:1.5}
-  .card-owned{font-size:11px;color:#7c86ad;margin-top:3px}
+  .card-item:active{ transform:translateY(-1px); }
+  .card-emoji{
+    font-size:44px;
+    line-height:1;
+    margin-bottom:10px;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));
+  }
+  .card-body{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+    min-width:0;
+  }
+  .card-name{
+    font-size:15.5px;
+    color:#dfe4ff;
+    font-weight:600;
+    letter-spacing:.5px;
+  }
+  .card-desc{
+    font-size:12px;
+    color:#8affc0;
+    margin-top:8px;
+    line-height:1.55;
+    word-break:break-word;
+  }
+  .card-owned{
+    font-size:11px;
+    color:#7c86ad;
+    margin-top:auto;
+    padding-top:8px;
+  }
+  @media (max-width: 560px){
+    #cardOfferList{ gap:8px; }
+    .card-item{ padding:12px 7px 10px; min-height:160px; border-radius:10px; }
+    .card-emoji{ font-size:34px; margin-bottom:7px; }
+    .card-name{ font-size:13.5px; }
+    .card-desc{ font-size:11px; margin-top:6px; }
+    .card-owned{ font-size:10px; padding-top:6px; }
+  }
 
   /* ================= 主菜单 ================= */
   #menu{
@@ -583,8 +636,8 @@ canvas{
     </div>
     <div class="menu-row">
       <label>物品占比</label>
-      <input type="range" id="menuOtherRatio" min="0" max="100" value="45" step="5">
-      <b id="menuOtherRatioVal">45%</b>
+      <input type="range" id="menuOtherRatio" min="0" max="100" value="25" step="5">
+      <b id="menuOtherRatioVal">25%</b>
     </div>
     <div class="menu-row">
       <label>怪物难度</label>
@@ -610,7 +663,7 @@ canvas{
       201 层起进入无尽模式，怪物编号区间循环使用；每 100 层所有怪物额外获得一种属性。<br>
       每通过 200 层，怪物血量/攻防 ×4000；血瓶与攻防宝石数值 ×2。<br>
       「怪物难度」直接放大怪物的生命、攻击、防御；「装备爆率」影响击杀掉落的概率。<br>
-      每层有 10% 概率出现「增强卡」，可从 3 张中选 1 张永久强化勇者。<br>
+      每层有 10% 概率出现「勇士增强」，可从 3 张中选 1 张永久强化勇者。<br>
       每层有 12% 概率出现「怪物增强」，自动为本层怪物附加一种变异效果。<br>
       击杀怪物获得经验与金币，升级提升基础属性；每层有 20% 概率出现商店。<br>
       3 件相同的高阶装备可合成下一级：属性 ×3，并随机附赠一条增益。
@@ -625,9 +678,9 @@ canvas{
     <div class="panel">
       <h3>状 态</h3>
       <div class="stat fl"><span>层数</span><b id="hudFloor">1 / 200</b></div>
-      <div class="stat card"><span>✨ 增强卡</span><b id="hudCards">0</b></div>
+      <div class="stat card"><span>✨ 勇士增强</span><b id="hudCards">0</b></div>
       <div id="hudCardGrid" class="card-grid"></div>
-      <div class="stat mbuff"><span>🧬 怪物增强</span><b id="hudMonsterBuff">无</b></div>
+      <div class="stat mbuff"><span>🧬 怪物增强</span><b id="hudMonsterBuff">0</b></div>
       <div id="hudMonsterBuffGrid" class="card-grid"></div>
       <div class="stat time"><span>⏱️ 时间</span><b id="hudTime">00:00</b></div>
       <div class="stat dif"><span>💀 怪物难度</span><b id="hudDiff">2.5×</b></div>
@@ -759,9 +812,7 @@ canvas{
       <button class="modal-close" data-close="equipModal">×</button>
     </div>
     <div class="modal-body">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-        <button id="craftAllBtn" class="eq-act" style="padding:8px 18px;font-size:13px;border-color:#4adf9a;color:#8affc0">⚡ 一键合成</button>
-      </div>
+      
       <div style="font-size:12px;color:#7c86ad;margin-bottom:10px;line-height:1.7">
         此处只显示<b style="color:#8affc0">已获得</b>或<b style="color:#ffd75c">可合成</b>的装备，按等级从高到低排列。<br>
         初级→中级→高级按配方合成；<b style="color:#ffb454">3 件同名高级（Lv.3）装备</b>可继续升级为 Lv.4，属性 ×3 并随机附赠一条增益，之后依此类推。<br>
@@ -786,7 +837,7 @@ canvas{
   </div>
 </div>
 
-<!-- ================= 增强卡 ================= -->
+<!-- ================= 勇士增强 ================= -->
 <div id="cardModal" class="modal">
   <div class="modal-box" style="max-width:640px">
     <div class="modal-head">
@@ -794,7 +845,7 @@ canvas{
     </div>
     <div class="modal-body">
       <div style="font-size:13px;color:#7c86ad;margin-bottom:12px;line-height:1.7">
-        第 <b id="cardFloorLabel" style="color:#8affc0">1</b> 层出现了一张增强卡。选择其一，永久强化你的勇者。
+        第 <b id="cardFloorLabel" style="color:#8affc0">1</b> 层出现了一张勇士增强。选择其一，永久强化你的勇者。
       </div>
       <div id="cardOfferList"></div>
     </div>
@@ -861,10 +912,10 @@ canvas{
       </div>
 
       <div class="guide-sec">
-        <h4>✨ 增强卡</h4>
+        <h4>✨ 勇士增强</h4>
         <ul>
-          <li>每层有 <b>10%</b> 概率出现增强卡，会弹出 3 张卡牌供你<b>三选一</b>。</li>
-          <li>增强卡共 <b>50 种</b>，分为攻击、防御、生命、抗性、经济五大类，效果永久生效。</li>
+          <li>每层有 <b>10%</b> 概率出现勇士增强，会弹出 3 张卡牌供你<b>三选一</b>。</li>
+          <li>勇士增强共 <b>50 种</b>，分为攻击、防御、生命、抗性、经济五大类，效果永久生效。</li>
           <li>鼠标悬停在卡牌上可查看<b>全部加成</b>（含具体数值变化）。</li>
           <li>同一张卡可以重复获得，效果叠加；已拥有的卡牌会在选项卡中标注持有数量。</li>
         </ul>
@@ -876,7 +927,7 @@ canvas{
           <li>每层有 <b>12%</b> 概率出现「怪物增强」，随机自动选择一种变异效果，作用于本层所有怪物。</li>
           <li>怪物增强共 <b>50 种</b>，涵盖攻击、防御、生命、奖励、混合与特殊类别。</li>
           <li>部分增强会同时提升击杀奖励（金币 / 经验 / 掉落率），高风险高回报。</li>
-          <li>当前层的怪物增强会显示在状态面板的「增强卡」与「时间」之间。</li>
+          <li>当前层的怪物增强会显示在状态面板的「勇士增强」与「时间」之间。</li>
         </ul>
       </div>
 
@@ -1003,7 +1054,7 @@ canvas{
         💡 小提示：开局只有一个「生锈短剑」。优先击杀零伤怪物、收集宝石与药水，
         再用一键合成把初级装备升级为中级 → 高级 → Lv.4+，
         面对高难度怪物时记得先看怪物手册，避免无谓掉血。<br>
-        ✨ 遇到增强卡时尽量选择互补的卡：缺生存就补抗性，缺输出就补破甲与暴击。
+        ✨ 遇到勇士增强时尽量选择互补的卡：缺生存就补抗性，缺输出就补破甲与暴击。
       </div>
 
     </div>
@@ -1085,73 +1136,190 @@ function buildEquipTipHtml(id){
        + (recipe ? '<div class="eq-tip-recipe">' + recipe + '</div>' : '');
 }
 
-/* 增强卡悬停提示：显示全部加成与具体变化 */
-function buildCardTipHtml(card){
-  const P = S.player;
-  let rows = '';
-  const add = (k, name, color) => {
-    const info = STAT_INFO[k];
-    if (!info) return;
-    rows += '<div class="eq-tip-stat">'
-          +   '<span class="eq-tip-k">' + name + '</span>'
-          +   '<span class="eq-tip-v" style="color:' + color + '">' + info.f(card.stats[k]) + '</span>'
-          + '</div>';
-  };
+/* ★ 数值格式化小工具 */
+function fmtCardVal(v){
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
 
-  if (card.pct){
-    if (card.pct.atk){
-      const v = Math.max(1, Math.round(P.atk * card.pct.atk / 100));
-      rows += '<div class="eq-tip-stat"><span class="eq-tip-k">攻击力</span>'
-            + '<span class="eq-tip-v" style="color:#ffb454">+' + v + '（' + P.atk + ' → ' + (P.atk + v) + '）</span></div>';
+function buildCardTipHtml(card, mode){
+  const P = S.player;
+  const L = S.floorIdx + 1;
+  const scale = card.scaled ? L : 1;
+  const owned = (S.cards && S.cards[card.id]) || 0;
+
+  let rows = '';
+
+  if (mode === 'owned' && owned > 0){
+    /* ---- 已拥有：显示实际生效的累积加成 ---- */
+    const g = (S.cardGains && S.cardGains[card.id]) || null;
+
+    if (g){
+      if (g.atk) rows += '<div class="eq-tip-stat"><span class="eq-tip-k">攻击力</span>'
+                       + '<span class="eq-tip-v" style="color:#ffb454">+'
+                       + Math.round(g.atk) + '</span></div>';
+      if (g.def) rows += '<div class="eq-tip-stat"><span class="eq-tip-k">防御力</span>'
+                       + '<span class="eq-tip-v" style="color:#6cbcff">+'
+                       + Math.round(g.def) + '</span></div>';
+
+      const hpTotal = (g.hp || 0) + (g.hpFlat || 0);
+      if (hpTotal) rows += '<div class="eq-tip-stat"><span class="eq-tip-k">生命上限</span>'
+                         + '<span class="eq-tip-v" style="color:#ff7b7b">+'
+                         + fmtNum(Math.round(hpTotal)) + '</span></div>';
+
+      if (g.stats){
+        for (const k in g.stats){
+          const v = g.stats[k];
+          if (!v) continue;
+          const info = STAT_INFO[k];
+          const formatted = info ? info.f(Math.round(v * 10) / 10)
+                                 : '+' + (Math.round(v * 10) / 10);
+          rows += '<div class="eq-tip-stat">'
+                +   '<span class="eq-tip-k">' + (info ? info.n : k) + '</span>'
+                +   '<span class="eq-tip-v" style="color:' + statColor(k) + '">'
+                +     formatted + '</span></div>';
+        }
+      }
     }
-    if (card.pct.def){
-      const v = Math.max(1, Math.round(P.def * card.pct.def / 100));
-      rows += '<div class="eq-tip-stat"><span class="eq-tip-k">防御力</span>'
-            + '<span class="eq-tip-v" style="color:#6cbcff">+' + v + '（' + P.def + ' → ' + (P.def + v) + '）</span></div>';
+
+    /* 经济类：按已拥有次数累积 */
+    if (card.eco){
+      const ecoNames = {
+        goldPct:'金币获取', expPct:'经验获取', potionPct:'药水效果',
+        gemPct:'宝石效果', dropPct:'装备掉落', healPct:'战后回血'
+      };
+      for (const k in card.eco){
+        const total = card.eco[k] * owned;
+        const val = (k === 'healPct')
+          ? '恢复 ' + total + '% 生命上限'
+          : '+' + total + '%';
+        rows += '<div class="eq-tip-stat">'
+              +   '<span class="eq-tip-k">' + (ecoNames[k] || k) + '</span>'
+              +   '<span class="eq-tip-v" style="color:#ffd75c">' + val + '</span></div>';
+      }
     }
-    if (card.pct.hp){
-      const v = Math.max(1, Math.round(P.maxHp * card.pct.hp / 100));
+
+    if (!rows) rows = '<div class="eq-tip-k">' + card.desc + '</div>';
+  } else {
+    /* ---- 选卡面板：显示「如果选这张，按当前层数能得到多少」 ---- */
+    const add = (k, name, color) => {
+      const info = STAT_INFO[k];
+      if (!info) return;
+      const val = Math.round(card.stats[k] * scale * 10) / 10;
+      rows += '<div class="eq-tip-stat">'
+            +   '<span class="eq-tip-k">' + name + '</span>'
+            +   '<span class="eq-tip-v" style="color:' + color + '">'
+            +     info.f(val) + '</span></div>';
+    };
+
+    if (card.pct){
+      if (card.pct.atk){
+        const v = Math.max(1, Math.round(P.atk * card.pct.atk / 100));
+        rows += '<div class="eq-tip-stat"><span class="eq-tip-k">攻击力</span>'
+              + '<span class="eq-tip-v" style="color:#ffb454">+' + v
+              + '（' + P.atk + ' → ' + (P.atk + v) + '）</span></div>';
+      }
+      if (card.pct.def){
+        const v = Math.max(1, Math.round(P.def * card.pct.def / 100));
+        rows += '<div class="eq-tip-stat"><span class="eq-tip-k">防御力</span>'
+              + '<span class="eq-tip-v" style="color:#6cbcff">+' + v
+              + '（' + P.def + ' → ' + (P.def + v) + '）</span></div>';
+      }
+      if (card.pct.hp){
+        const v = Math.max(1, Math.round(P.maxHp * card.pct.hp / 100));
+        rows += '<div class="eq-tip-stat"><span class="eq-tip-k">生命上限</span>'
+              + '<span class="eq-tip-v" style="color:#ff7b7b">+' + v
+              + '（' + P.maxHp + ' → ' + (P.maxHp + v) + '）</span></div>';
+      }
+    }
+
+    if (card.hpFlat){
+      const v = Math.max(1, Math.round(card.hpFlat * scale));
       rows += '<div class="eq-tip-stat"><span class="eq-tip-k">生命上限</span>'
-            + '<span class="eq-tip-v" style="color:#ff7b7b">+' + v + '（' + P.maxHp + ' → ' + (P.maxHp + v) + '）</span></div>';
+            + '<span class="eq-tip-v" style="color:#ff7b7b">+'
+            + fmtNum(v) + '</span></div>';
+    }
+
+    if (card.stats){
+      for (const k in card.stats) add(k, (STAT_INFO[k] ? STAT_INFO[k].n : k), statColor(k));
+    }
+
+    if (card.eco){
+      const ecoNames = {
+        goldPct:'金币获取', expPct:'经验获取', potionPct:'药水效果',
+        gemPct:'宝石效果', dropPct:'装备掉落', healPct:'战后回血'
+      };
+      for (const k in card.eco){
+        const val = (k === 'healPct')
+          ? '恢复 ' + card.eco[k] + '% 生命上限'
+          : '+' + card.eco[k] + '%';
+        rows += '<div class="eq-tip-stat">'
+              +   '<span class="eq-tip-k">' + (ecoNames[k] || k) + '</span>'
+              +   '<span class="eq-tip-v" style="color:#ffd75c">' + val + '</span></div>';
+      }
+    }
+
+    if (!rows) rows = '<div class="eq-tip-k">' + card.desc + '</div>';
+  }
+
+  return '<div class="eq-tip-head">'
+       +   '<span class="eq-tip-emoji">' + card.emoji + '</span>'
+       +   '<div style="min-width:0">'
+       +     '<div class="eq-tip-title">' + card.name + '</div>'
+       +     '<span class="eq-tip-lv" style="color:#8affc0">勇士增强</span>'
+       +   '</div>'
+       + '</div>'
+       + '<div class="eq-tip-stats">' + rows + '</div>'
+       + (owned > 0 ? '<div class="eq-tip-sub">已拥有 ×' + owned + '</div>' : '');
+}
+
+
+/* ★ 勇士增强描述：按当前层数换算成实际数值，不显示「× 层数」 */
+function buildCardDesc(card){
+  const P = S.player;
+  const L = S.floorIdx + 1;
+  const scale = card.scaled ? L : 1;
+  const parts = [];
+
+  /* 百分比卡：按当前属性算出的实际加值 */
+  if (card.pct){
+    if (card.pct.atk) parts.push('攻击 +' + Math.max(1, Math.round(P.atk * card.pct.atk / 100)));
+    if (card.pct.def) parts.push('防御 +' + Math.max(1, Math.round(P.def * card.pct.def / 100)));
+    if (card.pct.hp)  parts.push('生命上限 +' + Math.max(1, Math.round(P.maxHp * card.pct.hp / 100)));
+  }
+
+  /* 固定生命卡 */
+  if (card.hpFlat){
+    parts.push('生命上限 +' + fmtNum(Math.max(1, Math.round(card.hpFlat * scale))));
+  }
+
+  /* 固定数值卡（原先显示「× 层数」的都在这里） */
+  if (card.stats){
+    for (const k in card.stats){
+      const info = STAT_INFO[k];
+      const v = fmtCardVal(card.stats[k] * scale);
+      parts.push((info ? info.n : k) + ' ' + (info ? info.f(v) : '+' + v));
     }
   }
-  if (card.hpFlat){
-    rows += '<div class="eq-tip-stat"><span class="eq-tip-k">生命上限</span>'
-          + '<span class="eq-tip-v" style="color:#ff7b7b">+' + card.hpFlat + '</span></div>';
-  }
-  if (card.stats){
-    for (const k in card.stats) add(k, (STAT_INFO[k] ? STAT_INFO[k].n : k), statColor(k));
-  }
+
+  /* 经济类 */
   if (card.eco){
     const ecoNames = {
       goldPct:'金币获取', expPct:'经验获取', potionPct:'药水效果',
       gemPct:'宝石效果', dropPct:'装备掉落', healPct:'战后回血'
     };
     for (const k in card.eco){
-      const isPct = k !== 'healPct';
       const val = (k === 'healPct')
-        ? '恢复 ' + card.eco[k] + '% 生命上限'
-        : '+' + card.eco[k] + '%';
-      rows += '<div class="eq-tip-stat"><span class="eq-tip-k">' + (ecoNames[k] || k) + '</span>'
-            + '<span class="eq-tip-v" style="color:#ffd75c">' + val + '</span></div>';
+        ? ('恢复 ' + card.eco[k] + '% 生命上限')
+        : ('+' + card.eco[k] + '%');
+      parts.push((ecoNames[k] || k) + ' ' + val);
     }
   }
-  if (!rows){
-    rows = '<div class="eq-tip-k">' + card.desc + '</div>';
-  }
 
-  const owned = (S.cards && S.cards[card.id]) || 0;
-  return '<div class="eq-tip-head">'
-       +   '<span class="eq-tip-emoji">' + card.emoji + '</span>'
-       +   '<div style="min-width:0">'
-       +     '<div class="eq-tip-title">' + card.name + '</div>'
-       +     '<span class="eq-tip-lv" style="color:#8affc0">增强卡</span>'
-       +   '</div>'
-       + '</div>'
-       + '<div class="eq-tip-stats">' + rows + '</div>'
-       + (owned > 0 ? '<div class="eq-tip-sub">已拥有 ×' + owned + '</div>' : '');
+  return parts.length ? parts.join('，') : card.desc;
 }
-/* 怪物增强悬停提示：与增强卡同款结构 */
+
+/* 怪物增强悬停提示：与勇士增强同款结构 */
 function buildMonsterBuffTipHtml(buff){
   const count = (S.monsterBuffs && S.monsterBuffs[buff.id]) || 0;
 
@@ -1220,7 +1388,7 @@ function showEquipTip(id, anchor){
   showTipHtml(buildEquipTipHtml(id), anchor);
 }
 
-/* --- 事件委托：装备栏 / 背包列表 / 商店 / 增强卡（选择面板 + 已获得网格） --- */
+/* --- 事件委托：装备栏 / 背包列表 / 商店 / 勇士增强（选择面板 + 已获得网格） --- */
 document.addEventListener('mouseover', e => {
   const t = e.target && e.target.closest
     ? e.target.closest('[data-tip-equip],[data-tip-card],[data-tip-cardid],[data-tip-mbuff]')
@@ -1238,15 +1406,17 @@ document.addEventListener('mouseover', e => {
     if (t.hasAttribute('data-tip-equip')){
       showEquipTip(t.getAttribute('data-tip-equip'), t);
     } else if (t.hasAttribute('data-tip-cardid')){
+      // 已拥有的卡：显示实际生效的累积加成
       const c = CARD_MAP[t.getAttribute('data-tip-cardid')];
-      if (c) showTipHtml(buildCardTipHtml(c), t);
+      if (c) showTipHtml(buildCardTipHtml(c, 'owned'), t);
     } else if (t.hasAttribute('data-tip-mbuff')){
       const b = MONSTER_BUFF_MAP[t.getAttribute('data-tip-mbuff')];
       if (b) showTipHtml(buildMonsterBuffTipHtml(b), t);
     } else {
+      // 选卡面板：显示「选这张按当前层数可得多少」
       const idx = +t.getAttribute('data-tip-card');
       const c = pendingCards && pendingCards[idx];
-      if (c) showTipHtml(buildCardTipHtml(c), t);
+      if (c) showTipHtml(buildCardTipHtml(c, 'offer'), t);
     }
   }, 110);
 });
@@ -2341,7 +2511,7 @@ function populateFloorEx(g, entry, exit, L){
   const doorCands = initCells.filter(c => isDoorSpot(g, c.x, c.y));
   shuffleArr(doorCands);
 
-  const wantDoors = Math.min(Math.round(otherCnt * 0.15), doorCands.length);
+  const wantDoors = Math.min(Math.round(otherCnt * 0.55), doorCands.length); //门的比例
   const placedDoorPos = new Set();
   const doorCount = { Y: 0, B: 0, R: 0 };
   let doorsPlaced = 0;
@@ -2395,10 +2565,14 @@ function populateFloorEx(g, entry, exit, L){
     }
   }
 
+    
+  const KEY_PER_DOOR = 0.7; //钥匙门的比例
   const needKeys = [];
-  for (let i = 0; i < doorCount.Y; i++) needKeys.push('ykey');
-  for (let i = 0; i < doorCount.B; i++) needKeys.push('bkey');
-  for (let i = 0; i < doorCount.R; i++) needKeys.push('rkey');
+  ['Y', 'B', 'R'].forEach(function(c){
+    const kc = Math.round((doorCount[c] || 0) * KEY_PER_DOOR);
+    const kt = DOOR_KEY[c];
+    for (let i = 0; i < kc; i++) needKeys.push(kt);
+  });
   shuffleArr(needKeys);
 
   let keysPlaced = 0;
@@ -2664,7 +2838,9 @@ const S = {
   autoKillZero: true,
   autoKillThreshold: 0,              // ★ 零伤清扫阈值（千分比，0 表示只杀零伤）
   cardDirect: {atk:0, def:0, hp:0}, 
-  settings: { density: 0.6, otherRatio: 0.45, mult: 2, difficulty: 2.5, dropRate: 0.6 }
+  cardStats: {}, 
+  cardGains: {},
+  //settings: { density: 0.6, otherRatio: 0.25, mult: 2, difficulty: 2.5, dropRate: 0.6 }
 };
 
 const visitedFloors = new Set();
@@ -2702,25 +2878,25 @@ const MONSTER_BUFFS = [
   { id:'mb_hp2',   name:'巨人化',   emoji:'🗿', desc:'怪物生命 +50%，攻击 -10%',              mod:{hpMul:1.5, atkMul:0.9} },
   { id:'mb_hp3',   name:'血牛体质', emoji:'🐂', desc:'怪物生命 +25%，防御 +15%',              mod:{hpMul:1.25, defMul:1.15} },
   { id:'mb_hp4',   name:'不朽之躯', emoji:'♾️', desc:'怪物生命 +40%',                          mod:{hpMul:1.4} },
-  { id:'mb_hp5',   name:'强化体质', emoji:'💪', desc:'怪物生命 +20%，经验 +30%',              mod:{hpMul:1.2, expMul:1.3} },
+  { id:'mb_hp5',   name:'强化体质', emoji:'💪', desc:'怪物生命 +20%，经验 +0.6%',              mod:{hpMul:1.2, expMul:1.006} },
 
-  /* ---- 奖励类 26–35（修正：均附带怪物增强） ---- */
-  { id:'mb_rw1',   name:'贪婪',     emoji:'💰', desc:'怪物生命 +15%，击杀金币 +100%',       mod:{hpMul:1.15, goldMul:2} },
-  { id:'mb_rw2',   name:'智慧',     emoji:'📖', desc:'怪物攻击 +15%，击杀经验 +100%',       mod:{atkMul:1.15, expMul:2} },
-  { id:'mb_rw3',   name:'财宝',     emoji:'🪙', desc:'怪物全属性 +10%，金币经验各 +50%',    mod:{hpMul:1.1, atkMul:1.1, defMul:1.1, goldMul:1.5, expMul:1.5} },
-  { id:'mb_rw4',   name:'知识',     emoji:'🧠', desc:'怪物防御 +20%，击杀经验 +80%',        mod:{defMul:1.2, expMul:1.8} },
-  { id:'mb_rw5',   name:'富裕',     emoji:'💎', desc:'怪物生命 +10%，击杀金币 +80%',        mod:{hpMul:1.1, goldMul:1.8} },
-  { id:'mb_rw6',   name:'幸运',     emoji:'🍀', desc:'怪物攻击 +10%，装备掉落率 +50%',      mod:{atkMul:1.1, dropBonus:0.5} },
-  { id:'mb_rw7',   name:'双倍奖励', emoji:'🎁', desc:'怪物全属性 +20%，金币经验各 +100%',   mod:{hpMul:1.2, atkMul:1.2, defMul:1.2, goldMul:2, expMul:2} },
-  { id:'mb_rw8',   name:'经验雨',   emoji:'🌧️', desc:'怪物攻击 +25%，击杀经验 +150%',       mod:{atkMul:1.25, expMul:2.5} },
-  { id:'mb_rw9',   name:'金币雨',   emoji:'🪙', desc:'怪物生命 +25%，击杀金币 +150%',       mod:{hpMul:1.25, goldMul:2.5} },
-  { id:'mb_rw10',  name:'宝藏猎人', emoji:'🎒', desc:'怪物全属性 +15%，装备掉落率 +100%',   mod:{hpMul:1.15, atkMul:1.15, defMul:1.15, dropBonus:1.0} },
+  /* ---- 奖励类 26–35 ---- */
+  { id:'mb_rw1',   name:'贪婪',     emoji:'💰', desc:'怪物生命 +15%，击杀金币 +2%',           mod:{hpMul:1.15, goldMul:1.02} },
+  { id:'mb_rw2',   name:'智慧',     emoji:'📖', desc:'怪物攻击 +15%，击杀经验 +2%',           mod:{atkMul:1.15, expMul:1.02} },
+  { id:'mb_rw3',   name:'财宝',     emoji:'🪙', desc:'怪物全属性 +10%，金币经验各 +1%',       mod:{hpMul:1.1, atkMul:1.1, defMul:1.1, goldMul:1.01, expMul:1.01} },
+  { id:'mb_rw4',   name:'知识',     emoji:'🧠', desc:'怪物防御 +20%，击杀经验 +1.6%',         mod:{defMul:1.2, expMul:1.016} },
+  { id:'mb_rw5',   name:'富裕',     emoji:'💎', desc:'怪物生命 +10%，击杀金币 +1.6%',         mod:{hpMul:1.1, goldMul:1.016} },
+  { id:'mb_rw6',   name:'幸运',     emoji:'🍀', desc:'怪物攻击 +10%，装备掉落率 +50%',        mod:{atkMul:1.1, dropBonus:0.5} },
+  { id:'mb_rw7',   name:'双倍奖励', emoji:'🎁', desc:'怪物全属性 +20%，金币经验各 +2%',       mod:{hpMul:1.2, atkMul:1.2, defMul:1.2, goldMul:1.02, expMul:1.02} },
+  { id:'mb_rw8',   name:'经验雨',   emoji:'🌧️', desc:'怪物攻击 +25%，击杀经验 +3%',           mod:{atkMul:1.25, expMul:1.03} },
+  { id:'mb_rw9',   name:'金币雨',   emoji:'🪙', desc:'怪物生命 +25%，击杀金币 +3%',           mod:{hpMul:1.25, goldMul:1.03} },
+  { id:'mb_rw10',  name:'宝藏猎人', emoji:'🎒', desc:'怪物全属性 +15%，装备掉落率 +100%',     mod:{hpMul:1.15, atkMul:1.15, defMul:1.15, dropBonus:1.0} },
 
   /* ---- 混合类 36–45 ---- */
-  { id:'mb_mix1',  name:'危险',     emoji:'⚠️', desc:'怪物全属性 +20%，金币 +100%',            mod:{hpMul:1.2, atkMul:1.2, defMul:1.2, goldMul:2} },
-  { id:'mb_mix2',  name:'挑战',     emoji:'🏆', desc:'怪物全属性 +30%，经验 +150%',            mod:{hpMul:1.3, atkMul:1.3, defMul:1.3, expMul:2.5} },
+  { id:'mb_mix1',  name:'危险',     emoji:'⚠️', desc:'怪物全属性 +20%，金币 +2%',             mod:{hpMul:1.2, atkMul:1.2, defMul:1.2, goldMul:1.02} },
+  { id:'mb_mix2',  name:'挑战',     emoji:'🏆', desc:'怪物全属性 +30%，经验 +3%',             mod:{hpMul:1.3, atkMul:1.3, defMul:1.3, expMul:1.03} },
   { id:'mb_mix3',  name:'试炼',     emoji:'⚔️', desc:'怪物攻击 +40%，掉落率 +50%',             mod:{atkMul:1.4, dropBonus:0.5} },
-  { id:'mb_mix4',  name:'噩梦',     emoji:'😱', desc:'怪物全属性 +25%，金币经验各 +80%',       mod:{hpMul:1.25, atkMul:1.25, defMul:1.25, goldMul:1.8, expMul:1.8} },
+  { id:'mb_mix4',  name:'噩梦',     emoji:'😱', desc:'怪物全属性 +25%，金币经验各 +1.6%',     mod:{hpMul:1.25, atkMul:1.25, defMul:1.25, goldMul:1.016, expMul:1.016} },
   { id:'mb_mix5',  name:'混沌',     emoji:'🌀', desc:'怪物全属性 +15%，获得先攻和闪避',        mod:{hpMul:1.15, atkMul:1.15, defMul:1.15, addTraits:['firstStrike','dodge']} },
   { id:'mb_mix6',  name:'精英化',   emoji:'🌟', desc:'怪物全属性 +15%，装备掉落 +50%',         mod:{hpMul:1.15, atkMul:1.15, defMul:1.15, dropBonus:0.5} },
   { id:'mb_mix7',  name:'钢铁意志', emoji:'🏰', desc:'怪物防御 +20%，生命 +20%',               mod:{defMul:1.2, hpMul:1.2} },
@@ -2730,10 +2906,10 @@ const MONSTER_BUFFS = [
 
   /* ---- 特殊类 46–50 ---- */
   { id:'mb_sp1',   name:'玻璃大炮', emoji:'💣', desc:'怪物防御 -30%，攻击 +40%',               mod:{defMul:0.7, atkMul:1.4} },
-  { id:'mb_sp2',   name:'纸皮',     emoji:'📄', desc:'怪物生命 -20%，攻击 +30%，金币 +100%', mod:{hpMul:0.8, atkMul:1.3, goldMul:2} },
+  { id:'mb_sp2',   name:'纸皮',     emoji:'📄', desc:'怪物生命 -20%，攻击 +30%，金币 +2%',    mod:{hpMul:0.8, atkMul:1.3, goldMul:1.02} },
   { id:'mb_sp3',   name:'全面变异', emoji:'🧬', desc:'怪物全属性 +35%',                        mod:{hpMul:1.35, atkMul:1.35, defMul:1.35} },
   { id:'mb_sp4',   name:'腐化馈赠', emoji:'🔻', desc:'怪物全属性 +10%，掉落率 +80%',         mod:{hpMul:1.1, atkMul:1.1, defMul:1.1, dropBonus:0.8} },
-  { id:'mb_sp5',   name:'终极试炼', emoji:'👑', desc:'怪物全属性 +50%，金币经验各 +200%',      mod:{hpMul:1.5, atkMul:1.5, defMul:1.5, goldMul:3, expMul:3} }
+  { id:'mb_sp5',   name:'终极试炼', emoji:'👑', desc:'怪物全属性 +50%，金币经验各 +4%',       mod:{hpMul:1.5, atkMul:1.5, defMul:1.5, goldMul:1.04, expMul:1.04} }
 ];
 const MONSTER_BUFF_MAP = {};
 MONSTER_BUFFS.forEach(b => { MONSTER_BUFF_MAP[b.id] = b; });
@@ -2761,68 +2937,68 @@ function getMonsterBuffAggregated(){
   return agg;
 }
 /* ==================================================================
-   ★ 增强卡：50 种
+   ★ 勇士增强：50 种
    ================================================================== */
 const CARD_DEFS = [
   /* ---------- 攻击（10） ---------- */
-  {id:'c_atk1',  name:'锋锐',     emoji:'⚔️', desc:'攻击力 +8%',                 pct:{atk:8}},
-  {id:'c_atk2',  name:'巨力',     emoji:'💪', desc:'攻击力 +15',                 stats:{atk:15}},
-  {id:'c_atk3',  name:'破甲',     emoji:'🪨', desc:'无视防御 +10',               stats:{pen:10}},
-  {id:'c_atk4',  name:'鹰眼',     emoji:'🎯', desc:'暴击率 +10%',                stats:{critChance:10}},
-  {id:'c_atk5',  name:'狂怒',     emoji:'💥', desc:'暴击率 +25%',                stats:{critChance:25}},
-  {id:'c_atk6',  name:'斩魂',     emoji:'🗡️', desc:'攻击力 +15%',                pct:{atk:15}},
-  {id:'c_atk7',  name:'碎骨',     emoji:'🦴', desc:'无视防御 +25',               stats:{pen:25}},
-  {id:'c_atk8',  name:'毁灭',     emoji:'☄️', desc:'攻击力 +30%',                pct:{atk:30}},
-  {id:'c_atk9',  name:'精准',     emoji:'🔭', desc:'暴击率 +40%',                stats:{critChance:40}},
-  {id:'c_atk10', name:'屠戮',     emoji:'💀', desc:'攻击力 +20%，暴击率 +15%',   pct:{atk:20}, stats:{critChance:15}},
+  {id:'c_atk1',  name:'锋锐',     emoji:'⚔️', desc:'攻击力 +0.8%',                 pct:{atk:0.8}},
+  {id:'c_atk2',  name:'巨力',     emoji:'💪', desc:'攻击力 +1.5 × 层数',            stats:{atk:1.5}, scaled:true},
+  {id:'c_atk3',  name:'破甲',     emoji:'🪨', desc:'无视防御 +1 × 层数',            stats:{pen:1}, scaled:true},
+  {id:'c_atk4',  name:'鹰眼',     emoji:'🎯', desc:'暴击率 +1% × 层数',             stats:{critChance:1}, scaled:true},
+  {id:'c_atk5',  name:'狂怒',     emoji:'💥', desc:'暴击率 +2.5% × 层数',           stats:{critChance:2.5}, scaled:true},
+  {id:'c_atk6',  name:'斩魂',     emoji:'🗡️', desc:'攻击力 +1.5%',                 pct:{atk:1.5}},
+  {id:'c_atk7',  name:'碎骨',     emoji:'🦴', desc:'无视防御 +2.5 × 层数',          stats:{pen:2.5}, scaled:true},
+  {id:'c_atk8',  name:'毁灭',     emoji:'☄️', desc:'攻击力 +3%',                   pct:{atk:3}},
+  {id:'c_atk9',  name:'精准',     emoji:'🔭', desc:'暴击率 +4% × 层数',             stats:{critChance:4}, scaled:true},
+  {id:'c_atk10', name:'屠戮',     emoji:'💀', desc:'攻击力 +2%，暴击率 +1.5% × 层数', pct:{atk:2}, stats:{critChance:1.5}, scaled:true},
 
   /* ---------- 防御（10） ---------- */
-  {id:'c_def1',  name:'铁壁',     emoji:'🛡️', desc:'防御力 +8%',                 pct:{def:8}},
-  {id:'c_def2',  name:'坚甲',     emoji:'🪖', desc:'防御力 +15',                 stats:{def:15}},
-  {id:'c_def3',  name:'磐石',     emoji:'🪨', desc:'防御力 +30',                 stats:{def:30}},
-  {id:'c_def4',  name:'韧皮',     emoji:'🥋', desc:'受伤减免 +5%',               stats:{dmgRed:5}},
-  {id:'c_def5',  name:'铁壁之心', emoji:'❤️‍🔥', desc:'受伤减免 +12%',            stats:{dmgRed:12}},
-  {id:'c_def6',  name:'护心',     emoji:'🔰', desc:'固定减伤 +5',                stats:{flatRed:5}},
-  {id:'c_def7',  name:'金刚',     emoji:'💎', desc:'固定减伤 +12',               stats:{flatRed:12}},
-  {id:'c_def8',  name:'壁垒',     emoji:'🏰', desc:'防御力 +15%',                pct:{def:15}},
-  {id:'c_def9',  name:'不动如山', emoji:'⛰️', desc:'防御力 +25%',                pct:{def:25}},
-  {id:'c_def10', name:'圣盾',     emoji:'✨', desc:'防御力 +20%，受伤减免 +10%', pct:{def:20}, stats:{dmgRed:10}},
+  {id:'c_def1',  name:'铁壁',     emoji:'🛡️', desc:'防御力 +4.0%',                 pct:{def:4.0}},
+  {id:'c_def2',  name:'坚甲',     emoji:'🪖', desc:'防御力 +1.5 × 层数',            stats:{def:1.5}, scaled:true},
+  {id:'c_def3',  name:'磐石',     emoji:'🪨', desc:'防御力 +3 × 层数',              stats:{def:3}, scaled:true},
+  {id:'c_def4',  name:'韧皮',     emoji:'🥋', desc:'受伤减免 +0.5% × 层数',         stats:{dmgRed:0.5}, scaled:true},
+  {id:'c_def5',  name:'铁壁之心', emoji:'❤️‍🔥', desc:'受伤减免 +1.2% × 层数',       stats:{dmgRed:1.2}, scaled:true},
+  {id:'c_def6',  name:'护心',     emoji:'🔰', desc:'固定减伤 +0.05 × 层数',          stats:{flatRed:0.05}, scaled:true},
+  {id:'c_def7',  name:'金刚',     emoji:'💎', desc:'固定减伤 +0.12 × 层数',          stats:{flatRed:0.12}, scaled:true},
+  {id:'c_def8',  name:'壁垒',     emoji:'🏰', desc:'防御力 +7.5%',                 pct:{def:7.5}},
+  {id:'c_def9',  name:'不动如山', emoji:'⛰️', desc:'防御力 +12.5%',                 pct:{def:12.5}},
+  {id:'c_def10', name:'圣盾',     emoji:'✨', desc:'防御力 +2%，受伤减免 +1% × 层数', pct:{def:2}, stats:{dmgRed:1}, scaled:true},
 
   /* ---------- 生命（5） ---------- */
-  {id:'c_hp1',   name:'生命',     emoji:'❤️', desc:'生命上限 +10%',              pct:{hp:10}},
-  {id:'c_hp2',   name:'强健',     emoji:'💪', desc:'生命上限 +300',              hpFlat:300},
-  {id:'c_hp3',   name:'巨人体质', emoji:'🗿', desc:'生命上限 +800',              hpFlat:800},
-  {id:'c_hp4',   name:'不死之身', emoji:'👻', desc:'生命上限 +2000',             hpFlat:2000},
-  {id:'c_hp5',   name:'血牛',     emoji:'🩸', desc:'生命上限 +15%',              pct:{hp:15}},
+  {id:'c_hp1',   name:'生命',     emoji:'❤️', desc:'生命上限 +1%',                 pct:{hp:1}},
+  {id:'c_hp2',   name:'强健',     emoji:'💪', desc:'生命上限 +30 × 层数',           hpFlat:30, scaled:true},
+  {id:'c_hp3',   name:'巨人体质', emoji:'🗿', desc:'生命上限 +80 × 层数',           hpFlat:80, scaled:true},
+  {id:'c_hp4',   name:'不死之身', emoji:'👻', desc:'生命上限 +200 × 层数',          hpFlat:200, scaled:true},
+  {id:'c_hp5',   name:'血牛',     emoji:'🩸', desc:'生命上限 +1.5%',               pct:{hp:1.5}},
 
   /* ---------- 抗性（15） ---------- */
-  {id:'c_res1',  name:'连击抗性', emoji:'⚡', desc:'连击减伤 +20%',              stats:{antiCombo:20}},
-  {id:'c_res2',  name:'穿透抗性', emoji:'🛡️', desc:'穿透抗性 +25%',              stats:{antiPierce:25}},
-  {id:'c_res3',  name:'反伤减免', emoji:'🌵', desc:'反伤减免 +25%',              stats:{antiThorns:25}},
-  {id:'c_res4',  name:'毒抗',     emoji:'🧪', desc:'持续伤害抗性 +25%',          stats:{dotRes:25}},
-  {id:'c_res5',  name:'先攻预判', emoji:'👁️', desc:'免疫先攻',                   stats:{antiFirst:1}},
-  {id:'c_res6',  name:'坚韧',     emoji:'💠', desc:'免疫减益（诅咒/弱化/腐蚀/恐惧）', stats:{antiCurse:1}},
-  {id:'c_res7',  name:'定身抗性', emoji:'⛓️', desc:'免疫控制（定身/眩晕/冰霜）',  stats:{antiStun:1}},
-  {id:'c_res8',  name:'爆炸防护', emoji:'💣', desc:'爆炸减免（死亡爆炸/自爆）',   stats:{antiBomb:1}},
-  {id:'c_res9',  name:'破甲之眼', emoji:'🪨', desc:'无视护甲',                   stats:{antiArmor:1}},
-  {id:'c_res10', name:'真视',     emoji:'👁️‍🗨️', desc:'无视闪避',                stats:{antiDodge:1}},
-  {id:'c_res11', name:'破盾',     emoji:'💠', desc:'无视护盾',                   stats:{antiShield:1}},
-  {id:'c_res12', name:'抑制',     emoji:'⭕', desc:'抑制再生',                   stats:{antiRegen:1}},
-  {id:'c_res13', name:'镇魂',     emoji:'🕯️', desc:'禁止复活与分裂',             stats:{antiReborn:1}},
-  {id:'c_res14', name:'钥匙守护', emoji:'🔑', desc:'守护钥匙（免疫偷窃）',        stats:{keyGuard:1}},
-  {id:'c_res15', name:'全能抗性', emoji:'🌈', desc:'连击/穿透/反伤抗性各 +15%',   stats:{antiCombo:15, antiPierce:15, antiThorns:15}},
+  {id:'c_res1',  name:'连击抗性', emoji:'⚡', desc:'连击减伤 +0.2% × 层数',           stats:{antiCombo:0.2}, scaled:true},
+  {id:'c_res2',  name:'穿透抗性', emoji:'🛡️', desc:'穿透抗性 +0.25% × 层数',         stats:{antiPierce:0.25}, scaled:true},
+  {id:'c_res3',  name:'反伤减免', emoji:'🌵', desc:'反伤减免 +0.25% × 层数',         stats:{antiThorns:0.25}, scaled:true},
+  {id:'c_res4',  name:'毒抗',     emoji:'🧪', desc:'持续伤害抗性 +0.25% × 层数',     stats:{dotRes:0.25}, scaled:true},
+  {id:'c_res5',  name:'先攻预判', emoji:'👁️', desc:'免疫先攻',                     stats:{antiFirst:0.1},  unique:true},
+  {id:'c_res6',  name:'坚韧',     emoji:'💠', desc:'免疫减益（诅咒/弱化/腐蚀/恐惧）', stats:{antiCurse:0.1},  unique:true},
+  {id:'c_res7',  name:'定身抗性', emoji:'⛓️', desc:'免疫控制（定身/眩晕/冰霜）',   stats:{antiStun:0.1},   unique:true},
+  {id:'c_res8',  name:'爆炸防护', emoji:'💣', desc:'爆炸减免（死亡爆炸/自爆）',     stats:{antiBomb:0.1},   unique:true},   
+  {id:'c_res9',  name:'破甲之眼', emoji:'🪨', desc:'无视护甲',                     stats:{antiArmor:0.1},  unique:true},
+  {id:'c_res10', name:'真视',     emoji:'👁️‍🗨️', desc:'无视闪避',                  stats:{antiDodge:0.1},  unique:true},
+  {id:'c_res11', name:'破盾',     emoji:'💠', desc:'无视护盾',                     stats:{antiShield:0.1}, unique:true},
+  {id:'c_res12', name:'抑制',     emoji:'⭕', desc:'抑制再生',                     stats:{antiRegen:0.1},  unique:true},
+  {id:'c_res13', name:'镇魂',     emoji:'🕯️', desc:'禁止复活与分裂',               stats:{antiReborn:0.1}, unique:true},
+  {id:'c_res14', name:'钥匙守护', emoji:'🔑', desc:'守护钥匙（免疫偷窃）',          stats:{keyGuard:0.1},   unique:true},
+  {id:'c_res15', name:'全能抗性', emoji:'🌈', desc:'连击/穿透/反伤抗性各 +1.5% × 层数', stats:{antiCombo:1.5, antiPierce:1.5, antiThorns:1.5}, scaled:true},
 
   /* ---------- 经济 / 功能（10） ---------- */
-  {id:'c_eco1',  name:'贪婪',     emoji:'💰', desc:'金币获取 +30%',              eco:{goldPct:30}},
-  {id:'c_eco2',  name:'悟性',     emoji:'📖', desc:'经验获取 +30%',              eco:{expPct:30}},
-  {id:'c_eco3',  name:'财富',     emoji:'🪙', desc:'金币获取 +60%',              eco:{goldPct:60}},
-  {id:'c_eco4',  name:'智慧',     emoji:'🧠', desc:'经验获取 +60%',              eco:{expPct:60}},
-  {id:'c_eco5',  name:'药剂强化', emoji:'🧴', desc:'红蓝药水效果 +50%',          eco:{potionPct:50}},
-  {id:'c_eco6',  name:'宝石强化', emoji:'💎', desc:'攻防宝石效果 +50%',          eco:{gemPct:50}},
-  {id:'c_eco7',  name:'战后回血', emoji:'🩹', desc:'战斗后恢复 3% 生命上限',      eco:{healPct:3}},
-  {id:'c_eco8',  name:'血腥盛宴', emoji:'🩸', desc:'战斗后恢复 8% 生命上限',      eco:{healPct:8}},
-  {id:'c_eco9',  name:'寻宝',     emoji:'🎒', desc:'装备掉落率 +30%',            eco:{dropPct:30}},
-  {id:'c_eco10', name:'幸运',     emoji:'🍀', desc:'金币与经验获取各 +20%',       eco:{goldPct:20, expPct:20}}
+  {id:'c_eco1',  name:'贪婪',     emoji:'💰', desc:'金币获取 +3%',                 eco:{goldPct:3}},
+  {id:'c_eco2',  name:'悟性',     emoji:'📖', desc:'经验获取 +3%',                 eco:{expPct:3}},
+  {id:'c_eco3',  name:'财富',     emoji:'🪙', desc:'金币获取 +6%',                 eco:{goldPct:6}},
+  {id:'c_eco4',  name:'智慧',     emoji:'🧠', desc:'经验获取 +6%',                 eco:{expPct:6}},
+  {id:'c_eco5',  name:'药剂强化', emoji:'🧴', desc:'红蓝药水效果 +5%',             eco:{potionPct:5}},
+  {id:'c_eco6',  name:'宝石强化', emoji:'💎', desc:'攻防宝石效果 +5%',             eco:{gemPct:5}},
+  {id:'c_eco7',  name:'战后回血', emoji:'🩹', desc:'战斗后恢复 0.3% 生命上限',     eco:{healPct:0.3}},
+  {id:'c_eco8',  name:'血腥盛宴', emoji:'🩸', desc:'战斗后恢复 0.8% 生命上限',     eco:{healPct:0.8}},
+  {id:'c_eco9',  name:'寻宝',     emoji:'🎒', desc:'装备掉落率 +3%',               eco:{dropPct:3}},
+  {id:'c_eco10', name:'幸运',     emoji:'🍀', desc:'金币与经验获取各 +2%',         eco:{goldPct:2, expPct:2}}
 ];
 
 const CARD_MAP = {};
@@ -2830,13 +3006,8 @@ CARD_DEFS.forEach(c => { CARD_MAP[c.id] = c; });
 
 function getCardBonus(){
   const b = {};
-  if (!S.cards) return b;
-  for (const id in S.cards){
-    const c = CARD_MAP[id];
-    if (!c || !c.stats) continue;
-    const n = S.cards[id];
-    for (const k in c.stats) b[k] = (b[k] || 0) + c.stats[k] * n;
-  }
+  const src = S.cardStats || {};
+  for (const k in src) b[k] = src[k];
   return b;
 }
 
@@ -2863,39 +3034,81 @@ function getCardCount(){
 
 function applyCard(card){
   if (!S.cards) S.cards = {};
+  if (!S.cardStats) S.cardStats = {};
+  if (!S.cardGains) S.cardGains = {};
+  if (card.unique && S.cards[card.id]) return;
   S.cards[card.id] = (S.cards[card.id] || 0) + 1;
 
   if (!S.cardDirect) S.cardDirect = { atk:0, def:0, hp:0 };
 
+  // ★ 记录该卡实际贡献的累积值（用于已拥有卡的 tooltip 显示）
+  let gain = S.cardGains[card.id];
+  if (!gain){
+    gain = S.cardGains[card.id] = { atk:0, def:0, hp:0, hpFlat:0, stats:{} };
+  }
+
+  const L = S.floorIdx + 1;                 // 选卡时的层数
+  const scale = card.scaled ? L : 1;
+
+  /* 百分比卡：基于当前属性 */
   if (card.pct){
     if (card.pct.atk){
       const v = Math.max(1, Math.round(S.player.atk * card.pct.atk / 100));
       S.player.atk += v;
-      S.cardDirect.atk += v;              // ★ 记录，用于加成栏显示
+      S.cardDirect.atk += v;
+      gain.atk += v;
     }
     if (card.pct.def){
       const v = Math.max(1, Math.round(S.player.def * card.pct.def / 100));
       S.player.def += v;
       S.cardDirect.def += v;
+      gain.def += v;
     }
     if (card.pct.hp){
       const v = Math.max(1, Math.round(S.player.maxHp * card.pct.hp / 100));
       S.player.maxHp += v;
       S.player.hp += v;
       S.cardDirect.hp += v;
+      gain.hp += v;
     }
   }
+
+  /* 固定生命卡：hpFlat × 选卡层数 */
   if (card.hpFlat){
-    S.player.maxHp += card.hpFlat;
-    S.player.hp    += card.hpFlat;
-    S.cardDirect.hp += card.hpFlat;       // ★ 记录
+    const v = Math.max(1, Math.round(card.hpFlat * scale));
+    S.player.maxHp += v;
+    S.player.hp    += v;
+    S.cardDirect.hp += v;
+    gain.hpFlat += v;
+  }
+
+  /* 固定数值卡：× 选卡层数后累加，并记录本卡贡献 */
+  if (card.stats){
+    for (const k in card.stats){
+      const v = card.stats[k] * scale;
+      S.cardStats[k] = Math.round(((S.cardStats[k] || 0) + v) * 10) / 10;
+      gain.stats[k]  = Math.round(((gain.stats[k]  || 0) + v) * 10) / 10;
+    }
   }
 }
 
 function rollCardOffer(){
   const owned = S.cards || {};
+
+  // 第一轮：排除所有已拥有的卡（unique + 普通卡都不重复出现）
   let pool = CARD_DEFS.filter(c => !owned[c.id]);
-  if (pool.length < 3) pool = CARD_DEFS.slice();
+
+  // 若不足 3 张：用「非 unique 的已拥有卡」补齐（普通卡可重复获得）
+  if (pool.length < 3){
+    const fillers = CARD_DEFS.filter(c => !c.unique && owned[c.id]);
+    pool = pool.concat(fillers);
+  }
+
+  // 极端兜底：仍不足 3 张，只用非 unique 卡（绝不放 unique 卡回来）
+  if (pool.length < 3){
+    pool = CARD_DEFS.filter(c => !c.unique);
+  }
+
   shuffleArr(pool);
   return pool.slice(0, 3);
 }
@@ -2915,7 +3128,7 @@ function showCardOffer(){
           +   '<div class="card-emoji">' + c.emoji + '</div>'
           +   '<div class="card-body">'
           +     '<div class="card-name">' + c.name + '</div>'
-          +     '<div class="card-desc">' + c.desc + '</div>'
+          +     '<div class="card-desc">' + buildCardDesc(c) + '</div>'
           +     (owned > 0 ? '<div class="card-owned">已拥有 ×' + owned + '</div>' : '')
           +   '</div>'
           + '</div>';
@@ -2926,13 +3139,14 @@ function showCardOffer(){
     el.addEventListener('click', () => {
       const c = pendingCards && pendingCards[+el.dataset.cardIdx];
       if (!c) return;
+      const descText = buildCardDesc(c);   /* ★ 先按当前属性算出实际数值 */
       applyCard(c);
       document.getElementById('cardModal').classList.remove('show');
       pendingCards = null;
       renderEquipSlots();
       render();
       updateHUD();
-      toast('✨ 获得增强卡：' + c.name + '（' + c.desc + '）');
+      toast('✨ 获得勇士增强：' + c.name + '（' + descText + '）');
     });
   });
 
@@ -2979,7 +3193,7 @@ function ensureGameTimerStarted(){
 
 /* ======================= 经验 / 金币 ======================= */
 function expNeededForLevel(lv){
-  return Math.max(1, Math.round(100 * Math.pow(lv, 1.5)));
+  return Math.max(1, Math.round(100 * Math.pow(lv, 2.0))); //升级所需经验
 }
 
 function expGainOf(m){
@@ -2999,7 +3213,7 @@ function applyLevelUp(){
   p.def   += defG;
   p.maxHp += hpG;
   p.hp    += hpG;
-}
+}//升级加成
 
 function gainCombatRewards(m){
   const eco = getCardEco();
@@ -3240,11 +3454,67 @@ function recalcHpFromEquip(){
     if (S.player.hp > S.player.maxHp) S.player.hp = S.player.maxHp;
   }
 }
+/* ===== ★ 自动合成：背包装备进入时自动升级 ===== */
+let _inAutoCraft = false;
 
-function addEquip(id, n){
+function autoCraftEquipCore(){
+  if (_inAutoCraft) return 0;          // 防递归
+  _inAutoCraft = true;
+  let crafted = 0;
+  try {
+    let guard = 0;
+    let changed = true;
+    while (changed && guard < 1000){
+      guard++;
+      changed = false;
+
+      const cands = [];
+      const seen  = new Set();
+
+      // 1) 背包里已持有、且满足升级（3 件同名 Lv3+）的
+      for (const id in S.inv){
+        if (!(S.inv[id] > 0)) continue;
+        if (seen.has(id)) continue;
+        if (canCraftEquip(id)){
+          const e = getEquipDef(id);
+          if (e){ cands.push(e); seen.add(id); }
+        }
+      }
+      // 2) 配方表里可合成但材料散落在背包里的
+      for (let i = 0; i < EQUIP_LIST.length; i++){
+        const e = EQUIP_LIST[i];
+        if (!e.recipe) continue;
+        if (seen.has(e.id)) continue;
+        if (canCraftEquip(e.id)){ cands.push(e); seen.add(e.id); }
+      }
+
+      if (!cands.length) break;
+      cands.sort((a, b) => b.lv - a.lv);   // 优先合高级
+      const ne = craftEquipCore(cands[0].id);
+      if (!ne) break;
+      crafted++;
+      changed = true;
+    }
+  } finally {
+    _inAutoCraft = false;
+  }
+  return crafted;
+}
+function addEquip(id, n, opts){
   n = n || 1;
   if (!getEquipDef(id)) return;
   S.inv[id] = (S.inv[id] || 0) + n;
+
+  // 合成过程内部的 addEquip 直接返回（由外层循环继续处理）
+  if (_inAutoCraft) return;
+  // 卸下 / 拖拽换下的装备不自动合
+  if (opts && opts.skipAutoCraft) return;
+
+  const crafted = autoCraftEquipCore();
+  if (crafted > 0){
+    refreshEquipUI();
+    toast('⚡ 自动合成 ' + crafted + ' 件装备');
+  }
 }
 
 function equipItem(id){
@@ -3263,9 +3533,11 @@ function unequipSlot(i){
   const id = S.slots[i];
   if (!id) return;
   S.slots[i] = null;
-  addEquip(id, 1);
+
   const eq = getEquipDef(id);
   toast('卸下：' + (eq ? eq.name : id));
+
+  addEquip(id, 1);   // ★ 不再传 skipAutoCraft，卸下即入包并自动合成
   refreshEquipUI();
 }
 
@@ -3330,52 +3602,7 @@ function craftEquip(id){
   refreshEquipUI();
 }
 
-function craftAllEquip(){
-  let crafted = 0;
-  let guard = 0;
-  let changed = true;
 
-  while (changed && guard < 1000){
-    guard++;
-    changed = false;
-
-    const cands = [];
-    const seenIds = new Set();
-
-    for (const id in S.inv){
-      if (!(S.inv[id] > 0)) continue;
-      if (seenIds.has(id)) continue;
-      if (canCraftEquip(id)){
-        cands.push(getEquipDef(id));
-        seenIds.add(id);
-      }
-    }
-    for (let i = 0; i < EQUIP_LIST.length; i++){
-      const e = EQUIP_LIST[i];
-      if (!e.recipe) continue;
-      if (seenIds.has(e.id)) continue;
-      if (canCraftEquip(e.id)){
-        cands.push(e);
-        seenIds.add(e.id);
-      }
-    }
-
-    if (!cands.length) break;
-
-    cands.sort((a, b) => b.lv - a.lv);
-    const ne = craftEquipCore(cands[0].id);
-    if (!ne) break;
-    crafted++;
-    changed = true;
-  }
-
-  if (crafted > 0){
-    toast('一键合成完成，共合成 ' + crafted + ' 件装备');
-    refreshEquipUI();
-  } else {
-    toast('没有可合成的装备');
-  }
-}
 
 function refreshEquipUI(){
   recalcHpFromEquip();
@@ -3898,13 +4125,16 @@ function renderExtraStats(){
   add('穿透抗性',   pct(E.antiPierce, 100),  '#8affc0');
   add('反伤抗性',   pct(E.antiThorns, 100),  '#8affc0');
 
-  // ★ 增强卡提供的直接数值加成（百分比卡 / 固定生命卡）
+  // ★ 勇士增强提供的直接数值加成（百分比卡 / 固定生命卡）
   const cd = S.cardDirect || {};
   const cps = [];
   if (cd.atk) cps.push('攻+' + Math.round(cd.atk));
   if (cd.def) cps.push('防+' + Math.round(cd.def));
   if (cd.hp)  cps.push('血+' + Math.round(cd.hp));
-  if (cps.length) add('增强卡', cps.join('　'), '#c6a0ff');
+  if (cps.length) add('勇士增强', cps.join('　'), '#c6a0ff');
+  const eco = getCardEco();
+  if (eco.goldPct) add('金币加成', '+' + eco.goldPct + '%', '#ffd75c');
+  if (eco.expPct)  add('经验加成', '+' + eco.expPct + '%', '#8affc0');
 
   const specials = [];
   if (E.antiArmor)  specials.push('破甲');
@@ -3926,7 +4156,7 @@ function renderExtraStats(){
   el.style.display = rows.length ? 'block' : 'none';
 }
 
-/* ★ 已获得增强卡网格：6 个一行，与怪物增强同排布；悬停复用装备同款面板 */
+/* ★ 已获得勇士增强网格：6 个一行，与怪物增强同排布；悬停复用装备同款面板 */
 function renderCardGrid(){
   const el = document.getElementById('hudCardGrid');
   if (!el) return;
@@ -3950,7 +4180,7 @@ function renderCardGrid(){
   el.innerHTML = html;
   el.classList.add('show');
 }
-/* ★ 怪物增强网格：与增强卡完全一致的排布 */
+/* ★ 怪物增强网格：与勇士增强完全一致的排布 */
 function renderMonsterBuffGrid(){
   const el = document.getElementById('hudMonsterBuffGrid');
   if (!el) return;
@@ -4001,7 +4231,7 @@ function updateHUD(){
     const ids = Object.keys(S.monsterBuffs || {});
     let total = 0;
     for (let i = 0; i < ids.length; i++) total += S.monsterBuffs[ids[i]];
-    elMB.textContent = total > 0 ? total : '无';
+    elMB.textContent = total;
   }
   renderMonsterBuffGrid();
 
@@ -4589,8 +4819,7 @@ function goUp(){
   S.hero.y = nf.entry.y;
   render();
   updateHUD();
-  if (S.autoKillZero) autoKillZeroMonsters(true);
-  if (S.autoPickup)   autoPickupItems();
+  // ★ 不再在上下楼瞬间自动清扫/拾取，交由 tryMove() 在移动后执行
   let msg = '进入第 ' + (next + 1) + ' 层' + (nf.hasShop ? ' · 🏪 有商店' : '');
   if (nf.gainedBuff) msg += ' · 🧬 ' + nf.gainedBuff.name;
   toast(msg);
@@ -4610,8 +4839,7 @@ function goDown(){
   S.hero.y = pf.exit.y;
   render();
   updateHUD();
-  if (S.autoKillZero) autoKillZeroMonsters(true);
-  if (S.autoPickup)   autoPickupItems();
+  // ★ 同上：移动之后才自动清扫/拾取
   let msg = '回到第 ' + (prev + 1) + ' 层' + (pf.hasShop ? ' · 🏪 有商店' : '');
   if (pf.gainedBuff) msg += ' · 🧬 ' + pf.gainedBuff.name;
   toast(msg);
@@ -5033,16 +5261,26 @@ function renderTeleport(){
     const mCnt = (fl && fl.monsters) ? Object.keys(fl.monsters).length : 0;
     const iCnt = (fl && fl.items)    ? Object.keys(fl.items).length    : 0;
 
-    let badge = '';
-    if (mCnt || iCnt){
-      const parts = [];
-      if (mCnt) parts.push('👹' + mCnt);
-      if (iCnt) parts.push('🎁' + iCnt);
-      badge = '<span class="floor-badge">' + parts.join(' ') + '</span>';
-    }
+    // ★ 商店：有库存显示 🏪，已售罄显示半透明 🏪
+    const hasShop  = !!(fl && fl.shopStock);
+    const shopOpen = hasShop && fl.shopStock.some(it => !it.sold);
 
-    html += '<button class="floor-btn' + (current ? ' current' : '')+ ((mCnt || iCnt) ? ' has-remain' : '') + '"'
-          + (current ? '' : ' data-floor="' + i + '"') + '>'
+    const parts = [];
+    if (shopOpen)     parts.push('🏪');
+    else if (hasShop) parts.push('<span style="opacity:.4">🏪</span>');
+    if (mCnt)         parts.push('👹' + mCnt);
+    if (iCnt)         parts.push('🎁' + iCnt);
+
+    const badge = parts.length
+      ? '<span class="floor-badge">' + parts.join(' ') + '</span>'
+      : '';
+
+    html += '<button class="floor-btn'
+          +   (current ? ' current' : '')
+          +   ((mCnt || iCnt) ? ' has-remain' : '')
+          +   (shopOpen ? ' has-shop' : '')
+          + '"'
+          +   (current ? '' : ' data-floor="' + i + '"') + '>'
           +   '<span class="floor-num">' + (i + 1) + '</span>'
           +   badge
           + '</button>';
@@ -5159,10 +5397,6 @@ document.getElementById('equipGrid').addEventListener('click', function(e){
   unequipSlot(i);
 });
 
-(function bindCraftAll(){
-  const btn = document.getElementById('craftAllBtn');
-  if (btn) btn.addEventListener('click', craftAllEquip);
-})();
 
 /* ---- 游戏简介按钮 ---- */
 (function bindGuide(){
@@ -5196,9 +5430,11 @@ function startGame(settings){
   S.floorIdx = 0;
   S.player = {hp: 3000, maxHp: 3000, atk: 20, def: 20};
   S.keys = {ykey: 0, bkey: 0, rkey: 0};
-  S.slots = [null,null,null,null,null,null];
-  S.inv = { rusty_sword: 1 };
+  S.slots = ['rusty_sword',null,null,null,null,null];
+  S.inv = {};
   S.cards = {};
+  S.cardStats = {};
+  S.cardGains = {};
   S.hpBonus = 0;
   S.level = 1;
   S.exp   = 0;
