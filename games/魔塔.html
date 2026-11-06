@@ -655,8 +655,16 @@ canvas{
       <b id="menuMapSizeVal">13 × 13</b>
     </div>
 
-    <button id="startGameBtn" class="start-btn">开 始 游 戏</button>
-    <button id="guideBtn" class="guide-btn">📖 游 戏 简 介</button>
+    <button id="continueBtn" class="start-btn" style="display:none;background:linear-gradient(135deg,#2f6a52,#3b4a78)">继 续 游 戏</button>
+<div id="saveInfo" style="display:none;font-size:12px;color:#7c86ad;text-align:center;margin:-8px 0 14px;line-height:1.6"></div>
+<button id="startGameBtn" class="start-btn">开 始 新 游 戏</button>
+<div style="display:flex;gap:8px;margin-top:10px">
+  <button id="exportSaveBtn" class="guide-btn" style="flex:1;margin:0;font-size:13px">📤 导出存档</button>
+  <button id="importSaveBtn" class="guide-btn" style="flex:1;margin:0;font-size:13px">📥 导入存档</button>
+</div>
+<input type="file" id="importSaveFile" accept=".json,application/json" style="display:none">
+<button id="clearSaveBtn" class="guide-btn" style="margin-top:10px;font-size:13px;color:#ff9ad5;border-color:#5a2e44">🗑️ 删除存档</button>
+<button id="guideBtn" class="guide-btn">📖 游 戏 简 介</button>
 
     <p class="tips">
       1–200 层：每 10 层对应一个怪物编号区间（第 1–10 层使用编号 1–10 的怪物，依此类推）。<br>
@@ -3146,6 +3154,7 @@ function showCardOffer(){
       renderEquipSlots();
       render();
       updateHUD();
+      scheduleSave();
       toast('✨ 获得勇士增强：' + c.name + '（' + descText + '）');
     });
   });
@@ -3402,6 +3411,7 @@ function buyShopItem(index){
   renderShop();
   updateHUD();
   render();
+  scheduleSave();
 }
 
 function openShop(){
@@ -3611,6 +3621,7 @@ function refreshEquipUI(){
   if (modal && modal.classList.contains('show')) renderEquipList();
   render();
   updateHUD();
+  scheduleSave();
 }
 
 /* ======================= 快捷键 ======================= */
@@ -4824,6 +4835,7 @@ function goUp(){
   if (nf.gainedBuff) msg += ' · 🧬 ' + nf.gainedBuff.name;
   toast(msg);
   checkCardOffer();
+  scheduleSave();
 }
 
 function goDown(){
@@ -4844,6 +4856,7 @@ function goDown(){
   if (pf.gainedBuff) msg += ' · 🧬 ' + pf.gainedBuff.name;
   toast(msg);
   checkCardOffer();
+  scheduleSave();
 }
 
 /* ======================= 移动 ======================= */
@@ -5334,6 +5347,7 @@ document.getElementById('autoPickupBtn').addEventListener('click', () => {
   } else {
     toast('自动拾取：已关闭');
   }
+  scheduleSave(); 
 });
 
 document.getElementById('autoKillBtn').addEventListener('click', () => {
@@ -5346,6 +5360,7 @@ document.getElementById('autoKillBtn').addEventListener('click', () => {
   } else {
     toast('⚔️ 零伤清扫：已关闭');
   }
+  scheduleSave();
 });
 (function bindKillThreshold(){
   const rangeEl = document.getElementById('autoKillThreshold');
@@ -5523,6 +5538,7 @@ function startGame(settings){
   const btn = document.getElementById('startGameBtn');
   if (btn){
     btn.addEventListener('click', () => {
+      if (Save.exists() && !confirm('已有存档，确定开始新游戏吗？\n（原存档会被覆盖）')) return;
       const density    = (+document.getElementById('menuDensity').value) / 100;
       const otherRatio = (+document.getElementById('menuOtherRatio').value) / 100;
 
@@ -5693,7 +5709,333 @@ updateHUD();
 updateAutoEquipBtn();
 updateAutoPickupBtn();
 updateAutoKillBtn();
+/* ============================================================
+   ★★★ 存档系统 ★★★
+   ============================================================ */
+const SAVE_KEY     = 'ncg:魔塔';
+const SAVE_VERSION = 1;
 
+const SAVE_STORE = (function(){
+  try {
+    localStorage.setItem('__probe','1');
+    localStorage.removeItem('__probe');
+    return localStorage;
+  } catch (e) {
+    console.warn('[save] localStorage 不可用，降级为内存存储');
+    const mem = new Map();
+    return {
+      getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k, v) => mem.set(k, v),
+      removeItem: k => mem.delete(k)
+    };
+  }
+})();
+
+const Save = {
+  exists(){ return SAVE_STORE.getItem(SAVE_KEY) != null; },
+  read(){
+    const raw = SAVE_STORE.getItem(SAVE_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); }
+    catch(e){ console.warn('[save] 存档损坏'); return null; }
+  },
+  write(data){
+    try { SAVE_STORE.setItem(SAVE_KEY, JSON.stringify(data)); return true; }
+    catch(e){ console.error('[save] 写入失败', e); return false; }
+  },
+  clear(){ SAVE_STORE.removeItem(SAVE_KEY); },
+  meta(){
+    const d = Save.read();
+    if (!d) return null;
+    return { floor: (d.floorIdx|0) + 1, time: d.__t || 0, version: d.__v };
+  }
+};
+
+/* -------- snapshot -------- */
+function snapshot(){
+  if (!S.floors || !S.floors.length) return null;
+
+  const dynamicEquips = {};
+  for (const id in EQUIP_DEFS){
+    const e = EQUIP_DEFS[id];
+    if (e && e.isDynamic) dynamicEquips[id] = e.stats;
+  }
+
+  return {
+    __v: SAVE_VERSION,
+    __t: Date.now(),
+    settings: Object.assign({}, S.settings || {}),
+    GW, GH,
+    floorIdx: S.floorIdx,
+    hero: { x: S.hero.x, y: S.hero.y },
+    player: Object.assign({}, S.player),
+    keys: Object.assign({}, S.keys),
+    slots: S.slots.slice(),
+    inv: Object.assign({}, S.inv),
+    cards: Object.assign({}, S.cards),
+    cardStats: Object.assign({}, S.cardStats),
+    cardGains: JSON.parse(JSON.stringify(S.cardGains || {})),
+    cardDirect: Object.assign({}, S.cardDirect || {atk:0,def:0,hp:0}),
+    hpBonus: S.hpBonus || 0,
+    level: S.level,
+    exp: S.exp,
+    gold: S.gold,
+    win: !!S.win,
+    endless: !!S.endless,
+    startTime: S.startTime,
+    endTime: S.endTime,
+    autoEquip: S.autoEquip,
+    autoPickup: S.autoPickup,
+    autoKillZero: S.autoKillZero,
+    autoKillThreshold: S.autoKillThreshold,
+    monsterBuffs: Object.assign({}, S.monsterBuffs || {}),
+    visited: Array.from(visitedFloors),
+    dynamicEquips,
+    floors: S.floors.map(f => f ? {
+      grid: f.grid,
+      entry: f.entry,
+      exit: f.exit,
+      monsters: f.monsters,
+      items: f.items,
+      monsterTraits: f.monsterTraits,
+      level: f.level,
+      multiplier: f.multiplier,
+      extraTraitCount: f.extraTraitCount,
+      hasShop: f.hasShop,
+      shopStock: f.shopStock,
+      hasCardOffer: f.hasCardOffer,
+      cardTaken: f.cardTaken,
+      gainedBuff: f.gainedBuff
+    } : null)
+  };
+}
+
+/* -------- restore -------- */
+function restore(data){
+  if (!data || typeof data !== 'object') return false;
+  if (data.__v !== SAVE_VERSION){
+    console.warn('[save] 版本不兼容', data.__v, '≠', SAVE_VERSION);
+    return false;
+  }
+
+  /* 1. 地图尺寸 */
+  GW   = data.GW || 13;
+  GH   = data.GH || 13;
+  CELL = Math.max(22, Math.min(100, Math.floor(700 / GW)));
+  resizeCanvas();
+
+  /* 2. settings（必须有完整默认值） */
+  S.settings = Object.assign({
+    density: 0.6, otherRatio: 0.25, mult: 2,
+    difficulty: 2.5, dropRate: 0.6, mapSize: 13
+  }, data.settings || {});
+  if (!S.settings.mult) S.settings.mult = 2;
+
+  /* 3. ★ 先注入动态装备定义（必须在任何 getEquipDef 调用前） */
+  if (data.dynamicEquips){
+    for (const id in data.dynamicEquips){
+      const at = id.indexOf('@');
+      if (at < 0) continue;
+      const baseId = id.slice(0, at);
+      const lv     = parseInt(id.slice(at + 1), 10);
+      const base   = EQUIP_DEFS[baseId];
+      if (!base) continue;
+      EQUIP_DEFS[id] = {
+        id, baseId,
+        name: base.name, emoji: base.emoji,
+        tier: 'high', lv,
+        stats: data.dynamicEquips[id],
+        recipe: null, isDynamic: true
+      };
+    }
+  }
+
+  /* 4. 楼层 */
+  S.floors = (data.floors || []).map(f => f ? {
+    grid: f.grid,
+    entry: f.entry,
+    exit: f.exit,
+    monsters: f.monsters || {},
+    items: f.items || {},
+    monsterTraits: f.monsterTraits || {},
+    level: f.level,
+    multiplier: f.multiplier || 1,
+    extraTraitCount: f.extraTraitCount || 0,
+    hasShop: !!f.hasShop,
+    shopStock: f.shopStock,
+    hasCardOffer: !!f.hasCardOffer,
+    cardTaken: !!f.cardTaken,
+    gainedBuff: f.gainedBuff
+  } : null);
+
+  /* 5. 玩家 / 装备 / 增强 / 时间 */
+  S.floorIdx   = data.floorIdx | 0;
+  S.hero       = data.hero  || { x: 1, y: 1 };
+  S.player     = data.player|| { hp:3000, maxHp:3000, atk:20, def:20 };
+  S.keys       = data.keys  || { ykey:0, bkey:0, rkey:0 };
+  S.slots      = (data.slots || [null,null,null,null,null,null]).slice(0, 6);
+  S.inv        = data.inv   || {};
+  S.cards      = data.cards || {};
+  S.cardStats  = data.cardStats || {};
+  S.cardGains  = data.cardGains || {};
+  S.cardDirect = data.cardDirect || { atk:0, def:0, hp:0 };
+  S.hpBonus    = data.hpBonus || 0;
+  S.level      = data.level || 1;
+  S.exp        = data.exp   || 0;
+  S.gold       = data.gold  || 0;
+  S.win        = !!data.win;
+  S.over       = false;
+  S.endless    = !!data.endless;
+  S.startTime  = data.startTime || 0;
+  S.endTime    = data.endTime   || 0;
+  S.autoEquip  = !!data.autoEquip;
+  S.autoPickup = !!data.autoPickup;
+  S.autoKillZero = !!data.autoKillZero;
+  S.autoKillThreshold = data.autoKillThreshold || 0;
+  S.monsterBuffs = data.monsterBuffs || {};
+
+  /* 6. visitedFloors */
+  visitedFloors.clear();
+  (data.visited || [0]).forEach(f => visitedFloors.add(f));
+
+  /* 7. 计时器 */
+  if (gameTimerInterval){ clearInterval(gameTimerInterval); gameTimerInterval = null; }
+  if (S.startTime && !S.endTime){
+    gameTimerInterval = setInterval(updateTimerDisplay, 500);
+  }
+
+  /* 8. UI 同步 */
+  document.getElementById('menu').classList.remove('show');
+  document.getElementById('game').style.display = 'flex';
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('endlessBtn').style.display = 'none';
+  ['monsterBook','teleportModal','keybindModal','equipModal',
+   'shopModal','guideModal','cardModal'].forEach(id => {
+    document.getElementById(id).classList.remove('show');
+  });
+
+  const kt = document.getElementById('autoKillThreshold');
+  if (kt) kt.value = String(S.autoKillThreshold);
+
+  renderEquipSlots();
+  render();
+  updateHUD();
+  updateAutoPickupBtn();
+  updateAutoKillBtn();
+  updateAutoEquipBtn();
+  updateTimerDisplay();
+
+  if (S.win) showClearOverlay();
+  else triggerHeroHighlight(2000);
+
+  checkCardOffer();
+  return true;
+}
+
+/* -------- 自动存档调度（节流） -------- */
+let saveTimer = null;
+let saveErrorShown = false;
+
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    saveTimer = null;
+    if (!S.floors || !S.floors.length) return;
+    if (S.win && !S.endless) return;   // 通关后还没进无尽的不存
+    const data = snapshot();
+    if (!data) return;
+    if (!Save.write(data) && !saveErrorShown){
+      saveErrorShown = true;
+      toast('⚠️ 存档失败（浏览器存储已满）');
+    }
+  }, 700);
+}
+
+window.addEventListener('pagehide', () => {
+  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null;
+    const d = snapshot(); if (d) Save.write(d); }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && saveTimer){
+    clearTimeout(saveTimer); saveTimer = null;
+    const d = snapshot(); if (d) Save.write(d);
+  }
+});
+
+/* -------- 存档 UI 绑定 -------- */
+(function initSaveUI(){
+  const btn  = document.getElementById('continueBtn');
+  const info = document.getElementById('saveInfo');
+  const meta = Save.meta();
+  if (meta && btn){
+    btn.style.display = 'inline-block';
+    if (info){
+      info.style.display = 'block';
+      const when = meta.time ? new Date(meta.time).toLocaleString('zh-CN') : '';
+      info.innerHTML = '已有存档：第 <b style="color:#8affc0">' + meta.floor + '</b> 层'
+                     + (when ? ' · ' + when : '');
+    }
+  }
+
+  if (btn){
+    btn.addEventListener('click', () => {
+      const data = Save.read();
+      if (!data){ alert('存档已丢失'); return; }
+      if (!restore(data)) alert('存档读取失败');
+    });
+  }
+
+  const exp = document.getElementById('exportSaveBtn');
+  if (exp) exp.addEventListener('click', () => {
+    const raw = SAVE_STORE.getItem(SAVE_KEY);
+    if (!raw){ toast('暂无存档'); return; }
+    const blob = new Blob([raw], { type:'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = '魔塔存档_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  const imp   = document.getElementById('importSaveBtn');
+  const fileI = document.getElementById('importSaveFile');
+  if (imp) imp.addEventListener('click', () => fileI && fileI.click());
+  if (fileI) fileI.addEventListener('change', function(){
+    const file = this.files && this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data || data.__v !== SAVE_VERSION) throw new Error('存档版本不兼容');
+        if (!Array.isArray(data.floors) || !data.floors.length) throw new Error('存档数据无效');
+        if (!confirm('导入将覆盖当前存档，确定？')) return;
+        if (!Save.write(data)) throw new Error('写入失败');
+        alert('导入成功，将刷新页面');
+        location.reload();
+      } catch (e){ alert('导入失败：' + e.message); }
+    };
+    reader.onerror = () => alert('读取文件失败');
+    reader.readAsText(file);
+    this.value = '';
+  });
+
+  const clr = document.getElementById('clearSaveBtn');
+  if (clr) clr.addEventListener('click', () => {
+    if (!Save.exists()){ toast('暂无存档'); return; }
+    if (!confirm('确定删除存档？不可撤销')) return;
+    Save.clear();
+    alert('存档已删除');
+    location.reload();
+  });
+})();
+/* 包一层 tryMove：所有移动后自动存档 */
+const _origTryMove = tryMove;
+tryMove = function(dx, dy, opts){
+  _origTryMove(dx, dy, opts);
+  scheduleSave();
+};
 })();
 </script>
 </body>
