@@ -30,6 +30,11 @@
   #speedBtn:hover { background:#123528; border-color:#57d9a3; }
   #speedBtn.fast { color:#ffd166; border-color:#6b5520; }
   #speedBtn.fast:hover { background:#3a2c0e; border-color:#ffd166; }
+  #speedBtn.fast { color:#ffd166; border-color:#6b5520; }
+  #speedBtn.fast:hover { background:#3a2c0e; border-color:#ffd166; }
+  /* ★ 减速状态 */
+  #speedBtn.slow { color:#41d8ff; border-color:#1f4a6b; }
+  #speedBtn.slow:hover { background:#0e2436; border-color:#41d8ff; }
     /* ★ 当前关卡背景主题 */
   #zoneText { color:#7fe8c0; font-weight:bold; letter-spacing:1px;
     white-space:nowrap; transition:color .3s, text-shadow .3s; }
@@ -454,7 +459,7 @@
       <div id="zoneText">幽暗森林</div>
       <div>击杀 <span class="val" id="killText">0</span></div>
       <div>等级 <span class="val" id="plvText">1</span></div>
-      <div id="speedBtn" title="游戏速度（点击或按 T 切换）">⏩ ×1</div>
+      <div id="speedBtn" title="游戏速度（Q 减速 / E 加速 / T 循环切换）">⏩ ×1</div>
     </div>
     <div id="bars">
       <div class="bar"><div class="fill" id="hpfill"></div><span id="hpText"></span></div>
@@ -478,7 +483,7 @@
   <div class="panel center">
     <h2 style="font-size:30px;color:#b9a9ff;">深渊回响</h2>
     <p class="sub">100 个关卡 · 每关 5 分钟 · <b style="color:#ff8b3d;">BOSS 每 2:30 降临一个</b> · 技能上限 5 个 ·  <b style="color:#ff5c5c;">怪物属性指数级增长</b></p>
-    <p class="sub" style="max-width:560px;margin:0 auto 18px;">WASD / 方向键移动，自动攻击最近敌人。<br>点击下方「📖 游戏简介」查看完整玩法说明。</p>
+    <p class="sub" style="max-width:560px;margin:0 auto 18px;"><b>WASD / 方向键</b> 或 <b>鼠标左键</b> 移动，自动攻击最近敌人。<br>点击下方「📖 游戏简介」查看完整玩法说明。</p>
     <div id="menuBtns">
       <button id="bigBtn">开 始 冒 险</button>
       <button class="btn hidden" id="continueBtn">继 续 冒 险</button>
@@ -501,7 +506,7 @@
 
       <h3>📋 玩法速览</h3>
       <p>共 <b>100 个关卡</b>，每关 <b>5 分钟</b>；BOSS 每 <b>2:30</b> 降临一个；技能上限 <b>5 个</b>；怪物密度 ×2（原 ×10），血量 ×5，经验 ÷2，且属性随关卡<b>指数级增长</b>。</p>
-      <p><b>WASD / 方向键</b> 移动，角色自动攻击最近的敌人。按 <b>I</b> 打开背包，<b>ESC</b> 暂停（可返回主菜单），<b>T</b> 切换游戏速度（×1 / ×2 / ×3）。</p>
+      <p><b>WASD / 方向键</b> 或 <b>鼠标左键</b> 移动，角色自动攻击最近的敌人。按 <b>I</b> 打开背包，<b>ESC</b> 暂停（可返回主菜单），<b>Q / E</b> 减速 / 加速，<b>T</b> 循环切换游戏速度（×0.25 ~ ×3）。</p>
       <p>击杀怪物掉落经验球。升级后三选一<b>攻击技能</b>，最多掌握 5 个，每个技能满 <b>6 级</b>进化为终极形态。技能池共 <b>50 种</b>主动技能，属性增强共 <b>50 种</b>永久加成（可无限叠加）。</p>
       <p>每关进行到 <b>2:30</b> 出现第一个 BOSS，<b>5:00</b> 出现第二个 BOSS 并进入 BOSS 战（不限时），击败全部 BOSS 才能通关。</p>
       <p><b>第 11 关起</b>怪物生命 / 伤害按关卡指数级暴涨，请靠技能与永久增强叠出足够的成长曲线。</p>
@@ -885,6 +890,152 @@ const BOSSES = [
   { id:'boss1', name:'熔岩领主 · 伊格尼斯', type:'fire',   color:'#ff4d00', hp:2600,  spd:46, dmg:24, r:46, xp:900,  shape:'blob' },
   { id:'boss2', name:'虚空之王 · 奈落',     type:'arcane', color:'#c800ff', hp:11000, spd:54, dmg:34, r:56, xp:2600, shape:'blob' },
 ];
+/* ============================================================
+   ★ BOSS 攻击模式（9 种，随机选择）
+   ------------------------------------------------------------
+   每个 fn 接收：(boss, 伤害, 弹速倍率, 弹道尺寸, 血量比例)
+   关卡越靠后 → 弹道越大（spawnBoss 里计算 bulletSize）
+   ============================================================ */
+const BOSS_ATTACKS = [
+  /* 1. 环形爆发 —— 均匀环形全方向 */
+  { name:'环形爆发', fn(e, dmg, mul, sz, hp){
+    const n = (hp < 0.5 ? 16 : 11) + Math.floor((sz - 8) * 0.8);
+    const base = rand(0, Math.PI * 2);
+    for (let k = 0; k < n; k++){
+      const a = base + (Math.PI * 2 * k) / n;
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 195 * mul, vy: Math.sin(a) * 195 * mul,
+        r: sz, dmg: dmg * 0.42, type: e.type, life: 4.5,
+      });
+    }
+  }},
+
+  /* 2. 瞄准连发 —— 朝玩家方向的连续射击 */
+  { name:'瞄准连发', fn(e, dmg, mul, sz, hp){
+    const a0 = Math.atan2(P.y - e.y, P.x - e.x);
+    const n = hp < 0.5 ? 5 : 3;
+    for (let k = 0; k < n; k++){
+      const a = a0 + (k - (n - 1) / 2) * 0.14;
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 290 * mul, vy: Math.sin(a) * 290 * mul,
+        r: sz * 0.9, dmg: dmg * 0.5, type: e.type, life: 5,
+      });
+    }
+  }},
+
+  /* 3. 螺旋弹幕 —— 旋转双臂/四臂 */
+  { name:'螺旋弹幕', fn(e, dmg, mul, sz, hp){
+    const arms = hp < 0.5 ? 4 : 2;
+    const per  = hp < 0.5 ? 3 : 2;
+    const base = rand(0, Math.PI * 2);
+    for (let i = 0; i < arms; i++){
+      for (let j = 0; j < per; j++){
+        const a = base + (i * Math.PI * 2 / arms) + j * 0.35;
+        G.eBullets.push({
+          x: e.x, y: e.y,
+          vx: Math.cos(a) * 220 * mul, vy: Math.sin(a) * 220 * mul,
+          r: sz * 0.85, dmg: dmg * 0.42, type: e.type, life: 5,
+        });
+      }
+    }
+  }},
+
+  /* 4. 追踪弹 —— 缓慢追踪玩家 */
+  { name:'追踪弹', fn(e, dmg, mul, sz, hp){
+    const n = hp < 0.5 ? 3 : 2;
+    for (let k = 0; k < n; k++){
+      const a = Math.atan2(P.y - e.y, P.x - e.x) + rand(-0.5, 0.5);
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 170 * mul, vy: Math.sin(a) * 170 * mul,
+        r: sz * 1.1, dmg: dmg * 0.55, type: e.type, life: 7,
+        homing: true, turnRate: 1.8,
+      });
+    }
+  }},
+
+  /* 5. 十字弹 —— 四臂十字弹幕 */
+  { name:'十字弹', fn(e, dmg, mul, sz, hp){
+    const a0 = rand(0, Math.PI * 2);
+    const arms = 4, per = 3 + Math.floor((sz - 8) * 0.5);
+    for (let i = 0; i < arms; i++){
+      const a = a0 + i * Math.PI / 2;
+      for (let j = 0; j < per; j++){
+        G.eBullets.push({
+          x: e.x + Math.cos(a) * j * 32,
+          y: e.y + Math.sin(a) * j * 32,
+          vx: Math.cos(a) * 240 * mul, vy: Math.sin(a) * 240 * mul,
+          r: sz * 0.75, dmg: dmg * 0.38, type: e.type, life: 5,
+        });
+      }
+    }
+  }},
+
+  /* 6. 天降弹雨 —— 从玩家周围上空落下 */
+  { name:'天降弹雨', fn(e, dmg, mul, sz, hp){
+    const n = hp < 0.5 ? 12 : 8;
+    for (let k = 0; k < n; k++){
+      const px = P.x + rand(-320, 320);
+      const py = P.y + rand(-320, 320);
+      G.eBullets.push({
+        x: px, y: py - 420,
+        vx: rand(-20, 20), vy: 340 * mul,
+        r: sz * 0.95, dmg: dmg * 0.45, type: e.type, life: 4.5,
+      });
+    }
+  }},
+
+  /* 7. 双环交错 —— 内外两圈不同速度 */
+  { name:'双环交错', fn(e, dmg, mul, sz, hp){
+    const n = hp < 0.5 ? 14 : 10;
+    const base = rand(0, Math.PI * 2);
+    for (let k = 0; k < n; k++){
+      const a1 = base + (Math.PI * 2 * k) / n;
+      const a2 = a1 + Math.PI / n;
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a1) * 180 * mul, vy: Math.sin(a1) * 180 * mul,
+        r: sz * 0.85, dmg: dmg * 0.38, type: e.type, life: 5,
+      });
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a2) * 260 * mul, vy: Math.sin(a2) * 260 * mul,
+        r: sz * 0.65, dmg: dmg * 0.32, type: e.type, life: 5,
+      });
+    }
+  }},
+
+  /* 8. 扇形散射 —— 朝玩家大角度扇形 */
+  { name:'扇形散射', fn(e, dmg, mul, sz, hp){
+    const a0 = Math.atan2(P.y - e.y, P.x - e.x);
+    const n = hp < 0.5 ? 10 : 7;
+    const spread = 0.9;
+    for (let k = 0; k < n; k++){
+      const a = a0 + (k - (n - 1) / 2) * (spread / (n - 1));
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 260 * mul, vy: Math.sin(a) * 260 * mul,
+        r: sz * 0.8, dmg: dmg * 0.4, type: e.type, life: 5,
+      });
+    }
+  }},
+
+  /* 9. 巨型弹 —— 更慢、更大、更痛 */
+  { name:'巨型弹', fn(e, dmg, mul, sz, hp){
+    const n = hp < 0.5 ? 2 : 1;
+    for (let k = 0; k < n; k++){
+      const a = Math.atan2(P.y - e.y, P.x - e.x) + rand(-0.2, 0.2);
+      G.eBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 140 * mul, vy: Math.sin(a) * 140 * mul,
+        r: sz * 1.9, dmg: dmg * 1.4, type: e.type, life: 6,
+      });
+    }
+  }},
+];
+
 
 /* ============================================================
    3. 装备
@@ -1051,16 +1202,21 @@ function makeAffixedItem(slotBase, idx, numAffixes){
   };
 }
 
-function makeInstance(slotBase, tier, affixes){
-  const base = getDef(slotBase, IDX_MAX);
-  /* ★ 4级起每级底子 +18%，6级后继续增长（避免底子封顶） */
-  const tierBoost = 1 + Math.max(0, tier - 3) * 0.5; //装备合成
+function makeInstance(slotBase, tier, affixes, srcIdx){
+  const statBase = getDef(slotBase, IDX_MAX);
+  const resolvedIdx = clamp(srcIdx || IDX_MAX, 1, IDX_MAX);   // ← 新增
+  const nameBase   = getDef(slotBase, resolvedIdx);           // ← 名字来源
+
+  const tierBoost = 1 + Math.max(0, tier - 3) * 0.5;
   const boosted = {};
-  for (const k in base.stats) boosted[k] = +(base.stats[k] * tierBoost).toFixed(4);
+  for (const k in statBase.stats) boosted[k] = +(statBase.stats[k] * tierBoost).toFixed(4);
+
   return {
     key: 'INST_' + (uid++),
-    slotBase, idx: IDX_MAX, tier,
-    name: base.name + ' ' + (toRoman(tier)),
+    slotBase, idx: IDX_MAX,
+    srcIdx: resolvedIdx,                     // ★ 持久化字段
+    tier,
+    name: nameBase.name + ' ' + toRoman(tier),
     stats: boosted,
     affixes: affixes || [],
     tierName: tier + '级',
@@ -2045,26 +2201,80 @@ addEventListener('keydown', e => {
     else if (G.state === 'paused') resumeGame();
     else if (G.state === 'levelselect') backToMenu();
   }
+  if (k === 'q') speedDown();
+  if (k === 'e') speedUp();
   if (k === 't') cycleSpeed();
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+/* ============================================================
+   ★ 鼠标左键移动
+   ------------------------------------------------------------
+   · 按下左键 → 记录世界坐标目标点，人物朝它走
+   · 按住拖动 → 目标点实时跟随鼠标
+   · 松开左键 → 保留目标，走到后自然停下
+   · 键盘输入 → 自动取消鼠标寻路（键盘优先）
+   ============================================================ */
+const mouseCtl = { down: false, active: false, tx: 0, ty: 0, sx: 0, sy: 0 };
 
+function updateMouseTarget(){
+  /* 屏幕坐标 → 世界坐标（相机左上角 + 屏幕位置） */
+  mouseCtl.tx = mouseCtl.sx + G.cam.x;
+  mouseCtl.ty = mouseCtl.sy + G.cam.y;
+}
+
+canvas.addEventListener('mousedown', ev => {
+  if (ev.button !== 0) return;            // 只响应左键
+  if (G.state !== 'playing' || !P) return;
+  ev.preventDefault();
+  mouseCtl.down = true;
+  mouseCtl.active = true;
+  mouseCtl.sx = ev.clientX;
+  mouseCtl.sy = ev.clientY;
+  updateMouseTarget();
+});
+
+/* 监听在 window 上：即使拖出 canvas 仍能跟随 */
+addEventListener('mousemove', ev => {
+  mouseCtl.sx = ev.clientX;
+  mouseCtl.sy = ev.clientY;
+  if (mouseCtl.down && G.state === 'playing') updateMouseTarget();
+});
+
+addEventListener('mouseup', ev => {
+  if (ev.button !== 0) return;
+  mouseCtl.down = false;
+  /* active 保持：让人物继续走完到目标点的剩余路程 */
+});
 /* ============================================================
    ★ 游戏加速
    ============================================================ */
-const SPEEDS = [1, 2, 3];
-let speedIdx = 0;
+/* ============================================================
+   ★ 游戏加速（Q 减速 / E 加速 / T 循环切换）
+   ============================================================ */
+const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
+let speedIdx = SPEED_STEPS.indexOf(1);   // 默认 ×1
 
-function cycleSpeed(){
-  speedIdx = (speedIdx + 1) % SPEEDS.length;
-  G.speed = SPEEDS[speedIdx];
+function setSpeed(idx){
+  speedIdx = clamp(idx, 0, SPEED_STEPS.length - 1);
+  G.speed = SPEED_STEPS[speedIdx];
   const el = document.getElementById('speedBtn');
   if (el){
-    el.textContent = '⏩ ×' + G.speed;
+    el.textContent = (G.speed < 1 ? '⏪ ×' : '⏩ ×') + G.speed;
     el.classList.toggle('fast', G.speed > 1);
+    el.classList.toggle('slow', G.speed < 1);
   }
 }
+
+/* 单步减速 / 加速（到顶到底即停） */
+function speedDown(){ setSpeed(speedIdx - 1); }
+function speedUp(){   setSpeed(speedIdx + 1); }
+
+/* T 键：档位循环 */
+function cycleSpeed(){ setSpeed((speedIdx + 1) % SPEED_STEPS.length); }
+
+/* 点击按钮同样走循环切换 */
+setSpeed(speedIdx);
 
 /* ============================================================
    ★ 存档系统 v2
@@ -2074,7 +2284,13 @@ const SAVE_KEY = 'abyss_echo_save_v2';
 function serializeItem(it){
   if (!it) return null;
   if (it.isInstance){
-    return { i: 1, sb: it.slotBase, t: it.tier, a: (it.affixes || []).map(x => ({ ...x })) };
+    return {
+      i: 1,
+      sb: it.slotBase,
+      t:  it.tier,
+      si: it.srcIdx || IDX_MAX,              // ★ 保存名字来源
+      a:  (it.affixes || []).map(x => ({ ...x })),
+    };
   }
   return { i: 0, sb: it.slotBase, idx: it.idx };
 }
@@ -2082,7 +2298,9 @@ function serializeItem(it){
 function deserializeItem(d){
   if (!d) return null;
   try {
-    if (d.i) return makeInstance(d.sb, d.t, (d.a || []).map(x => ({ ...x })));
+    if (d.i){
+      return makeInstance(d.sb, d.t, (d.a || []).map(x => ({ ...x })), d.si);
+    }
     return getDef(d.sb, d.idx);
   } catch (e) { return null; }
 }
@@ -2411,7 +2629,9 @@ function doCombineRaw(pl, group){
     }
     if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
-    result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes));
+    /* 取素材里最强的那件的前缀（idx 越大越强；instance 的 idx 记为 IDX_MAX） */
+    const srcIdx = Math.max(...consumed.map(it => it.idx || IDX_MAX));
+    result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes), srcIdx);
   }
 
   addItemRawTo(pl, result, 1);
@@ -2541,6 +2761,8 @@ function startLevel(n){
   G.endlessWave = 0;
   G.endlessBoss = 0;
   G.state = 'playing';
+  mouseCtl.down = false;
+  mouseCtl.active = false;
   updateHUD();
 }
 
@@ -2570,9 +2792,11 @@ function spawnBoss(level, index){
 
   const sc = levelScaling(level);                       
   const waveMul = G.endless ? endlessScale().hp : 1;
-  const hp  = (900 + level * 260) * sc.hp * (index === 0 ? 1 : 1.6) * 500 * waveMul; 
+  const hp = (200 + level * 60) * sc.hp * (index === 0 ? 1 : 1.6) * 100 * waveMul; 
   const dmg = (8 + level * 20) * sc.dmg * (index === 0 ? 1 : 1.3) * (G.endless ? 1 + G.endlessWave * 0.12 : 1); //伤害 
-
+  /* ★ 弹道尺寸：随关卡增长（1关=8 → 100关≈22） */
+  const sizeLv = G.endless ? MAX_LEVEL + G.endlessWave * 3 : level;
+  const bulletSize = Math.min(24, 8 + (sizeLv - 1) * 0.14);
   const e = {
     ...b,
     x: P.x + Math.cos(ang) * dist,
@@ -2581,6 +2805,7 @@ function spawnBoss(level, index){
     dmg: dmg,
     xpVal: (220 + level * 90) * sc.xp * (index === 0 ? 1 : 1.5) * 0.5,
     isBoss: true,
+    bulletSize,
     bossIndex: index,
     atkCd: 2, touchCd: 0, hitFlash: 0, slowT: 0,
     _bhit: {},
@@ -2609,8 +2834,8 @@ function spawnEnemy(){
     x: P.x + Math.cos(ang) * d,
     y: P.y + Math.sin(ang) * d,
     spd: base.spd * spdScale,
-    maxHp: base.hp * hpScale * 5,
-    hp: base.hp * hpScale * 5,
+    maxHp: base.hp * hpScale * 2,
+    hp: base.hp * hpScale * 2,
     dmg: base.dmg * dmgScale,
     xpVal: base.xp * (1 + (lv - 1) * 0.3) * sc.xp * (1 + wave * 0.1),
     atkCd: rand(0.5, 2),
@@ -3319,12 +3544,33 @@ function update(dt){
     }
   }
 
-  /* 移动 */
+    /* 移动 */
   let mx = 0, my = 0;
-  if (keys['w'] || keys['arrowup'])    my -= 1;
-  if (keys['s'] || keys['arrowdown'])  my += 1;
-  if (keys['a'] || keys['arrowleft'])  mx -= 1;
-  if (keys['d'] || keys['arrowright']) mx += 1;
+
+  /* --- 键盘方向 --- */
+  let kmx = 0, kmy = 0;
+  if (keys['a'] || keys['arrowleft'])  kmx -= 1;
+  if (keys['d'] || keys['arrowright']) kmx += 1;
+  if (keys['w'] || keys['arrowup'])    kmy -= 1;
+  if (keys['s'] || keys['arrowdown'])  kmy += 1;
+  const hasKeyInput = kmx !== 0 || kmy !== 0;
+
+  if (hasKeyInput){
+    mx = kmx; my = kmy;
+    mouseCtl.active = false;            // ★ 键盘操作优先，打断鼠标寻路
+  } else if (mouseCtl.active){
+    /* --- 鼠标寻路 --- */
+    const dxm = mouseCtl.tx - P.x;
+    const dym = mouseCtl.ty - P.y;
+    const dm  = Math.hypot(dxm, dym);
+    if (dm < 6){
+      mouseCtl.active = false;          // ★ 已抵达目标点
+    } else {
+      mx = dxm / dm;
+      my = dym / dm;
+    }
+  }
+
   if (mx || my){
     const len = Math.hypot(mx, my);
     mx /= len; my /= len;
@@ -3337,7 +3583,6 @@ function update(dt){
     P.moving = false;
   }
   P.facingHold = Math.max(0, P.facingHold - dt);
-
   if (st.regen > 0) P.hp = Math.min(st.maxHp, P.hp + st.regen * dt);
 
   /* 普通攻击 */
@@ -3385,20 +3630,21 @@ function update(dt){
       const spd = e.spd * (hpRatio < 0.5 ? 1.45 : 1) * spdMul;
       if (dd > 130){ e.x += (dx / dd) * spd * dt; e.y += (dy / dd) * spd * dt; }
       if (e.atkCd <= 0){
-        e.atkCd = hpRatio < 0.5 ? 1.15 : 1.7;
-        const n = hpRatio < 0.5 ? 16 : 11;
-        const base = rand(0, Math.PI * 2);
-        for (let k = 0; k < n; k++){
-          const a = base + (Math.PI * 2 * k) / n;
-          G.eBullets.push({
-            x: e.x, y: e.y,
-            vx: Math.cos(a) * 195 * G.bulletSpdMul,
-            vy: Math.sin(a) * 195 * G.bulletSpdMul,
-            r: 8, dmg: e.dmg * 0.42 * enemyBulletDmgMul(),   
-            type: e.type, life: 4.5,
-          });
-        }
-      }
+  /* ★ 攻击频率随关卡提高（1关≈1.79s → 100关≈0.6s，残血再 ×0.65） */
+  const effLv = G.endless ? MAX_LEVEL + G.endlessWave * 2 : G.level;
+  const baseCd = Math.max(0.45, 1.8 - effLv * 0.012);
+  e.atkCd = hpRatio < 0.5 ? Math.max(0.3, baseCd * 0.65) : baseCd;
+
+  /* ★ 随机选择 9 种攻击之一 */
+  const mode = pick(BOSS_ATTACKS);
+  mode.fn(e, e.dmg * enemyBulletDmgMul(), G.bulletSpdMul, e.bulletSize, hpRatio);
+
+  /* 攻击时的可视脉冲 */
+  G.effects.push({
+    kind:'ring', x:e.x, y:e.y, r:e.r + 22,
+    life: 0.25, maxLife: 0.25, color: e.color,
+  });
+}
     } else if (e.ranged){
       if (dd > 280){ e.x += (dx / dd) * e.spd * spdMul * dt; e.y += (dy / dd) * e.spd * spdMul * dt; }
       else if (dd < 190){ e.x -= (dx / dd) * e.spd * spdMul * 0.6 * dt; e.y -= (dy / dd) * e.spd * spdMul * 0.6 * dt; }
@@ -3522,6 +3768,18 @@ function update(dt){
   /* 敌人子弹 */
   for (let i = G.eBullets.length - 1; i >= 0; i--){
     const b = G.eBullets[i];
+      /* ★ 追踪弹转向 */
+  if (b.homing){
+    const want = Math.atan2(P.y - b.y, P.x - b.x);
+    const curA = Math.atan2(b.vy, b.vx);
+    let diff = want - curA;
+    while (diff >  Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    const na = curA + clamp(diff, -b.turnRate * dt, b.turnRate * dt);
+    const sp = Math.hypot(b.vx, b.vy);
+    b.vx = Math.cos(na) * sp;
+    b.vy = Math.sin(na) * sp;
+  }
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= dt;
@@ -3727,6 +3985,8 @@ function rollLevelClearItem(level){
    ============================================================ */
 function levelClear(){
   G.state = 'clear';
+  mouseCtl.down = false;
+  mouseCtl.active = false;
 
   /* ★ 只记录本次掉落的装备（不再展示整个背包） */
   const dropped = [];
@@ -3799,6 +4059,21 @@ function levelClear(){
 
 function gameOver(win){
   G.state = 'over';
+  mouseCtl.down = false;
+  mouseCtl.active = false;
+
+  /* ★ 中途阵亡也掉落装备：按存活时间比例（最多 5 分钟），数量减半 */
+  let lootCount = 0;
+  let survived = 0;
+  if (!win && P){
+    survived = Math.min(300, Math.floor(G.levelTime || 0));
+    const ratio = clamp(survived / 300, 0, 1);
+    lootCount = Math.floor(randi(10, 20) * 0.5 * ratio);
+    for (let i = 0; i < lootCount; i++){
+      addItem(rollLevelClearItem(G.level), 1);   // 入包并自动合成
+    }
+  }
+
   saveGearOnly();
   const d = ensureSave();
   d.run = null;
@@ -3806,8 +4081,15 @@ function gameOver(win){
 
   document.getElementById('overpanel').classList.remove('hidden');
   document.getElementById('overTitle').textContent = win ? '胜利！' : '你已陨落';
-  document.getElementById('overSub').textContent =
-    `抵达第 ${G.level} 关 · 击杀 ${G.kills} · 等级 ${P ? P.level : 1}　（装备已保留）`;
+
+  let sub = `抵达第 ${G.endless ? '∞' : G.level} 关 · 击杀 ${G.kills} · 等级 ${P ? P.level : 1}　（装备已保留）`;
+  if (!win && P){
+    const mm = Math.floor(survived / 60);
+    const ss = String(survived % 60).padStart(2, '0');
+    sub += `<br>存活 ${mm}:${ss} · 获得 ${lootCount} 件装备（已自动合成至背包）`;
+  }
+  document.getElementById('overSub').innerHTML = sub;
+
   document.getElementById('bigBtn3').onclick = () => {
     document.getElementById('overpanel').classList.add('hidden');
     P = null;
@@ -3821,6 +4103,8 @@ function gameOver(win){
 function pauseGame(){
   if (G.state !== 'playing') return;
   G.state = 'paused';
+  mouseCtl.down = false;
+  mouseCtl.active = false;
   hideSkillTip();
   hideItemTip();
   document.getElementById('pausepanel').classList.remove('hidden');
@@ -4213,7 +4497,25 @@ function render(){
     ctx.fill();
     ctx.shadowBlur = 0;
   }
-
+  /* ★ 鼠标移动目标指示器（世界坐标，脉动圆环） */
+  if (mouseCtl.active && G.state === 'playing'){
+    const pulse = 0.5 + 0.5 * Math.sin(G.time * 6);
+    ctx.save();
+    ctx.strokeStyle = '#41d8ff';
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#41d8ff';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.55 + 0.35 * pulse;
+    ctx.beginPath();
+    ctx.arc(mouseCtl.tx, mouseCtl.ty, 9 + pulse * 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.35 + 0.30 * pulse;
+    ctx.fillStyle = '#41d8ff';
+    ctx.beginPath();
+    ctx.arc(mouseCtl.tx, mouseCtl.ty, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   for (const fx of G.effects){
     if (fx.kind !== 'zone') continue;
     const k = clamp(fx.life / fx.maxLife, 0, 1);
