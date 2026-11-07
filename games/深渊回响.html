@@ -30,6 +30,9 @@
   #speedBtn:hover { background:#123528; border-color:#57d9a3; }
   #speedBtn.fast { color:#ffd166; border-color:#6b5520; }
   #speedBtn.fast:hover { background:#3a2c0e; border-color:#ffd166; }
+    /* ★ 当前关卡背景主题 */
+  #zoneText { color:#7fe8c0; font-weight:bold; letter-spacing:1px;
+    white-space:nowrap; transition:color .3s, text-shadow .3s; }
 
   #bars { width:min(620px,100%); display:flex; flex-direction:column; gap:7px; }
   .bar { height:16px; background:#12121f; border:1px solid #2a2a44; border-radius:9px;
@@ -99,7 +102,12 @@
   }
   .eph-row .eph-n { flex: none; color: #7fe8c0; font-weight: bold; font-variant-numeric: tabular-nums; }
   .eph-row.top .eph-n { color: #ffd166; }
-  .eph-empty { color: #5d5d80; font-size: 11.5px; line-height: 1.6; text-align: center; padding: 10px 2px; }
+    .eph-empty { color: #5d5d80; font-size: 11.5px; line-height: 1.6; text-align: center; padding: 10px 2px; }
+  /* ★ 装备技能强化行（区别于永久增强） */
+  .eph-row.skill { background: rgba(44,32,12,.72); }
+  .eph-row.skill .eph-n { color: #ffd166; }
+  .eph-row.skill:hover { border-color: #ffb700; background: rgba(58,44,14,.9); }
+  .eph-row.skill .eph-ico { filter: drop-shadow(0 0 3px rgba(255,183,0,.5)); }
   @media (max-width: 1180px), (max-height: 520px) {
     #enhPanel { display: none !important; }
   }
@@ -170,6 +178,27 @@
   .card.enh .nm { color:#7fe8c0; }
   .card.enh .lv { color:#57d9a3; }
 
+  /* ★ 升级卡牌上的装备加成 / 属性变化预览 */
+  .card-bonus {
+    margin-top: 6px; padding: 3px 7px;
+    font-size: 10.5px; color: #ffd166; line-height: 1.5;
+    background: rgba(255,183,0,.10);
+    border: 1px solid rgba(255,183,0,.22);
+    border-radius: 5px;
+    text-align: left;
+  }
+  .card-diff {
+    margin-top: 6px; padding: 4px 7px;
+    font-size: 10.5px; color: #7fe8c0; line-height: 1.55;
+    background: rgba(87,217,163,.08);
+    border: 1px solid rgba(87,217,163,.2);
+    border-radius: 5px;
+    text-align: left;
+    max-height: 120px; overflow-y: auto;
+  }
+  .card-diff .diff-row { display: flex; justify-content: space-between; gap: 8px; }
+  .card-diff .diff-row b { color: #ffd166; font-weight: bold; font-variant-numeric: tabular-nums; }
+
   /* ---------- 选关 ---------- */
   .levelgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));
     gap:10px; margin-top:6px; }
@@ -239,6 +268,10 @@
     transition: .12s;
   }
   .st-row:hover { background: rgba(44,42,88,.9); }
+    /* ★ 装备技能词缀行（金色，区别于普通属性） */
+  .st-row.skill { background: rgba(44,32,12,.62); }
+  .st-row.skill .st-v { color: #ffd166; }
+  .st-row.skill:hover { background: rgba(58,44,14,.92); }
   .st-row .st-ico { flex: none; width: 14px; text-align: center; font-size: 11px; }
   .st-row .st-nm {
     flex: 1 1 auto; min-width: 0; color: #b3b3d2;
@@ -415,9 +448,10 @@
 <!-- ================= HUD ================= -->
 <div id="hud">
   <div id="topwrap">
-    <div id="topbar">
+        <div id="topbar">
       <div>关卡 <span class="val" id="lvText">1</span> <span id="lvMax">/ 100</span></div>
       <div id="timer">05:00</div>
+      <div id="zoneText">幽暗森林</div>
       <div>击杀 <span class="val" id="killText">0</span></div>
       <div>等级 <span class="val" id="plvText">1</span></div>
       <div id="speedBtn" title="游戏速度（点击或按 T 切换）">⏩ ×1</div>
@@ -671,7 +705,7 @@ const MAX_LEVEL = 100;
 
 const LEVEL_HP_GROWTH  = 1.22;   // 每关怪物生命倍率
 const LEVEL_DMG_GROWTH = 1.15;   // 每关怪物伤害倍率
-const LEVEL_XP_GROWTH  = 1.07;   // 每关怪物经验倍率（保证高关还能升级）
+const LEVEL_XP_GROWTH  = 1.01;   // 每关怪物经验倍率（保证高关还能升级）
 
 function levelScaling(lv){
   const k = Math.max(0, (lv || 1) - 1);
@@ -698,6 +732,68 @@ function enemyBulletDmgMul(){
   /* 关卡项：levelScaling 已提供指数成长，这里再加一层温和的线性补强 */
   const lvMul = 1 + Math.max(0, (G.level || 1) - 1) * ENEMY_BULLET_CFG.lvGrowth;
   return timeMul * lvMul;
+}
+
+/* ============================================================
+   ★ 关卡背景主题（每 10 关一种，共 10 种）
+   ============================================================ */
+const BG_THEMES = [
+  { name:'幽暗森林', top:'#0b1a13', mid:'#071009', bot:'#030604',
+    glow:'#1e5a3c', accent:'#4fbf8a', dust:'spore', dustColor:'#6fe0a8',
+    grid:'rgba(110,220,170,0.055)' },
+  { name:'熔岩深渊', top:'#1c0a05', mid:'#120503', bot:'#0a0202',
+    glow:'#8a2c0e', accent:'#ff7a3d', dust:'ember', dustColor:'#ff9f4d',
+    grid:'rgba(255,120,60,0.06)' },
+  { name:'冰霜冻原', top:'#08131e', mid:'#050d15', bot:'#02060a',
+    glow:'#1a4a6a', accent:'#7fd8ff', dust:'snow', dustColor:'#bfefff',
+    grid:'rgba(140,220,255,0.055)' },
+  { name:'虚空星海', top:'#0e0722', mid:'#080415', bot:'#04020a',
+    glow:'#3a1f6a', accent:'#b47cff', dust:'star', dustColor:'#d9c6ff',
+    grid:'rgba(180,124,255,0.055)' },
+  { name:'血色沼泽', top:'#1a0812', mid:'#10050b', bot:'#080205',
+    glow:'#5a1030', accent:'#ff5c7a', dust:'spore', dustColor:'#ff6b8a',
+    grid:'rgba(255,100,140,0.055)' },
+  { name:'雷霆高原', top:'#131020', mid:'#0c0a15', bot:'#06050a',
+    glow:'#4a3f0a', accent:'#ffe066', dust:'spark', dustColor:'#fff6c2',
+    grid:'rgba(255,230,100,0.05)' },
+  { name:'荒漠废土', top:'#1b1208', mid:'#130c05', bot:'#0a0703',
+    glow:'#6a4a18', accent:'#ffb700', dust:'sand', dustColor:'#ffd166',
+    grid:'rgba(255,190,100,0.05)' },
+  { name:'深渊回响', top:'#110818', mid:'#0a0410', bot:'#050208',
+    glow:'#4a1a5a', accent:'#ff6fe0', dust:'star', dustColor:'#ffb3ec',
+    grid:'rgba(255,120,220,0.055)' },
+  { name:'神圣废墟', top:'#15140a', mid:'#0e0d06', bot:'#080703',
+    glow:'#5a4a10', accent:'#ffd700', dust:'spark', dustColor:'#fff6c2',
+    grid:'rgba(255,215,120,0.055)' },
+  { name:'混沌终焉', top:'#15061c', mid:'#0b0512', bot:'#050208',
+    glow:'#6a1a5a', accent:'#ff4fd8', dust:'chaos', dustColor:'#ffffff',
+    grid:'rgba(200,120,255,0.06)' },
+];
+
+const BG_DUST_CFG = {
+  spore: { dir:-1, drift:24, flicker:0.7,  size:2.0 },
+  ember: { dir:-1, drift:30, flicker:1.1,  size:2.2 },
+  snow:  { dir: 1, drift:20, flicker:0.5,  size:2.4 },
+  star:  { dir: 0, drift: 0, flicker:1.4,  size:1.8 },
+  spark: { dir: 1, drift:16, flicker:2.4,  size:1.7 },
+  sand:  { dir: 1, drift:46, flicker:0.35, size:1.6 },
+  chaos: { dir: 0, drift: 0, flicker:1.8,  size:2.2 },
+};
+
+const BG_CHAOS_COLORS = ['#ff4fd8','#7fd8ff','#ffd166','#8fe04a','#b47cff'];
+
+function bgHash01(n){
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+function getBgThemeForLevel(lv){
+  const idx = clamp(Math.floor((Math.max(1, lv) - 1) / 10), 0, BG_THEMES.length - 1);
+  return BG_THEMES[idx];
+}
+
+function getBgTheme(){
+  return getBgThemeForLevel(G.endless ? MAX_LEVEL : G.level);
 }
 
 /* ---------------- 画布 ---------------- */
@@ -798,7 +894,7 @@ const SLOT_DEFS = [
   { key:'ring',     slotName:'戒指',     noun:'戒指',  base:{ atk:3,  crit:0.018 } },
   { key:'mainhand', slotName:'主武器',   noun:'长剑',  base:{ atk:7,  atkSpeed:0.025 } },
   { key:'offhand',  slotName:'副手',     noun:'盾牌',  base:{ def:2.5, hp:9 } },
-  { key:'twohand',  slotName:'圣物',     noun:'圣物',  base:{ atk:14, atkSpeed:-0.015 } },
+  { key:'twohand',  slotName:'圣物',     noun:'圣物',  base:{ atk:14, atkSpeed:0.015 } },
   { key:'armor',    slotName:'衣服',     noun:'战甲',  base:{ hp:22,  def:2.5 } },
   { key:'pants',    slotName:'裤子',     noun:'护腿',  base:{ hp:14,  def:1.8 } },
   { key:'shoulder', slotName:'肩部',     noun:'肩甲',  base:{ def:1.6, hp:8 } },
@@ -913,7 +1009,22 @@ function rollAffix(tier){
   return { id: a.id, name: a.name, stat: a.stat, value, text: a.fmt(value) };
 }
 
-const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X'];
+function toRoman(n){
+  n = Math.floor(n);
+  if (n <= 0) return '';
+  if (n > 3999) return String(n);   // 超出常规罗马数字范围就用阿拉伯数字
+  const map = [
+    [1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],
+    [100,'C'], [90,'XC'], [50,'L'], [40,'XL'],
+    [10,'X'],  [9,'IX'],  [5,'V'], [4,'IV'], [1,'I']
+  ];
+  let s = '';
+  for (const [v, sym] of map){
+    while (n >= v){ s += sym; n -= v; }
+  }
+  return s;
+}
+
 
 /* ★ 生成带随机词缀的实例装备（用于中级/高级掉落与合成） */
 function makeAffixedItem(slotBase, idx, numAffixes){
@@ -941,13 +1052,16 @@ function makeAffixedItem(slotBase, idx, numAffixes){
 }
 
 function makeInstance(slotBase, tier, affixes){
-  /* 合成装备以该部位最高档（高级第 5 种）为基底，再叠加词缀 */
   const base = getDef(slotBase, IDX_MAX);
+  /* ★ 4级起每级底子 +18%，6级后继续增长（避免底子封顶） */
+  const tierBoost = 1 + Math.max(0, tier - 3) * 0.5; //装备合成
+  const boosted = {};
+  for (const k in base.stats) boosted[k] = +(base.stats[k] * tierBoost).toFixed(4);
   return {
     key: 'INST_' + (uid++),
     slotBase, idx: IDX_MAX, tier,
-    name: base.name + ' ' + (ROMAN[tier] || tier),
-    stats: { ...base.stats },
+    name: base.name + ' ' + (toRoman(tier)),
+    stats: boosted,
     affixes: affixes || [],
     tierName: tier + '级',
     isInstance: true,
@@ -2456,8 +2570,8 @@ function spawnBoss(level, index){
 
   const sc = levelScaling(level);                       
   const waveMul = G.endless ? endlessScale().hp : 1;
-  const hp  = (900 + level * 260) * sc.hp * (index === 0 ? 1 : 1.6) * 50 * waveMul; 
-  const dmg = (8 + level * 2) * sc.dmg * (index === 0 ? 1 : 1.3) * (G.endless ? 1 + G.endlessWave * 0.12 : 1);
+  const hp  = (900 + level * 260) * sc.hp * (index === 0 ? 1 : 1.6) * 500 * waveMul; 
+  const dmg = (8 + level * 20) * sc.dmg * (index === 0 ? 1 : 1.3) * (G.endless ? 1 + G.endlessWave * 0.12 : 1); //伤害 
 
   const e = {
     ...b,
@@ -2498,7 +2612,7 @@ function spawnEnemy(){
     maxHp: base.hp * hpScale * 5,
     hp: base.hp * hpScale * 5,
     dmg: base.dmg * dmgScale,
-    xpVal: base.xp * (1 + (lv - 1) * 0.55) * sc.xp * (1 + wave * 0.1),
+    xpVal: base.xp * (1 + (lv - 1) * 0.3) * sc.xp * (1 + wave * 0.1),
     atkCd: rand(0.5, 2),
     touchCd: 0,
     hitFlash: 0,
@@ -2587,7 +2701,7 @@ function skillHit(e, dmg, type){
 
 function hurtPlayer(dmg, type){
   if (P.invuln > 0) return;
-  P.invuln = 0.32;
+  P.invuln = 0.1;
   const arm = P.stats.armor;
   const reduce = arm / (arm + 60);
   const taken = Math.max(1, dmg * (1 - reduce));
@@ -2985,13 +3099,53 @@ function applyEnhance(e){
 
 function makeEnhanceCard(e){
   const cur = (P.enhance && P.enhance[e.id]) || 0;
+
+  /* ★ 计算「选择前 vs 选择后」的关键属性变化 */
+  const before = P.stats || calcStatsFor(P);
+  const tempEnh = { ...(P.enhance || {}), [e.id]: cur + 1 };
+  const after = calcStatsFor({ equip: P.equip || {}, enhance: tempEnh });
+
+  const diffs = [];
+  const cmp = (label, key, fmt) => {
+    const b = before[key], a = after[key];
+    if (b === undefined || a === undefined) return;
+    if (Math.abs(a - b) < 1e-6) return;
+    diffs.push({ label, b: fmt(b), a: fmt(a) });
+  };
+  cmp('攻击',    'atk',        v => v.toFixed(1));
+  cmp('生命',    'maxHp',      v => Math.round(v));
+  cmp('护甲',    'armor',      v => Math.round(v));
+  cmp('攻速',    'atkSpeed',   v => v.toFixed(2) + '×');
+  cmp('移速',    'speed',      v => v.toFixed(0));
+  cmp('暴击率',  'crit',       v => (v * 100).toFixed(1) + '%');
+  cmp('暴击伤害','critDmg',    v => (v * 100).toFixed(0) + '%');
+  cmp('技能伤害','skillDmgMul',v => ((v - 1) * 100).toFixed(0) + '%');
+  cmp('冷却缩减','cdMul',      v => ((1 - v) * 100).toFixed(0) + '%');
+  cmp('生命偷取','lifesteal',  v => (v * 100).toFixed(1) + '%');
+  cmp('反伤',    'thorns',     v => (v * 100).toFixed(0) + '%');
+  cmp('生命回复','regen',      v => v.toFixed(1) + '/s');
+  cmp('拾取范围','pickupRange',v => v.toFixed(0));
+  cmp('经验获取','xpMul',      v => ((v - 1) * 100).toFixed(0) + '%');
+  cmp('全局伤害','dmgMul',     v => ((v - 1) * 100).toFixed(0) + '%');
+  cmp('额外投射','projectiles',v => v.toFixed(0));
+
+  const diffHtml = diffs.length
+    ? `<div class="card-diff">` +
+        diffs.map(d =>
+          `<div class="diff-row"><span>${d.label}</span>` +
+          `<span>${d.b} → <b>${d.a}</b></span></div>`
+        ).join('') +
+      `</div>`
+    : '';
+
   const card = document.createElement('div');
   card.className = 'card enh';
   card.innerHTML = `
     <div class="ico">${e.ico}</div>
     <div class="nm">${e.name}</div>
-    <div class="lv">永久增强 · 已有 ×${cur}</div>
+    <div class="lv">永久增强 · 已有 ×${cur} → ×${cur + 1}</div>
     <div class="ds">${e.desc}</div>
+    ${diffHtml}
   `;
   card._apply = () => {
     applyEnhance(e);
@@ -3066,11 +3220,25 @@ function showLevelUp(){
     }
   }
 
+    /* ★ 装备技能词缀加成（供技能卡牌显示） */
+  const sbMap = (P.stats && P.stats.skillBonus) || {};
+  const allBonus = sbMap.all || 0;
+
   for (const s of skillOpts){
     const cur = P.skills[s.id] || 0;
     const next = cur + 1;
     const isUlt = next >= 6;
     const isNew = cur === 0;
+
+    /* ★ 该技能已从装备词缀获得的加成 */
+    const skBonus = sbMap[s.id] || 0;
+    let bonusHtml = '';
+    if (skBonus > 0 || allBonus > 0){
+      const parts = [];
+      if (skBonus > 0) parts.push(`本技能 +${(skBonus * 100).toFixed(1)}%`);
+      if (allBonus > 0) parts.push(`全技能 +${(allBonus * 100).toFixed(1)}%`);
+      bonusHtml = `<div class="card-bonus">⚡ 装备加成：${parts.join(' · ')}</div>`;
+    }
 
     const card = document.createElement('div');
     card.className = 'card' + (isUlt ? ' ult' : '');
@@ -3079,6 +3247,7 @@ function showLevelUp(){
       <div class="nm">${s.name}</div>
       <div class="lv">${isNew ? '新技能' : (isUlt ? '★ 终极形态 ★' : `Lv.${next} / 6`)}</div>
       <div class="ds">${s.desc(next)}</div>
+      ${bonusHtml}
     `;
     card._apply = () => {
       P.skills[s.id] = next;
@@ -3598,11 +3767,12 @@ function levelClear(){
 
   document.getElementById('clearTitle').textContent =
     isFinal ? '🏆 深渊已被征服！' : `第 ${G.level} 关 完成！`;
+    const curTh  = getBgThemeForLevel(G.level);
+  const nextTh = getBgThemeForLevel(Math.min(MAX_LEVEL, G.level + 1));
   document.getElementById('clearSub').textContent =
     isFinal
       ? `累计击杀 ${G.kills} · 装备已自动合成并保存 · 全部 ${MAX_LEVEL} 关已通关，可进入无尽模式！`
-      : `累计击杀 ${G.kills} · 装备已自动合成并保存 · 已解锁第 ${Math.min(MAX_LEVEL, G.level + 1)} 关（下一关怪物强度 ×${fmtNum(levelScaling(G.level + 1).hp)}）`;
-
+      : `场景「${curTh.name}」· 累计击杀 ${G.kills} · 装备已自动合成并保存 · 已解锁第 ${Math.min(MAX_LEVEL, G.level + 1)} 关 —— 下一关「${nextTh.name}」（怪物强度 ×${fmtNum(levelScaling(G.level + 1).hp)}）`;
   if (isFinal){
     btnNext.classList.add('hidden');
     btnEnd.classList.remove('hidden');
@@ -3712,6 +3882,12 @@ function renderLevelSelect(){
     const status = done ? '✓ 已通关' : unlocked ? '可挑战' : '🔒 未解锁';
     const power  = unlocked ? ` · 强度 ×${fmtNum(levelScaling(i).hp)}` : '';
     btn.innerHTML = `第 ${i} 关<span class="lvb-lv">${status}${power}</span>`;
+
+    /* ★ 每关按钮使用对应主题的底色，一眼看出关卡风貌 */
+    const th = getBgThemeForLevel(i);
+    btn.style.background =
+      `linear-gradient(155deg, ${th.top} 0%, ${th.mid} 68%, ${th.bot} 100%)`;
+    btn.style.textShadow = `0 0 10px ${hexA(th.accent, 0.35)}`;
 
     if (unlocked) btn.onclick = () => startNewRun(i);
     grid.appendChild(btn);
@@ -3869,9 +4045,105 @@ function drawAvatarOn(g, inv, moving, walkPhase, facing, t){
   g.restore();
 }
 
-function render(){
-  ctx.fillStyle = '#07070d';
+/* ============================================================
+   ★ 关卡背景绘制
+   ============================================================ */
+function drawBackground(){
+  const th = getBgTheme();
+  const t = performance.now() / 1000;
+  const cam = G.cam || { x: 0, y: 0 };
+
+  /* ---------- 天空 / 地面渐变 ---------- */
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,    th.top);
+  sky.addColorStop(0.55, th.mid);
+  sky.addColorStop(1,    th.bot);
+  ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
+
+  /* ---------- 远景雾霭光晕（视差） ---------- */
+  const pOffX = (cam.x * 0.05) % (W * 0.5);
+  const pOffY = (cam.y * 0.05) % (H * 0.5);
+  const blobs = [
+    { x: 0.22, y: 0.24, r: 0.74, ph: 0.0 },
+    { x: 0.80, y: 0.72, r: 0.62, ph: 2.2 },
+    { x: 0.52, y: 0.50, r: 0.55, ph: 4.1 },
+  ];
+  for (const b of blobs){
+    const cx = b.x * W + Math.sin(t * 0.06 + b.ph) * W * 0.05 - pOffX;
+    const cy = b.y * H + Math.cos(t * 0.045 + b.ph) * H * 0.05 - pOffY;
+    const rr = Math.max(W, H) * b.r * 0.5;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    g.addColorStop(0,   hexA(th.glow, 0.30));
+    g.addColorStop(0.6, hexA(th.glow, 0.10));
+    g.addColorStop(1,   hexA(th.glow, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /* ---------- 氛围粒子 ---------- */
+  const cfg = BG_DUST_CFG[th.dust] || BG_DUST_CFG.star;
+  const N = 64;
+  ctx.save();
+  for (let i = 0; i < N; i++){
+    const s1 = bgHash01(i * 1.37 + 0.5);
+    const s2 = bgHash01(i * 2.71 + 5.1);
+    const s3 = bgHash01(i * 4.13 + 9.7);
+
+    let x = s1 * W + Math.sin(t * 0.45 + i * 1.7) * cfg.drift;
+    let y = s2 * H + (cfg.dir === 0 ? 0 : cfg.dir * t * (8 + s3 * 26));
+
+    x = ((x % W) + W) % W;
+    y = ((y % H) + H) % H;
+
+    const pulse = Math.abs(Math.sin(t * cfg.flicker + i * 2.3));
+    const alpha = 0.14 + 0.50 * pulse;
+    const rr = cfg.size * (0.55 + s3 * 0.95);
+    const pcol = (th.dust === 'chaos')
+      ? BG_CHAOS_COLORS[i % BG_CHAOS_COLORS.length]
+      : th.dustColor;
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = pcol;
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (rr > 2){
+      ctx.globalAlpha = alpha * 0.22;
+      ctx.beginPath();
+      ctx.arc(x, y, rr * 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  /* ---------- 暗角 ---------- */
+  const vg = ctx.createRadialGradient(
+    W / 2, H / 2, Math.min(W, H) * 0.32,
+    W / 2, H / 2, Math.max(W, H) * 0.80);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  /* ---------- BOSS 战氛围 ---------- */
+  if (G.bosses && G.bosses.length &&
+      (G.state === 'playing' || G.state === 'paused' || G.state === 'levelup')){
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
+    const bg = ctx.createRadialGradient(
+      W / 2, H / 2, Math.min(W, H) * 0.15,
+      W / 2, H / 2, Math.max(W, H) * 0.80);
+    bg.addColorStop(0, 'rgba(0,0,0,0)');
+    bg.addColorStop(1, `rgba(150,0,30,${(0.10 + 0.14 * pulse).toFixed(3)})`);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function render(){
+  drawBackground();
 
   if (!P) return;
 
@@ -3882,7 +4154,7 @@ function render(){
   const gs = 90;
   const ox = -((camX % gs) + gs) % gs;
   const oy = -((camY % gs) + gs) % gs;
-  ctx.strokeStyle = G.endless ? 'rgba(160,90,200,0.075)' : 'rgba(120,120,200,0.055)';
+  ctx.strokeStyle = getBgTheme().grid;
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = ox; x < W; x += gs){ ctx.moveTo(x, 0); ctx.lineTo(x, H); }
@@ -4386,7 +4658,20 @@ function updateHUD(){
   document.getElementById('xpfill').style.width = xpPct + '%';
   document.getElementById('xpText').textContent = `Lv.${P.level}  ${Math.floor(P.xp)} / ${P.xpNext}`;
 
-  document.getElementById('lvText').textContent = G.endless ? '∞' : G.level;
+    document.getElementById('lvText').textContent = G.endless ? '∞' : G.level;
+
+  /* ★ 当前关卡背景主题 */
+  const zEl = document.getElementById('zoneText');
+  if (zEl){
+    const th = getBgTheme();
+    if (zEl._th !== th.name){
+      zEl._th = th.name;
+      zEl.textContent = th.name;
+      zEl.style.color = th.accent;
+      zEl.style.textShadow = `0 0 10px ${hexA(th.accent, 0.55)}`;
+    }
+  }
+
   const lvMaxEl = document.getElementById('lvMax');
   if (lvMaxEl) lvMaxEl.style.display = G.endless ? 'none' : '';
   document.getElementById('killText').textContent = G.kills;
@@ -4454,11 +4739,21 @@ const ENH_BASELINE = {
 
 /* 只把「永久增强」叠加到基线上，用于计算增强贡献了多少 */
 function computeEnhOnlyStats(){
-  const st = { ...ENH_BASELINE };
+  const st = { ...ENH_BASELINE, skillBonus: {} };
   const enh = (P && P.enhance) || {};
   for (const d of ENHANCE_DEFS){
     const n = enh[d.id] || 0;
     if (n > 0) d.apply(st, n);
+  }
+  /* ★ 同步收集装备上的技能强化词缀（与 calcStatsFor 同逻辑） */
+  const eq = (P && P.equip) || {};
+  for (const sk in eq){
+    const it = eq[sk];
+    if (!it || !it.affixes) continue;
+    for (const a of it.affixes){
+      if (!a.skillId) continue;
+      st.skillBonus[a.skillId] = (st.skillBonus[a.skillId] || 0) + a.value;
+    }
   }
   return st;
 }
@@ -4497,8 +4792,8 @@ function updateEnhPanel(){
   }
 
   /* ---------- 构造聚合行 ---------- */
-  const rows = [];
-  const push = (icon, name, text, key) => rows.push({ icon, name, text, key });
+    const rows = [];
+  const push = (icon, name, text, key, cat) => rows.push({ icon, name, text, key, cat });
 
   /* 攻击力 */
   const atkPct = (st.atk / ENH_BASELINE.atk - 1) * 100;
@@ -4561,13 +4856,41 @@ function updateEnhPanel(){
   const dmPct = (st.dmgMul - 1) * 100;
   if (dmPct > 0.05) push('👊', '全局伤害', fmtPct(dmPct), 'dmgMul');
 
-  /* 额外投射物（固定数值） */
+    /* 额外投射物（固定数值） */
   const projExtra = st.projectiles - ENH_BASELINE.projectiles;
   if (projExtra > 0) push('🏹', '额外投射物', '+' + projExtra, 'proj');
 
+  /* ★ 装备技能强化（来自装备上的技能词缀） */
+  const enhRowCount = rows.length;
+  const sbMap = st.skillBonus || {};
+  const sbKeys = Object.keys(sbMap).filter(k => sbMap[k] > 0);
+  sbKeys.sort((a, b) => {
+    if (a === 'all') return -1;
+    if (b === 'all') return 1;
+    return sbMap[b] - sbMap[a];   // 按加成数值降序
+  });
+  for (const sid of sbKeys){
+    const v = sbMap[sid];
+    if (sid === 'all'){
+      push('✨', '所有技能', fmtPct(v * 100), 'sk_all', 'skill');
+    } else {
+      const s = SKILL_DEFS.find(x => x.id === sid);
+      if (s) push(s.ico, s.name, fmtPct(v * 100), 'sk_' + sid, 'skill');
+    }
+  }
+  const skillRowCount = rows.length - enhRowCount;
+
   /* ---------- 标题右侧计数 ---------- */
   if (cnt){
-    cnt.textContent = rows.length ? `${rows.length} 项 · ${totalLayers} 层` : '';
+    if (!rows.length){
+      cnt.textContent = '';
+    } else if (skillRowCount > 0){
+      cnt.textContent = enhRowCount > 0
+        ? `${enhRowCount} 增强 · ${skillRowCount} 技能`
+        : `${skillRowCount} 技能`;
+    } else {
+      cnt.textContent = `${rows.length} 项 · ${totalLayers} 层`;
+    }
   }
 
   /* ---------- 变更检测 ---------- */
@@ -4581,12 +4904,13 @@ function updateEnhPanel(){
   }
 
   /* ---------- 渲染 ---------- */
-  list.innerHTML = rows.map(r =>
-    `<div class="eph-row" data-key="${r.key}">`
-    + `<span class="eph-ico">${r.icon}</span>`
-    + `<span class="eph-nm">${r.name}</span>`
-    + `<span class="eph-n">${r.text}</span></div>`
-  ).join('');
+    list.innerHTML = rows.map(r => {
+    const cls = r.cat ? ' ' + r.cat : '';
+    return `<div class="eph-row${cls}" data-key="${r.key}">`
+      + `<span class="eph-ico">${r.icon}</span>`
+      + `<span class="eph-nm">${r.name}</span>`
+      + `<span class="eph-n">${r.text}</span></div>`;
+  }).join('');
 
   /* 悬停显示说明 */
   list.querySelectorAll('.eph-row').forEach(el => {
@@ -4595,8 +4919,13 @@ function updateEnhPanel(){
       if (!tip) return;
       const nm = el.querySelector('.eph-nm').textContent;
       const v  = el.querySelector('.eph-n').textContent;
+      const key = el.dataset.key || '';
+      const isSkill = key.indexOf('sk_') === 0;
+      const desc = isSkill
+        ? `装备技能词缀累计提供的技能伤害加成：${v}`
+        : `永久增强累计提供的总加成：${v}`;
       tip.innerHTML = `<div class="tt-name">${nm}</div>`
-                    + `<div class="tt-desc">永久增强累计提供的总加成：${v}</div>`;
+                    + `<div class="tt-desc">${desc}</div>`;
       tip.classList.remove('hidden');
       moveSkillTip(ev);
     });
@@ -4894,7 +5223,7 @@ function renderStatsPanel(pl){
       (total.thorns * 100).toFixed(0) + '%',
       fmtDiff((eqOnly.thorns - B.thorns) * 100, '%'));
 
-  if (total.regen > 0 || eqOnly.regen > 0){
+    if (total.regen > 0 || eqOnly.regen > 0){
     add('🌿', '回复', fmtSmall(total.regen) + '/s',
         fmtDiff(eqOnly.regen - B.regen));
   }
@@ -4903,20 +5232,44 @@ function renderStatsPanel(pl){
         fmtDiff(eqOnly.projectiles - B.projectiles));
   }
 
-  /* ---------- 标题右侧：已装备件数 ---------- */
+  /* ★ 装备技能强化词缀（来自装备上的技能词缀，与左侧增强面板同源） */
+  const sbMap = total.skillBonus || {};
+  const sbKeys = Object.keys(sbMap).filter(k => sbMap[k] > 0);
+  sbKeys.sort((a, b) => {
+    if (a === 'all') return -1;
+    if (b === 'all') return 1;
+    return sbMap[b] - sbMap[a];   // 按加成数值降序
+  });
+  const skillCnt = sbKeys.length;
+  for (const sid of sbKeys){
+    const v = sbMap[sid];
+    const pctText = '+' + (v * 100).toFixed(1) + '%';
+    if (sid === 'all'){
+      rows.push({ ico:'✨', nm:'所有技能', val:pctText, diff:'', cat:'skill' });
+    } else {
+      const s = SKILL_DEFS.find(x => x.id === sid);
+      if (s) rows.push({ ico:s.ico, nm:s.name, val:pctText, diff:'', cat:'skill' });
+    }
+  }
+
+  /* ---------- 标题右侧：已装备件数 + 技能词缀条目数 ---------- */
   if (hd){
-    const cnt = EQUIP_SLOTS.filter(s => (pl.equip || {})[s]).length;
-    hd.textContent = cnt ? cnt + ' 件' : '';
+    const eqCnt = EQUIP_SLOTS.filter(s => (pl.equip || {})[s]).length;
+    let txt = '';
+    if (eqCnt) txt += eqCnt + ' 件';
+    if (skillCnt) txt += (txt ? ' · ' : '') + skillCnt + ' 技能';
+    hd.textContent = txt;
   }
 
   /* ---------- 渲染 ---------- */
-  list.innerHTML = rows.map(r =>
-    `<div class="st-row"><span class="st-ico">${r.ico}</span>`
-    + `<span class="st-nm">${r.nm}</span>`
-    + `<span class="st-v">${r.val}</span>`
-    + (r.diff ? `<span class="st-d">${r.diff}</span>` : '')
-    + `</div>`
-  ).join('');
+    list.innerHTML = rows.map(r => {
+    const cls = r.cat ? ' ' + r.cat : '';
+    return `<div class="st-row${cls}"><span class="st-ico">${r.ico}</span>`
+      + `<span class="st-nm">${r.nm}</span>`
+      + `<span class="st-v">${r.val}</span>`
+      + (r.diff ? `<span class="st-d">${r.diff}</span>` : '')
+      + `</div>`;
+  }).join('');
 }
 
 function renderBag(){
