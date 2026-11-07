@@ -189,13 +189,78 @@
   .secline { font-size:13px; color:#7c7ca0; margin:6px 0 10px; border-bottom:1px solid #23233c; padding-bottom:6px;}
 
   /* 人形装备面板 */
-  .charwrap {
+    .charwrap {
     display: grid;
-    grid-template-columns: 110px 160px 110px; /* 左 中 右 三列 */
-    gap: 12px;
+    grid-template-columns: 260px 110px 160px 110px; /* 属性 左 中 右 */
+    gap: 10px;
     justify-content: center;
     align-items: start;
     margin-bottom: 10px;
+  }
+
+  /* ★ 装备属性总览面板 */
+  .statpanel {
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 364px;                 /* 与左列 6 格对齐 */
+    display: flex;
+    flex-direction: column;
+    background: #12121f;
+    border: 1px solid #26263f;
+    border-radius: 10px;
+    padding: 8px 8px 6px;
+    font-size: 11.5px;
+  }
+  .statpanel .st-hd {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; font-size: 11.5px; color: #8f8fbe; letter-spacing: .5px;
+    padding-bottom: 6px; margin-bottom: 6px;
+    border-bottom: 1px solid #23233c;
+  }
+  .statpanel .st-hd b { color: #7fe8c0; font-size: 11px; font-weight: bold; }
+  .statpanel .st-note {
+    flex: 0 0 auto;
+    font-size: 10px; color: #4f4f70; margin-bottom: 5px;
+  }
+  #statsList {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column; gap: 2px;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: #3a3a5e transparent;
+  }
+  #statsList::-webkit-scrollbar { width: 5px; }
+  #statsList::-webkit-scrollbar-thumb { background: #3a3a5e; border-radius: 3px; }
+  .st-row {
+    display: flex; align-items: center; gap: 4px;
+    padding: 2px 4px; border-radius: 6px;
+    background: rgba(22,22,40,.62);
+    flex: 0 0 auto; overflow: hidden;
+    transition: .12s;
+  }
+  .st-row:hover { background: rgba(44,42,88,.9); }
+  .st-row .st-ico { flex: none; width: 14px; text-align: center; font-size: 11px; }
+  .st-row .st-nm {
+    flex: 1 1 auto; min-width: 0; color: #b3b3d2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .st-row .st-v {
+    flex: none; color: #e8e8f0; font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+  .st-row .st-d {
+    flex: none; font-size: 10px; color: #57d9a3;
+    font-variant-numeric: tabular-nums;
+  }
+  .st-empty {
+    color: #5d5d80; font-size: 11px; line-height: 1.7;
+    text-align: center; padding: 14px 2px;
+  }
+
+  /* 窄屏隐藏属性面板，保持原有布局 */
+  @media (max-width: 860px){
+    .charwrap { grid-template-columns: 110px 160px 110px; }
+    #statsPanel { display: none !important; }
   }
 
   /* 左右列 */
@@ -464,6 +529,13 @@
 
       <!-- 人形装备面板 -->
       <div class="charwrap">
+        <!-- ★ 装备属性总览 -->
+        <div class="statpanel" id="statsPanel">
+          <div class="st-hd"><span>装备属性总览</span><b id="stTotal"></b></div>
+          <div class="st-note">绿色为装备贡献</div>
+          <div id="statsList"></div>
+        </div>
+
         <div class="eqcol" id="eqLeft"></div>
         <div class="charMidCol">
           <div id="eqTopM" style="width:100%;"></div>
@@ -798,7 +870,24 @@ const AFFIX_POOL = [
   { id:'spd',      name:'迅捷', stat:'spd',      base:0.025, per:0.01,  pct:1, fmt:v => `移速 +${(v*100).toFixed(1)}%` },
   { id:'atkSpeed', name:'狂热', stat:'atkSpeed', base:0.035, per:0.012, pct:1, fmt:v => `攻速 +${(v*100).toFixed(1)}%` },
   { id:'def',      name:'守护', stat:'def',      base:2.5,   per:2,    fmt:v => `护甲 +${Math.round(v)}` },
+  /* ★ 新增词缀（对应属性总览中的各项） */
+  { id:'pickup',   name:'磁力', stat:'pickupRange', base:0.04,  per:0.015, pct:1, fmt:v => `拾取范围 +${(v*100).toFixed(1)}%` },
+  { id:'dmgMul',   name:'破坏', stat:'dmgMul',      base:0.03,  per:0.01,  pct:1, fmt:v => `伤害 +${(v*100).toFixed(1)}%` },
+  { id:'skillDmgMul', name:'奥术', stat:'skillDmgMul', base:0.04, per:0.015, pct:1, fmt:v => `技能伤害 +${(v*100).toFixed(1)}%` },
+  { id:'xpMul',    name:'智慧', stat:'xpMul',       base:0.03,  per:0.01,  pct:1, fmt:v => `经验 +${(v*100).toFixed(1)}%` },
+  { id:'cdr',      name:'时流', stat:'cdr',         base:0.03,  per:0.01,  pct:1, fmt:v => `冷却缩减 +${(v*100).toFixed(1)}%` },
+  { id:'lifesteal', name:'吸血', stat:'lifesteal',  base:0.01,  per:0.004, pct:1, fmt:v => `吸血 +${(v*100).toFixed(1)}%` },
+  { id:'thorns',   name:'尖刺', stat:'thorns',      base:0.04,  per:0.015, pct:1, fmt:v => `反伤 +${(v*100).toFixed(1)}%` },
+  { id:'regen',    name:'再生', stat:'regen',       base:1.5,   per:0.8,   fmt:v => `生命回复 +${v.toFixed(1)}/s` },
 ];
+
+function rollAffix(tier){
+  const a = pick(AFFIX_POOL);
+  // 中级（tier2）开始使用基础值，每高一级增加一个 per
+  const raw = (a.base + a.per * Math.max(0, tier - 2)) * rand(0.85, 1.15);
+  const value = a.pct ? +raw.toFixed(4) : +raw.toFixed(2);
+  return { id: a.id, name: a.name, stat: a.stat, value, text: a.fmt(value) };
+}
 
 function rollAffix(tier){
   const a = pick(AFFIX_POOL);
@@ -808,6 +897,31 @@ function rollAffix(tier){
 }
 
 const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+/* ★ 生成带随机词缀的实例装备（用于中级/高级掉落与合成） */
+function makeAffixedItem(slotBase, idx, numAffixes){
+  const base = getDef(slotBase, idx);
+  const affixes = [];
+  let guard = 0;
+  for (let i = 0; i < numAffixes; i++){
+    let a;
+    do {
+      a = rollAffix(base.tier);
+      guard++;
+    } while (affixes.some(x => x.id === a.id) && guard < 30);
+    affixes.push(a);
+  }
+  return {
+    key: 'INST_' + (uid++),
+    slotBase, idx,
+    tier: base.tier,
+    name: base.name,
+    stats: { ...base.stats },
+    affixes,
+    tierName: base.tierName,
+    isInstance: true,
+  };
+}
 
 function makeInstance(slotBase, tier, affixes){
   /* 合成装备以该部位最高档（高级第 5 种）为基底，再叠加词缀 */
@@ -845,6 +959,14 @@ function itemScore(it){
        + (s.critDmg || 0) * 80
        + (s.atkSpeed || 0) * 250
        + (s.spd || 0) * 250
+       + (s.dmgMul || 0) * 800
+       + (s.skillDmgMul || 0) * 600
+       + (s.xpMul || 0) * 300
+       + (s.pickupRange || 0) * 150
+       + (s.cdr || 0) * 500
+       + (s.lifesteal || 0) * 400
+       + (s.thorns || 0) * 100
+       + (s.regen || 0) * 100
        + (it.tier || 1) * 4
        + (it.affixes ? it.affixes.filter(a => a.skillId).length * 10 : 0);
 }
@@ -1944,16 +2066,23 @@ function createPlayer(){
   return p;
 }
 
-function computeStats(){
-  const st = {
-    maxHp: 100, atk: 10, atkSpeed: 1.3, speed: 175,
-    crit: 0.05, critDmg: 1.5, armor: 0, lifesteal: 0, thorns: 0,
-    pickupRange: 90, regen: 0, projectiles: 1, dmgMul: 1,
-    skillDmgMul: 1, cdMul: 1, skillBonus: {}, xpMul: 1,
-  };
+/* ★ 角色基线属性（无装备、无永久增强） */
+const STAT_BASE = {
+  maxHp: 100, atk: 10, atkSpeed: 1.3, speed: 175,
+  crit: 0.05, critDmg: 1.5, armor: 0, lifesteal: 0, thorns: 0,
+  pickupRange: 90, regen: 0, projectiles: 1, dmgMul: 1,
+  skillDmgMul: 1, cdMul: 1, xpMul: 1,
+};
 
-  for (const slotKey in P.equip) {
-    const it = P.equip[slotKey];
+/* ★ 通用属性计算：可传入任意 { equip, enhance } 组合
+   —— 全局玩家与背包临时角色共用同一套算法 */
+function calcStatsFor(pl){
+  const st = { ...STAT_BASE, skillBonus: {} };
+  if (!pl) return st;
+
+  const eq = pl.equip || {};
+  for (const slotKey in eq){
+    const it = eq[slotKey];
     if (!it) continue;
     const s = itemStats(it);
     st.maxHp   += s.hp || 0;
@@ -1963,8 +2092,19 @@ function computeStats(){
     st.armor   += s.def || 0;
     st.speed    *= (1 + (s.spd || 0));
     st.atkSpeed *= (1 + (s.atkSpeed || 0));
+    st.speed    *= (1 + (s.spd || 0));
+    st.atkSpeed *= (1 + (s.atkSpeed || 0));
+    /* ★ 新增词缀影响 */
+    st.pickupRange *= (1 + (s.pickupRange || 0));
+    st.dmgMul      *= (1 + (s.dmgMul || 0));
+    st.skillDmgMul *= (1 + (s.skillDmgMul || 0));
+    st.xpMul       *= (1 + (s.xpMul || 0));
+    if (s.cdr) st.cdMul *= Math.max(0.1, 1 - s.cdr);
+    st.lifesteal   += (s.lifesteal || 0);
+    st.thorns      += (s.thorns || 0);
+    st.regen       += (s.regen || 0);
 
-    /* ★ 收集技能强化词缀 */
+    /* 技能强化词缀 */
     if (it.affixes){
       for (const a of it.affixes){
         if (!a.skillId) continue;
@@ -1973,8 +2113,8 @@ function computeStats(){
     }
   }
 
-  /* ★ 应用永久属性增强（50 种，可叠加） */
-  const enh = P.enhance || {};
+  /* 永久属性增强 */
+  const enh = pl.enhance || {};
   for (const d of ENHANCE_DEFS){
     const n = enh[d.id] || 0;
     if (n > 0) d.apply(st, n);
@@ -1987,9 +2127,12 @@ function computeStats(){
   st.projectiles = clamp(st.projectiles, 1, 12);
   st.lifesteal = clamp(st.lifesteal, 0, 0.6);
   st.thorns = clamp(st.thorns, 0, 5);
+  return st;
+}
 
-  P.stats = st;
-  if (P.hp > st.maxHp) P.hp = st.maxHp;
+function computeStats(){
+  P.stats = calcStatsFor(P);
+  if (P.hp > P.stats.maxHp) P.hp = P.stats.maxHp;
 }
 
 /* ---------------- 背包基础操作（自动合成） ---------------- */
@@ -2082,47 +2225,61 @@ function doCombineRaw(pl, group){
     if (need <= 0) break;
   }
 
-  const t = group.tier;
+    const t = group.tier;
   let result;
 
   if (t < 3){
-    /* ★ 初级合成 → 随机一件中级（idx 31~45）；中级合成 → 随机一件高级（idx 46~50） */
+    /* ★ 初级合成 → 随机一件中级（1 条词缀）
+       中级合成 → 随机一件高级（2 条词缀） */
     const idx = t === 1 ? randi(31, 45) : randi(46, 50);
-    result = getDef(group.slotBase, idx);
+    result = makeAffixedItem(group.slotBase, idx, tierOf(idx) - 1);
   } else {
     const newTier = t + 1;
+    /* ★ 普通词缀数量 = 等级 - 1（4级3条，5级4条…） */
+    const normalCount = newTier - 1;
+    /* 技能词缀数量保持不变（4级1条，5级2条…） */
+    const skillCount = Math.max(0, newTier - 3);
 
-    /* 普通词缀（不含技能词缀） */
-    const pool = [];
-    for (const it of consumed){
-      if (!it.affixes) continue;
-      for (const a of it.affixes) if (!a.skillId) pool.push(a);
-    }
-
-    const affixes = [];
-    if (pool.length > 0) affixes.push({ ...pick(pool) });
-    let nw, guard = 0;
-    do { nw = rollAffix(newTier); guard++; }
-    while (affixes.some(a => a.id === nw.id) && guard < 12);
-    affixes.push(nw);
-
-    /* ★ 技能强化词缀：4 级 1 条、5 级 2 条、6 级 3 条… */
-    const needSkill = Math.max(0, newTier - 3);
-    const skillAffixes = [];
+    /* ---- 收集可继承的普通词缀 ---- */
+    const inheritedNormal = [];
     for (const it of consumed){
       if (!it.affixes) continue;
       for (const a of it.affixes){
-        if (a.skillId && !skillAffixes.some(x => x.id === a.id)) skillAffixes.push({ ...a });
+        if (!a.skillId && !inheritedNormal.some(x => x.id === a.id))
+          inheritedNormal.push({ ...a });
       }
     }
+    const normalAffixes = [];
+    while (normalAffixes.length < normalCount && inheritedNormal.length){
+      normalAffixes.push(inheritedNormal.shift());
+    }
+    let guard = 0;
+    while (normalAffixes.length < normalCount && guard++ < 50){
+      const na = rollAffix(newTier);
+      if (!normalAffixes.some(a => a.id === na.id)) normalAffixes.push(na);
+    }
+
+    /* ---- 收集可继承的技能词缀 ---- */
+    const inheritedSkill = [];
+    for (const it of consumed){
+      if (!it.affixes) continue;
+      for (const a of it.affixes){
+        if (a.skillId && !inheritedSkill.some(x => x.id === a.id))
+          inheritedSkill.push({ ...a });
+      }
+    }
+    const skillAffixes = [];
+    while (skillAffixes.length < skillCount && inheritedSkill.length){
+      skillAffixes.push(inheritedSkill.shift());
+    }
     let sg = 0;
-    while (skillAffixes.length < needSkill && sg++ < 60){
+    while (skillAffixes.length < skillCount && sg++ < 60){
       const na = rollSkillAffix(newTier);
       if (!skillAffixes.some(x => x.id === na.id)) skillAffixes.push(na);
     }
-    if (skillAffixes.length > needSkill) skillAffixes.length = needSkill;
+    if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
-    result = makeInstance(group.slotBase, newTier, affixes.concat(skillAffixes));
+    result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes));
   }
 
   addItemRawTo(pl, result, 1);
@@ -3364,6 +3521,12 @@ function rollLevelClearItem(level){
   if (r < highChance) idx = randi(46, 50);
   else if (r < highChance + midChance) idx = randi(31, 45);
   else idx = randi(1, 30);
+
+  const tier = tierOf(idx);
+  if (tier >= 2){
+    // 中级 1 条，高级 2 条
+    return makeAffixedItem(d.key, idx, tier - 1);
+  }
   return getDef(d.key, idx);
 }
 
@@ -4141,8 +4304,8 @@ function itemTipHTML(it, isEquipped){
     html += `<div class="it-sec">词缀</div>${affixRows}`;
   }
 
-  /* 脚注：评分 / 操作提示 */
-  html += `<div class="tip-foot">评分 ${Math.round(itemScore(it))} · ${isEquipped ? '点击卸下' : '点击装备'}</div>`;
+  /* 脚注：操作提示（不显示评分） */
+  html += `<div class="tip-foot">${isEquipped ? '点击卸下' : '点击装备'}</div>`;
   return html;
 }
 
@@ -4635,6 +4798,104 @@ function buildCharCustom(){
   box.appendChild(row);
 }
 
+/* ============================================================
+   ★ 背包左侧：装备属性总览
+   ============================================================ */
+function fmtSmall(v){
+  if (!isFinite(v)) return '∞';
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v / 1e8).toFixed(2) + '亿';
+  if (a >= 1e4) return (v / 1e4).toFixed(1) + '万';
+  if (a >= 100) return String(Math.round(v));
+  return (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
+}
+
+function fmtDiff(v, unit){
+  if (!isFinite(v) || Math.abs(v) < 0.05) return '';
+  return (v > 0 ? '+' : '') + fmtSmall(v) + (unit || '');
+}
+
+function renderStatsPanel(pl){
+  const list = document.getElementById('statsList');
+  const hd   = document.getElementById('stTotal');
+  if (!list) return;
+
+  if (!pl){
+    if (hd) hd.textContent = '';
+    list.innerHTML = '<div class="st-empty">暂无角色数据</div>';
+    return;
+  }
+
+  /* 穿戴全部装备后的最终属性（含永久增强） */
+  const total  = calcStatsFor(pl);
+  /* 仅装备、不含永久增强 —— 用来单独衡量「装备」贡献 */
+  const eqOnly = calcStatsFor({ equip: pl.equip || {}, enhance: {}, bag: {} });
+  const B = STAT_BASE;
+
+  const rows = [];
+  const add = (ico, nm, val, diff) => rows.push({ ico, nm, val, diff });
+
+  /* ---------- 加法属性 ---------- */
+  add('⚔️', '攻击', fmtSmall(total.atk),   fmtDiff(eqOnly.atk - B.atk));
+  add('❤️', '生命', fmtSmall(total.maxHp), fmtDiff(eqOnly.maxHp - B.maxHp));
+  add('🛡️', '护甲', fmtSmall(total.armor), fmtDiff(eqOnly.armor - B.armor));
+  add('🎯', '暴击',
+      (total.crit * 100).toFixed(1).replace(/\.0$/, '') + '%',
+      fmtDiff((eqOnly.crit - B.crit) * 100, '%'));
+  add('💥', '暴伤',
+      (total.critDmg * 100).toFixed(0) + '%',
+      fmtDiff((eqOnly.critDmg - B.critDmg) * 100, '%'));
+
+  /* ---------- 乘法属性（显示倍率） ---------- */
+  const mul = (ico, nm, v, b) => {
+    const m = b ? v / b : v;
+    add(ico, nm, '×' + m.toFixed(2), fmtDiff((m - 1) * 100, '%'));
+  };
+  mul('⚡', '攻速', total.atkSpeed,    B.atkSpeed);
+  mul('💨', '移速', total.speed,       B.speed);
+  mul('🧲', '拾取', total.pickupRange, B.pickupRange);
+  mul('👊', '伤害', total.dmgMul,      1);
+  mul('🔮', '技能', total.skillDmgMul, 1);
+  mul('📚', '经验', total.xpMul,       1);
+
+  /* 冷却缩减：越高越好 */
+  add('⏱️', '冷却',
+      ((1 - total.cdMul) * 100).toFixed(1).replace(/\.0$/, '') + '%',
+      fmtDiff((1 - eqOnly.cdMul) * 100, '%'));
+
+  /* ---------- 其他 ---------- */
+  add('🩸', '吸血',
+      (total.lifesteal * 100).toFixed(1).replace(/\.0$/, '') + '%',
+      fmtDiff((eqOnly.lifesteal - B.lifesteal) * 100, '%'));
+  add('🌵', '反伤',
+      (total.thorns * 100).toFixed(0) + '%',
+      fmtDiff((eqOnly.thorns - B.thorns) * 100, '%'));
+
+  if (total.regen > 0 || eqOnly.regen > 0){
+    add('🌿', '回复', fmtSmall(total.regen) + '/s',
+        fmtDiff(eqOnly.regen - B.regen));
+  }
+  if (total.projectiles > 1){
+    add('🏹', '投射', '+' + (total.projectiles - 1),
+        fmtDiff(eqOnly.projectiles - B.projectiles));
+  }
+
+  /* ---------- 标题右侧：已装备件数 ---------- */
+  if (hd){
+    const cnt = EQUIP_SLOTS.filter(s => (pl.equip || {})[s]).length;
+    hd.textContent = cnt ? cnt + ' 件' : '';
+  }
+
+  /* ---------- 渲染 ---------- */
+  list.innerHTML = rows.map(r =>
+    `<div class="st-row"><span class="st-ico">${r.ico}</span>`
+    + `<span class="st-nm">${r.nm}</span>`
+    + `<span class="st-v">${r.val}</span>`
+    + (r.diff ? `<span class="st-d">${r.diff}</span>` : '')
+    + `</div>`
+  ).join('');
+}
+
 function renderBag(){
   const pl = P || bagTempPlayer;
   if (!pl) return;
@@ -4666,6 +4927,9 @@ function renderBag(){
   // 中间上下
   eqTopM.appendChild(buildSlotEl('helmet', pl));
   eqBot.appendChild(buildSlotEl('belt',  pl));
+
+  // ★ 左侧装备属性总览
+  renderStatsPanel(pl);
 
   // 渲染中间形象
   renderCharPreview();
