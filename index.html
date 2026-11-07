@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>NonComtGr · JS 小游戏实验室</title>
-<meta name="description" content="用原生 JavaScript 写的小游戏合集 —— 无需安装，点开即玩。" />
+<meta name="description" content="用原生 JavaScript 写的小游戏与小工具合集 —— 无需安装，点开即玩。" />
 <style>
   /* ===================== 基础变量 ===================== */
   :root{
@@ -269,7 +269,7 @@
     color: var(--c2);
     opacity: .9;
   }
-  /* ===================== 游戏卡片 ===================== */
+  /* ===================== 游戏 / 工具 卡片 ===================== */
   .games-grid{
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
@@ -357,7 +357,8 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1;
     color: #08080f;
     background: rgba(255,255,255,.88);
     backdrop-filter: blur(4px);
@@ -394,6 +395,12 @@
     color: var(--c2);
     background: rgba(0,212,255,.12);
     border: 1px solid rgba(0,212,255,.28);
+  }
+  /* 工具卡片角标用另一套配色，便于区分 */
+  .badge-tool{
+    color: #b6a6ff;
+    background: rgba(124,92,255,.16);
+    border-color: rgba(124,92,255,.36);
   }
   .card-body p{
     margin: 0;
@@ -520,6 +527,7 @@
     .stat{ flex: 1 1 30%; min-width: 0; padding: 12px 10px; }
     .stat b{ font-size: 19px; }
     .cursor-glow{ display: none; }
+    .nav-links a{ padding: 8px 8px; font-size: 12.5px; }
   }
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
@@ -540,6 +548,7 @@
       </a>
       <div class="nav-links">
         <a href="#games">游戏</a>
+        <a href="#tools">工具</a>
         <a href="#about">关于</a>
         <a href="#contact">联系</a>
       </div>
@@ -550,12 +559,12 @@
     <div class="avatar reveal" aria-hidden="true">🎮</div>
     <h1 class="reveal">你好，我是 <span class="grad">NonComtGr</span></h1>
     <p class="lead reveal">
-      一个在 DeepSeek 辅助下用 JavaScript 写小游戏的人。<br />
+      一个在 DeepSeek 辅助下用 JavaScript 写小游戏和小工具的人。<br />
       这里没有安装包、没有账号、没有广告 —— 点开就玩，关掉就走。
     </p>
     <div class="actions reveal">
       <a class="btn btn-primary" href="#games">🎯 挑一个开始玩</a>
-      <a class="btn btn-ghost" href="#about">看看我是谁</a>
+      <a class="btn btn-ghost" href="#tools">🧰 看看小工具</a>
     </div>
   </header>
   <!-- ================= 游戏列表 ================= -->
@@ -564,10 +573,23 @@
       <div class="sec-head reveal">
         <span class="kicker">Playground</span>
         <h2>小游戏合集</h2>
-        
+        <p>全部用原生 JavaScript 写成，单个 HTML 文件，打开即玩。</p>
       </div>
       <div class="games-grid" id="gamesGrid">
         <!-- 卡片由 JS 渲染，见下方 games 数组 -->
+      </div>
+    </div>
+  </section>
+  <!-- ================= 工具列表 ================= -->
+  <section id="tools">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="kicker">Toolbox</span>
+        <h2>小工具合集</h2>
+        <p>和游戏一样 —— 单个 HTML 文件，点开即用，不依赖任何框架。</p>
+      </div>
+      <div class="games-grid" id="toolsGrid">
+        <!-- 卡片由 JS 渲染，见下方 tools 数组 -->
       </div>
     </div>
   </section>
@@ -584,7 +606,7 @@
           <h3>👋 写在前头</h3>
           <p>
             这个小站是我所有
-            JS 小游戏的收纳箱 —— 每一个都是独立的一个 HTML 文件，
+            JS 小游戏和小工具的收纳箱 —— 每一个都是独立的一个 HTML 文件，
             不依赖任何框架和第三方库。
           </p>
           <p>
@@ -607,7 +629,7 @@
           <p>发现 bug、想加功能，或者只是想说句话，都可以。</p>
           <ul class="contact-list">
             <li>
-              <a href="846828163@qq.com">
+              <a href="mailto:846828163@qq.com">
                 <span class="ico">✉️</span> 846828163@qq.com
               </a>
             </li>
@@ -641,7 +663,7 @@
   'use strict';
 
   /* =========================================================
-     1. 游戏数据 —— 增删游戏只改这里
+     1. 数据 —— 增删游戏 / 工具只改这里
      ========================================================= */
   const games = [
     {
@@ -690,37 +712,122 @@
       g1: '#f59e0b', g2: '#ef4444'
     }
   ];
+
+  /* ---------- 工具数据（结构同 games，多一个可选 action 角标） ---------- */
+  const tools = [
+    {
+      title: 'JSON 格式化',
+      badge: '开发',
+      emoji: '🧩',
+      desc: '粘贴 JSON 一键美化 / 压缩，附带错误定位提示。',
+      tags: ['JSON', '格式化'],
+      href: 'tools/json-format.html',
+      action: '↗',
+      g1: '#6366f1', g2: '#0ea5e9'
+    },
+    {
+      title: '颜色工具箱',
+      badge: '设计',
+      emoji: '🎨',
+      desc: 'HEX / RGB / HSL 互转，自动生成配色梯度与对比度检测。',
+      tags: ['颜色', '配色'],
+      href: 'tools/color-tool.html',
+      action: '↗',
+      g1: '#ff2e88', g2: '#7c5cff'
+    },
+    {
+      title: '时间戳转换',
+      badge: '效率',
+      emoji: '⏱️',
+      desc: 'Unix 时间戳与日期字符串互转，支持时区与毫秒。',
+      tags: ['时间', '转换'],
+      href: 'tools/timestamp.html',
+      action: '↗',
+      g1: '#10b981', g2: '#22d3ee'
+    },
+    {
+      title: '二维码生成',
+      badge: '效率',
+      emoji: '🔳',
+      desc: '输入文本或链接，实时生成可下载的二维码图片。',
+      tags: ['二维码', '生成'],
+      href: 'tools/qrcode.html',
+      action: '↗',
+      g1: '#8b5cf6', g2: '#06b6d4'
+    },
+    {
+      title: '文本对比',
+      badge: '开发',
+      emoji: '🔀',
+      desc: '逐行对比两段文本差异，高亮新增与删除内容。',
+      tags: ['Diff', '文本'],
+      href: 'tools/text-diff.html',
+      action: '↗',
+      g1: '#f59e0b', g2: '#ec4899'
+    },
+    {
+      title: '迷宫生成器',
+      badge: '实验',
+      emoji: '🌀',
+      desc: '随机生成迷宫并导出为地图数据，可直接喂给防御阵型。',
+      tags: ['迷宫', '地图'],
+      href: 'tools/maze-gen.html',
+      action: '↗',
+      g1: '#22c55e', g2: '#3b82f6'
+    }
+  ];
+
   /* =========================================================
-     2. 渲染游戏卡片
+     2. 渲染卡片（游戏 / 工具 共用同一套结构）
      ========================================================= */
-  const grid = document.getElementById('gamesGrid');
-  const frag = document.createDocumentFragment();
-  games.forEach(function (g) {
-    const reveal = document.createElement('div');
-    reveal.className = 'reveal';
-    const card = document.createElement('article');
-    card.className = 'card';
-    card.setAttribute('data-tilt', '');
-    card.innerHTML =
-      '<a class="card-link" href="' + g.href + '" aria-label="开始玩 ' + g.title + '">' +
-        '<div class="thumb" style="--g1:' + g.g1 + ';--g2:' + g.g2 + '">' +
-          '<span class="emoji" aria-hidden="true">' + g.emoji + '</span>' +
-          '<span class="play-badge" aria-hidden="true">▶</span>' +
-        '</div>' +
-        '<div class="card-body">' +
-          '<h3>' + g.title +
-            (g.badge ? ' <span class="badge">' + g.badge + '</span>' : '') +
-          '</h3>' +
-          '<p>' + g.desc + '</p>' +
-          '<div class="tags">' +
-            g.tags.map(function (t) { return '<span>' + t + '</span>'; }).join('') +
+  function renderCards(list, container) {
+    if (!container || !list || !list.length) return;
+    const frag = document.createDocumentFragment();
+
+    list.forEach(function (g) {
+      const reveal = document.createElement('div');
+      reveal.className = 'reveal';
+
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.setAttribute('data-tilt', '');
+
+      const badgeClass = g.badgeClass || 'badge';
+      const badgeHtml = g.badge
+        ? ' <span class="' + badgeClass + '">' + g.badge + '</span>'
+        : '';
+      const action = g.action || '▶';
+
+      card.innerHTML =
+        '<a class="card-link" href="' + g.href + '" aria-label="打开 ' + g.title + '">' +
+          '<div class="thumb" style="--g1:' + g.g1 + ';--g2:' + g.g2 + '">' +
+            '<span class="emoji" aria-hidden="true">' + g.emoji + '</span>' +
+            '<span class="play-badge" aria-hidden="true">' + action + '</span>' +
           '</div>' +
-        '</div>' +
-      '</a>';
-    reveal.appendChild(card);
-    frag.appendChild(reveal);
+          '<div class="card-body">' +
+            '<h3>' + g.title + badgeHtml + '</h3>' +
+            '<p>' + g.desc + '</p>' +
+            '<div class="tags">' +
+              g.tags.map(function (t) { return '<span>' + t + '</span>'; }).join('') +
+            '</div>' +
+          '</div>' +
+        '</a>';
+
+      reveal.appendChild(card);
+      frag.appendChild(reveal);
+    });
+
+    container.appendChild(frag);
+  }
+
+  // 给工具统一加一个标记，让角标配色和游戏区分开
+  const toolsForRender = tools.map(function (t) {
+    return Object.assign({ badgeClass: 'badge badge-tool' }, t);
   });
-  grid.appendChild(frag);
+
+  renderCards(games, document.getElementById('gamesGrid'));
+  renderCards(toolsForRender, document.getElementById('toolsGrid'));
+
   /* =========================================================
      3. 滚动入场动画
      ========================================================= */
