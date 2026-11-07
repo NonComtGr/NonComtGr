@@ -30,8 +30,7 @@
   #speedBtn:hover { background:#123528; border-color:#57d9a3; }
   #speedBtn.fast { color:#ffd166; border-color:#6b5520; }
   #speedBtn.fast:hover { background:#3a2c0e; border-color:#ffd166; }
-  #speedBtn.fast { color:#ffd166; border-color:#6b5520; }
-  #speedBtn.fast:hover { background:#3a2c0e; border-color:#ffd166; }
+  
   /* ★ 减速状态 */
   #speedBtn.slow { color:#41d8ff; border-color:#1f4a6b; }
   #speedBtn.slow:hover { background:#0e2436; border-color:#41d8ff; }
@@ -1153,12 +1152,7 @@ function rollAffix(tier){
   return { id: a.id, name: a.name, stat: a.stat, value, text: a.fmt(value) };
 }
 
-function rollAffix(tier){
-  const a = pick(AFFIX_POOL);
-  const raw = (a.base + a.per * (tier - 4)) * rand(0.85, 1.15);
-  const value = a.pct ? +raw.toFixed(4) : +raw.toFixed(2);
-  return { id: a.id, name: a.name, stat: a.stat, value, text: a.fmt(value) };
-}
+
 
 function toRoman(n){
   n = Math.floor(n);
@@ -1217,7 +1211,7 @@ function makeInstance(slotBase, tier, affixes, srcIdx){
     slotBase, idx: IDX_MAX,
     srcIdx: resolvedIdx,                     // ★ 持久化字段
     tier,
-    srcIdx: resolvedIdx,
+    
     name: nameBase.name + ' ' + toRoman(tier),
     stats: boosted,
     affixes: affixes || [],
@@ -2445,8 +2439,7 @@ function calcStatsFor(pl){
     st.crit    += s.crit || 0;
     st.critDmg += s.critDmg || 0;
     st.armor   += s.def || 0;
-    st.speed    *= (1 + (s.spd || 0));
-    st.atkSpeed *= (1 + (s.atkSpeed || 0));
+    
     st.speed    *= (1 + (s.spd || 0));
     st.atkSpeed *= (1 + (s.atkSpeed || 0));
     /* ★ 新增词缀影响 */
