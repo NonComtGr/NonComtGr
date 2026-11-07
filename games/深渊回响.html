@@ -2628,7 +2628,10 @@ function doCombineRaw(pl, group){
     if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
     /* 取素材里最强的那件的前缀（idx 越大越强；instance 的 idx 记为 IDX_MAX） */
-    const srcIdx = Math.max(...consumed.map(it => it.srcIdx || it.idx || IDX_MAX));
+    const maxIdx = Math.max(...consumed.map(it => it.srcIdx || it.idx || IDX_MAX));
+    const topList = consumed.filter(it => (it.srcIdx || it.idx || IDX_MAX) === maxIdx);
+    const pickIt = topList[Math.floor(Math.random() * topList.length)];
+    const srcIdx = maxIdx;
     result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes), srcIdx);
   }
 
