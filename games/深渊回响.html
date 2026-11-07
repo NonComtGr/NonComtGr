@@ -1193,6 +1193,7 @@ function makeAffixedItem(slotBase, idx, numAffixes){
   return {
     key: 'INST_' + (uid++),
     slotBase, idx,
+    srcIdx: idx, 
     tier: base.tier,
     name: base.name,
     stats: { ...base.stats },
@@ -1216,6 +1217,7 @@ function makeInstance(slotBase, tier, affixes, srcIdx){
     slotBase, idx: IDX_MAX,
     srcIdx: resolvedIdx,                     // ★ 持久化字段
     tier,
+    srcIdx: resolvedIdx,
     name: nameBase.name + ' ' + toRoman(tier),
     stats: boosted,
     affixes: affixes || [],
@@ -2288,7 +2290,7 @@ function serializeItem(it){
       i: 1,
       sb: it.slotBase,
       t:  it.tier,
-      si: it.srcIdx || IDX_MAX,              // ★ 保存名字来源
+      si: it.srcIdx || it.idx || IDX_MAX,
       a:  (it.affixes || []).map(x => ({ ...x })),
     };
   }
@@ -2630,7 +2632,7 @@ function doCombineRaw(pl, group){
     if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
     /* 取素材里最强的那件的前缀（idx 越大越强；instance 的 idx 记为 IDX_MAX） */
-    const srcIdx = Math.max(...consumed.map(it => it.idx || IDX_MAX));
+    const srcIdx = Math.max(...consumed.map(it => it.srcIdx || it.idx || IDX_MAX));
     result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes), srcIdx);
   }
 
