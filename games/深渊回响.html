@@ -1198,20 +1198,24 @@ function makeAffixedItem(slotBase, idx, numAffixes){
 }
 
 function makeInstance(slotBase, tier, affixes, srcIdx){
-  const statBase = getDef(slotBase, IDX_MAX);
-  const resolvedIdx = clamp(srcIdx || IDX_MAX, 1, IDX_MAX);   // ← 新增
-  const nameBase   = getDef(slotBase, resolvedIdx);           // ← 名字来源
+  const resolvedIdx = clamp(srcIdx || IDX_MAX, 1, IDX_MAX);
+  // tier ≤ 3 → 掉落的中级/高级：保留原 idx 的属性
+  // tier ≥ 4 → 合成产物：统一用 idx=50 模板
+  const statBase = tier <= 3
+    ? getDef(slotBase, resolvedIdx)
+    : getDef(slotBase, IDX_MAX);
+  const nameBase = getDef(slotBase, resolvedIdx);   // 名字不变
 
   const tierBoost = 1 + Math.max(0, tier - 3) * 0.5;
   const boosted = {};
-  for (const k in statBase.stats) boosted[k] = +(statBase.stats[k] * tierBoost).toFixed(4);
+  for (const k in statBase.stats)
+    boosted[k] = +(statBase.stats[k] * tierBoost).toFixed(4);
 
   return {
     key: 'INST_' + (uid++),
     slotBase, idx: IDX_MAX,
-    srcIdx: resolvedIdx,                     // ★ 持久化字段
+    srcIdx: resolvedIdx,
     tier,
-    
     name: nameBase.name + ' ' + toRoman(tier),
     stats: boosted,
     affixes: affixes || [],
