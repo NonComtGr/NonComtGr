@@ -3373,23 +3373,29 @@ function rollLevelClearItem(level){
 function levelClear(){
   G.state = 'clear';
 
+  /* ★ 只记录本次掉落的装备（不再展示整个背包） */
+  const dropped = [];
   const lootCount = randi(10, 20);
   for (let i = 0; i < lootCount; i++){
-    addItem(rollLevelClearItem(G.level), 1);
+    const it = rollLevelClearItem(G.level);
+    dropped.push(it);
+    addItem(it, 1);            // 入包并自动合成
   }
 
-  const snap = [];
-  for (const k in P.bag){
-    const e = P.bag[k];
-    if (e && e.item) snap.push({ item: e.item, count: e.count });
+  /* 按种类合并计数，稀有度高的排前面 */
+  const grouped = {};
+  for (const it of dropped){
+    if (!grouped[it.key]) grouped[it.key] = { item: it, count: 0 };
+    grouped[it.key].count++;
   }
-  snap.sort((a, b) => b.item.tier - a.item.tier);
+  const list = Object.values(grouped).sort((a, b) =>
+    (b.item.tier - a.item.tier) || (b.item.idx - a.item.idx));
 
   const box = document.getElementById('clearLoot');
   box.innerHTML =
-  `<div style="width:100%;font-size:13px;color:#7b7b9e;margin-bottom:8px;">` +
-  `通关奖励 · 本次掉落 ${lootCount} 件（已自动合成，下方为当前物品栏）</div>` +
-    snap.map(s =>
+    `<div style="width:100%;font-size:13px;color:#7b7b9e;margin-bottom:8px;">` +
+    `通关奖励 · 本次掉落 ${lootCount} 件装备（已自动合成至背包）</div>` +
+    list.map(s =>
       `<div class="lootitem ${tierClass(s.item.tier)}">${SLOT_ICON[s.item.slotBase] || ''} ${s.item.name}${s.count > 1 ? ' ×' + s.count : ''}</div>`
     ).join('');
 
