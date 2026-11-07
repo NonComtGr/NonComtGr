@@ -2180,6 +2180,7 @@ const G = {
   endlessWave: 0,
   endlessBoss: 0,
   bulletSpdMul: 1,
+  pendingClear: 0,
 };
 
 let P = null;
@@ -2362,6 +2363,8 @@ function saveRun(){
   d.run = {
     level: G.level,
     kills: G.kills,
+    timeLeft:  G.timeLeft,     // ★ 新增
+    levelTime: G.levelTime,    // ★ 新增（敌人子弹伤害成长计时）
     player: {
       level: P.level,
       xp: P.xp,
@@ -2752,6 +2755,7 @@ function resetWorld(){
   G.spawnTimer = 0.4;
   G.bulletSpdMul = 1;
   G.levelTime = 0;
+  G.pendingClear = 0; 
 }
 
 function startLevel(n){
@@ -3852,7 +3856,20 @@ function update(dt){
 
   G.shake = Math.max(0, G.shake - dt * 34);
   updateHUD();
+
+  /* ★ BOSS 全灭后延迟结算（升级界面期间 update 不跑，计时器自动冻结） */
+  if (G.pendingClear > 0){
+    G.pendingClear -= dt;
+    if (G.pendingClear <= 0){
+      G.pendingClear = 0;
+      if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
+        levelClear();
+        return;
+      }
+    }
+  }
 }
+
 
 function updateZones(dt){
   for (let i = G.effects.length - 1; i >= 0; i--){
@@ -3928,9 +3945,11 @@ function killEnemy(e, idx){
         life: rand(0.4, 1.1), color: e.color, r: rand(2, 6),
       });
     }
-    if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
-      setTimeout(() => { if (G.state === 'playing') levelClear(); }, 900);
-    }
+    /* ★ 第二个 BOSS 阵亡 → 交给 update 里的 pendingClear 延迟结算，
+   避免升级界面（state='levelup'）导致结算丢失 */
+if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
+  G.pendingClear = 0.9;
+}
   } else {
     for (let i = 0; i < 8; i++){
       G.particles.push({
@@ -4238,6 +4257,11 @@ function continueRun(){
   P.hp = clamp(r.player.hp || P.stats.maxHp, 1, P.stats.maxHp);
 
   startLevel(Math.min(MAX_LEVEL, r.level || 1));
+
+  /* ★ 恢复关卡内计时，而不是从 5:00 重来 */
+  if (typeof r.timeLeft === 'number')  G.timeLeft  = clamp(r.timeLeft, 0, 300);
+  if (typeof r.levelTime === 'number') G.levelTime = Math.max(0, r.levelTime);
+
   updateHUD();
 }
 
