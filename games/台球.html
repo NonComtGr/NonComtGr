@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🎱 台球大师 · 分离线调节</title>
+<title>🎱 台球大师 · 分离线调节 · AI 对战</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -132,7 +132,7 @@
     color: #9fe8b8;
     font-weight: 600;
   }
-  #sidesSelect {
+  #sidesSelect, #aiLevelSelect {
     background: rgba(255,255,255,0.10);
     border: 1px solid rgba(255,255,255,0.18);
     color: rgba(255,255,255,0.88);
@@ -143,7 +143,12 @@
     outline: none;
     cursor: pointer;
   }
-  #sidesSelect option { background: #1b2028; color: #fff; }
+  #sidesSelect option, #aiLevelSelect option { background: #1b2028; color: #fff; }
+  #aiLevelSelect.ai-on {
+    border-color: #3ee07a;
+    box-shadow: 0 0 0 1px rgba(62,224,122,.35), 0 0 14px rgba(62,224,122,.25);
+    color: #b6ffcf;
+  }
   .spot-wrap {
     display: flex;
     align-items: center;
@@ -229,6 +234,7 @@
     <div class="row">
       <div class="seg" id="modeSwitch">
         <button data-mode="eight" class="active">8 球</button>
+        <button data-mode="nine">9 球</button>
         <button data-mode="snooker">斯诺克</button>
         <button data-mode="crazy">55 球</button>
         <button data-mode="polygon">正多边形</button>
@@ -252,6 +258,17 @@
           <option value="10">10</option>
           <option value="11">11</option>
           <option value="12">12</option>
+        </select>
+      </label>
+      <label class="friction-label">
+        AI 对手
+        <select id="aiLevelSelect">
+          <option value="0">关闭</option>
+          <option value="1">Lv1 · 新手</option>
+          <option value="2">Lv2 · 初级</option>
+          <option value="3">Lv3 · 中级</option>
+          <option value="4">Lv4 · 高级</option>
+          <option value="5">Lv5 · 大师</option>
         </select>
       </label>
     </div>
@@ -323,7 +340,8 @@
 
   const COLORS = {
     1: '#f2c414', 2: '#1c57c9', 3: '#d93025', 4: '#7b2fc4',
-    5: '#f07b1a', 6: '#12924f', 7: '#8a3324', 8: '#1a1a1a'
+    5: '#f07b1a', 6: '#12924f', 7: '#8a3324', 8: '#1a1a1a',
+    9: '#f2c414'
   };
 
   const BALK_X = TABLE.left + TW * 0.207;
@@ -336,13 +354,7 @@
   };
 
   // ============================================================
-  //  袋口参数（视觉 / 捕获 / 库边收口 / 碰撞豁免，全部统一）
-  //    innerR   袋口内孔半径（视觉）
-  //    outerR   袋口外圈包边半径（视觉）
-  //    captureR 圆形捕获半径（角袋 / 多边形袋）
-  //    captureX / captureY  椭圆捕获半轴（中袋）
-  //    cutR     库边鼻线收口半径（决定库边在袋口处开口多大）
-  //    mouthR   碰撞豁免半径（球心进入此范围时跳过库边反弹）
+  //  袋口参数
   // ============================================================
   const POCKET_CFG = {
     corner:        { innerR: 24, outerR: 33, captureR: 23, cutR: 30, mouthR: 30 },
@@ -365,6 +377,7 @@
   const restartBtn = document.getElementById('restartBtn');
   const sidesWrap = document.getElementById('sidesWrap');
   const sidesSelect = document.getElementById('sidesSelect');
+  const aiLevelSelect = document.getElementById('aiLevelSelect');
 
   const sepLengthSlider = document.getElementById('sepLengthSlider');
   const sepLengthVal = document.getElementById('sepLengthVal');
@@ -417,6 +430,62 @@
     beep(440, 0.08, 0.10, 'sine');
     setTimeout(() => beep(660, 0.10, 0.08, 'sine'), 70);
   });
+
+  // ============================================================
+  //  AI 等级配置
+  // ============================================================
+  const AI_LEVELS = [
+    null,
+    { name: '新手', angleErr: 0.170, noise: 2.20, powerErr: 0.45, think: 1100, aimPause: 420 },
+    { name: '初级', angleErr: 0.100, noise: 1.20, powerErr: 0.30, think: 950,  aimPause: 400 },
+    { name: '中级', angleErr: 0.050, noise: 0.55, powerErr: 0.18, think: 800,  aimPause: 380 },
+    { name: '高级', angleErr: 0.012, noise: 0.05, powerErr: 0.05, think: 650,  aimPause: 340 },
+    { name: '大师', angleErr: 0.000, noise: 0.00, powerErr: 0.00, think: 350,  aimPause: 300, sim: true }
+  ];
+
+  let aiLevel = 0;
+  let turn = 'player';
+  let scoreP = 0;
+  let scoreA = 0;
+  let shotPotted = 0;
+  let cuePottedThisShot = false;
+  let shotInProgress = false;
+  let aiThinking = false;
+  let aiAiming = false;
+  let aiTimerId = null;
+
+  // ===== 比赛规则状态 =====
+  let groupsAssigned = false;
+  let playerGroup = null;
+  let aiGroup = null;
+  let snookerTarget = 'red';
+  let gameOver = false;
+  let winner = null;
+  let shotFirstContact = null;
+  let shotPottedBalls = [];
+  let shotTargetBall = null;   // ★ 9 球：本杆击球前的最小号球
+
+  // ===== 8 球自由球 / 开球状态 =====
+  let isBreakShot = true;
+  let shotIsBreak = false;
+  let ballInHandMode = 'kitchen';
+  let pendingBallInHand = false;
+
+  aiLevelSelect.addEventListener('change', () => {
+    aiLevel = parseInt(aiLevelSelect.value, 10);
+    aiLevelSelect.classList.toggle('ai-on', aiLevel > 0);
+    newGame();
+  });
+
+  function clearAITimers() {
+    if (aiTimerId) { clearTimeout(aiTimerId); aiTimerId = null; }
+    aiThinking = false;
+    aiAiming = false;
+  }
+
+  function isPlayerTurn() {
+    return aiLevel === 0 || turn === 'player';
+  }
 
   // ============================================================
   //  击球点选择器
@@ -504,7 +573,7 @@
   });
 
   // ============================================================
-  //  四元数工具（球的 3D 姿态）
+  //  四元数工具
   // ============================================================
   function quatNormalizeInto(b) {
     const len = Math.hypot(b.qx, b.qy, b.qz, b.qw) || 1;
@@ -558,7 +627,6 @@
   let shots = 0;
   let pottedCount = 0;
   let totalBalls = 0;
-  let score = 0;
   let aimAngle = 0;
   let charging = false;
   let power = 0;
@@ -577,6 +645,11 @@
   let clearTime = 0;
   const CLEAR_DELAY = 1600;
 
+  // ===== 模拟相关全局（大师级 AI 用）=====
+  let SIM_MODE = false;
+  let simPottedList = [];
+  let simFirstContact = null;
+
   // ============================================================
   //  音效
   // ============================================================
@@ -589,6 +662,7 @@
   }
 
   function beep(freq, dur, vol, type = 'sine') {
+    if (SIM_MODE) return;
     if (!soundOn) return;
     ensureAudio();
     if (!audioCtx) return;
@@ -606,6 +680,7 @@
   }
 
   function clickSound(impact) {
+    if (SIM_MODE) return;
     const now = performance.now();
     if (now - lastClickTime < 25) return;
     lastClickTime = now;
@@ -647,7 +722,7 @@
   }
 
   // ============================================================
-  //  矩形球台（含真实袋口造型）
+  //  矩形球台
   // ============================================================
   function buildRectTable() {
     const midX = TABLE.left + TW / 2;
@@ -826,19 +901,42 @@
   //  开局布置
   // ============================================================
   function newGame() {
+    clearAITimers();
+
     balls = [];
     particles = [];
     pendingRespawns = [];
     shots = 0;
     pottedCount = 0;
     totalBalls = 0;
-    score = 0;
     charging = false;
     power = 0;
     aimAngle = 0;
     placingCue = false;
     clearPending = false;
     clearTime = 0;
+
+    turn = 'player';
+    scoreP = 0;
+    scoreA = 0;
+    shotPotted = 0;
+    cuePottedThisShot = false;
+    shotInProgress = false;
+
+    groupsAssigned = false;
+    playerGroup = null;
+    aiGroup = null;
+    snookerTarget = 'red';
+    gameOver = false;
+    winner = null;
+    shotFirstContact = null;
+    shotPottedBalls = [];
+    shotTargetBall = null;
+
+    isBreakShot = true;
+    shotIsBreak = false;
+    ballInHandMode = 'kitchen';
+    pendingBallInHand = false;
 
     cueHitX = 0;
     cueHitY = 0;
@@ -855,6 +953,7 @@
     } else {
       table = buildRectTable();
       if (mode === 'eight') setupEightBall();
+      else if (mode === 'nine') setupNineBall();
       else setupSnooker();
     }
 
@@ -890,6 +989,58 @@
         else { type = 'solid'; color = COLORS[n]; }
         balls.push(makeBall(bx, by, { type, num: n, color }));
       }
+    }
+  }
+
+  // ★★★★★ 9 球开局：菱形摆放，1 号在顶点，9 号在正中 ★★★★★
+  function setupNineBall() {
+    totalBalls = 9;
+    cueBall = makeBall(HEAD_X, CY, { type: 'cue', num: 0 });
+    balls.push(cueBall);
+
+    const apexX = TABLE.left + TW * 0.75;
+    const apexY = CY;
+    const gap = 2 * R + 0.6;
+    const rowDX = gap * Math.sqrt(3) / 2;
+
+    // 菱形 1-2-3-2-1 共 9 个位置
+    const rowCounts = [1, 2, 3, 2, 1];
+    const slots = [];
+    for (let row = 0; row < rowCounts.length; row++) {
+      const cnt = rowCounts[row];
+      for (let col = 0; col < cnt; col++) {
+        slots.push({
+          x: apexX + row * rowDX,
+          y: apexY + (col - (cnt - 1) / 2) * gap
+        });
+      }
+    }
+
+    // 1 号在顶点(0)，9 号在正中(4)
+    const order = new Array(9).fill(0);
+    order[0] = 1;
+    order[4] = 9;
+
+    const rest = [2, 3, 4, 5, 6, 7, 8];
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+    let ri = 0;
+    for (let i = 0; i < 9; i++) {
+      if (order[i] === 0) order[i] = rest[ri++];
+    }
+
+    for (let i = 0; i < 9; i++) {
+      const n = order[i];
+      const s = slots[i];
+      balls.push(makeBall(s.x, s.y, {
+        type: (n === 9) ? 'stripe' : 'solid',
+        num: n,
+        color: COLORS[n] || '#c9a227',
+        spotX: apexX,
+        spotY: apexY
+      }));
     }
   }
 
@@ -1030,7 +1181,8 @@
   // ============================================================
   //  母球放置
   // ============================================================
-  function startCuePlacement() {
+  function startCuePlacement(forceMode) {
+    const wasPotted = cueBall.potted;
     placingCue = true;
     cueBall.potted = false;
     cueBall.vx = 0;
@@ -1039,21 +1191,31 @@
     cueBall.wy = 0;
     cueBall.wz = 0;
 
+    if (forceMode) ballInHandMode = forceMode;
+
     let dx, dy;
     if (mode === 'snooker') {
       dx = BALK_X - D_RADIUS * 0.55;
       dy = CY;
+      ballInHandMode = 'kitchen';
     } else if (mode === 'crazy') {
       dx = TABLE.left + TW * 0.2;
       dy = CY;
+      ballInHandMode = 'anywhere';
     } else if (mode === 'polygon') {
       dx = POLY_CX - POLY_RADIUS * 0.4;
       dy = POLY_CY;
+      ballInHandMode = 'anywhere';
     } else {
       dx = HEAD_X;
       dy = CY;
     }
-    updateCuePlacementPreview(dx, dy);
+
+    if (!wasPotted && ballInHandMode === 'anywhere') {
+      updateCuePlacementPreview(cueBall.x, cueBall.y);
+    } else {
+      updateCuePlacementPreview(dx, dy);
+    }
     beep(400, 0.10, 0.08, 'sine');
   }
 
@@ -1071,9 +1233,13 @@
         px = BALK_X + dx * k;
         py = CY + dy * k;
       }
-    } else if (mode === 'eight') {
+    } else if (mode === 'eight' || mode === 'nine') {
       const b = table.bounds;
-      px = Math.max(b.left + R, Math.min(HEAD_X, px));
+      if (ballInHandMode === 'kitchen') {
+        px = Math.max(b.left + R, Math.min(HEAD_X, px));
+      } else {
+        px = Math.max(b.left + R, Math.min(b.right - R, px));
+      }
       py = Math.max(b.top + R, Math.min(b.bottom - R, py));
     } else {
       const b = table.bounds;
@@ -1101,6 +1267,49 @@
       if (Math.hypot(b.x - x, b.y - y) < 2 * R + 1) return false;
     }
     return true;
+  }
+
+  // ============================================================
+  //  AI 自动放置母球
+  // ============================================================
+  function autoPlaceCueForAI() {
+    const bounds = table.bounds;
+    const isKitchen = (mode === 'snooker') ||
+                      ((mode === 'eight' || mode === 'nine') && ballInHandMode === 'kitchen');
+
+    for (let i = 0; i < 500; i++) {
+      let x, y;
+      if (mode === 'snooker') {
+        const a = Math.PI / 2 + Math.random() * Math.PI;
+        const r = Math.random() * Math.max(1, D_RADIUS - R - 2);
+        x = BALK_X + Math.cos(a) * r;
+        y = CY + Math.sin(a) * r;
+      } else if (mode === 'eight' || mode === 'nine') {
+        const minX = bounds.left + R + 4;
+        const maxX = isKitchen ? HEAD_X : bounds.right - R - 4;
+        if (maxX <= minX) {
+          x = minX;
+        } else {
+          x = minX + Math.random() * (maxX - minX);
+        }
+        y = bounds.top + R + 4 + Math.random() * Math.max(1, bounds.bottom - bounds.top - 2 * R - 8);
+      } else {
+        x = bounds.left + R + 4 + Math.random() * Math.max(1, bounds.right - bounds.left - 2 * R - 8);
+        y = bounds.top + R + 4 + Math.random() * Math.max(1, bounds.bottom - bounds.top - 2 * R - 8);
+      }
+      if (isValidCuePlacement(x, y)) {
+        cueBall.x = x;
+        cueBall.y = y;
+        cueBall.vx = 0; cueBall.vy = 0;
+        cueBall.wx = 0; cueBall.wy = 0; cueBall.wz = 0;
+        placementPreview.x = x;
+        placementPreview.y = y;
+        placementPreview.valid = true;
+        placingCue = false;
+        return true;
+      }
+    }
+    return false;
   }
 
   // ============================================================
@@ -1207,6 +1416,18 @@
 
     const rvn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
     if (rvn <= 0) return;
+
+    if (!SIM_MODE) {
+      if (!shotFirstContact) {
+        if (a === cueBall) shotFirstContact = b;
+        else if (b === cueBall) shotFirstContact = a;
+      }
+    } else {
+      if (!simFirstContact) {
+        if (a === cueBall) simFirstContact = b;
+        else if (b === cueBall) simFirstContact = a;
+      }
+    }
 
     const j = (1 + BALL_E) * rvn / 2;
     a.vx -= j * nx;
@@ -1334,7 +1555,6 @@
     }
   }
 
-  // 落袋判定：角袋用圆形，中袋用椭圆，参数与视觉一致
   function checkPockets(b) {
     for (const p of table.pockets) {
       const cfg = pocketCfg(p);
@@ -1396,35 +1616,47 @@
     b.wy = 0;
     b.wz = 0;
 
+    if (SIM_MODE) {
+      simPottedList.push(b);
+      return;
+    }
+
     spawnParticles(b.x, b.y, b.color || '#fff');
 
     if (b.type === 'cue') {
+      cuePottedThisShot = true;
       beep(110, 0.22, 0.14, 'sine');
       return;
     }
 
-    if (mode === 'eight') {
-      pottedCount++;
-      beep(520 + Math.random() * 120, 0.10, 0.12, 'sine');
-      setTimeout(() => beep(760, 0.12, 0.07, 'sine'), 60);
-    } else if (mode === 'crazy' || mode === 'polygon') {
-      pottedCount++;
-      beep(500 + Math.random() * 180, 0.08, 0.10, 'sine');
-      setTimeout(() => beep(780, 0.08, 0.05, 'sine'), 40);
-    } else {
+    shotPotted++;
+    pottedCount++;
+    shotPottedBalls.push(b);
+
+    if (mode === 'snooker') {
       if (b.type === 'red') {
-        score += 1;
         beep(540 + Math.random() * 100, 0.10, 0.12, 'sine');
         setTimeout(() => beep(760, 0.10, 0.07, 'sine'), 60);
       } else {
-        score += b.points;
         beep(640 + Math.random() * 100, 0.10, 0.12, 'sine');
         setTimeout(() => beep(900, 0.12, 0.07, 'sine'), 60);
-        const redsLeft = balls.filter(x => x.type === 'red' && !x.potted).length;
-        if (redsLeft > 0) {
+      }
+      if (b.type === 'color') {
+        if (snookerTarget === 'red' || snookerTarget === 'color') {
           pendingRespawns.push(b);
         }
       }
+    } else {
+      beep(520 + Math.random() * 120, 0.10, 0.12, 'sine');
+      setTimeout(() => beep(760, 0.12, 0.07, 'sine'), 60);
+    }
+
+    if (aiLevel === 0) {
+      let pts = 1;
+      if (mode === 'snooker') {
+        pts = (b.type === 'red') ? 1 : (b.points || 1);
+      }
+      scoreP += pts;
     }
   }
 
@@ -1493,13 +1725,887 @@
   }
 
   // ============================================================
-  //  清台判定
+  //  清台 / 结束判定
   // ============================================================
-  function isTableCleared() {
+  function isGameFinished() {
+    if (gameOver) return true;
     if (mode === 'eight') return pottedCount >= 15;
     if (mode === 'crazy') return pottedCount >= totalBalls;
     if (mode === 'polygon') return pottedCount >= totalBalls;
     return balls.every(b => b.type === 'cue' || b.potted);
+  }
+
+  // ============================================================
+  //  回合结算
+  // ============================================================
+  function resolveShot() {
+    if (aiLevel === 0) {
+      if (cuePottedThisShot) {
+        ballInHandMode = 'kitchen';
+      }
+      shotPotted = 0;
+      cuePottedThisShot = false;
+      shotFirstContact = null;
+      shotPottedBalls = [];
+      shotTargetBall = null;
+      return;
+    }
+
+    if (mode === 'eight') {
+      resolveEight();
+    } else if (mode === 'snooker') {
+      resolveSnooker();
+    } else if (mode === 'nine') {
+      resolveNine();
+    } else {
+      const keepTurn = (shotPotted > 0) && !cuePottedThisShot;
+      if (!keepTurn) turn = (turn === 'player') ? 'ai' : 'player';
+      if (cuePottedThisShot) {
+        ballInHandMode = 'kitchen';
+        pendingBallInHand = true;
+      }
+    }
+
+    shotPotted = 0;
+    cuePottedThisShot = false;
+    shotFirstContact = null;
+    shotPottedBalls = [];
+    shotTargetBall = null;
+  }
+
+  function resolveEight() {
+    const isPlayer = (turn === 'player');
+    const cuePotted = cuePottedThisShot;
+    const potted = shotPottedBalls.slice();
+    const first = shotFirstContact;
+
+    const myGroup = isPlayer ? playerGroup : aiGroup;
+
+    let remainingBefore = 0;
+    if (myGroup) {
+      remainingBefore = balls.filter(b =>
+        b.type === myGroup && b.num !== 8 && (!b.potted || potted.indexOf(b) >= 0)
+      ).length;
+    }
+
+    let foul = false;
+
+    if (cuePotted) foul = true;
+
+    if (!first) {
+      foul = true;
+    } else if (!groupsAssigned) {
+      if (first.num === 8) foul = true;
+    } else if (remainingBefore > 0) {
+      if (first.num === 8) foul = true;
+      else if (first.type !== myGroup) foul = true;
+    } else {
+      if (first.num !== 8) foul = true;
+    }
+
+    const eightPotted = potted.some(b => b.num === 8);
+    if (eightPotted) {
+      const legal = groupsAssigned && remainingBefore === 0 && !cuePotted && !foul;
+      gameOver = true;
+      if (legal) {
+        winner = isPlayer ? 'player' : 'ai';
+        if (isPlayer) scoreP += 1; else scoreA += 1;
+      } else {
+        winner = isPlayer ? 'ai' : 'player';
+        if (isPlayer) scoreA += 1; else scoreP += 1;
+      }
+      beep(180, 0.3, 0.16, 'sine');
+      return;
+    }
+
+    if (!groupsAssigned) {
+      const firstPotted = potted.find(b => b.num !== 8);
+      if (firstPotted) {
+        groupsAssigned = true;
+        const g = firstPotted.type;
+        if (isPlayer) {
+          playerGroup = g;
+          aiGroup = (g === 'solid') ? 'stripe' : 'solid';
+        } else {
+          aiGroup = g;
+          playerGroup = (g === 'solid') ? 'stripe' : 'solid';
+        }
+        beep(880, 0.12, 0.10, 'sine');
+      }
+    }
+
+    let keepTurn = false;
+    if (!foul && groupsAssigned) {
+      const groupNow = isPlayer ? playerGroup : aiGroup;
+      if (potted.some(b => b.type === groupNow && b.num !== 8)) keepTurn = true;
+    }
+
+    if (foul) {
+      ballInHandMode = (shotIsBreak && cuePotted) ? 'kitchen' : 'anywhere';
+      pendingBallInHand = true;
+    }
+
+    if (!keepTurn) turn = isPlayer ? 'ai' : 'player';
+  }
+
+  const SNOOKER_COLOR_VALUES = [2, 3, 4, 5, 6, 7];
+
+  function lowestRemainingColor() {
+    for (const v of SNOOKER_COLOR_VALUES) {
+      const exists = balls.some(b => b.type === 'color' && b.points === v && !b.potted);
+      if (exists) return v;
+    }
+    return null;
+  }
+
+  function resolveSnooker() {
+    const isPlayer = (turn === 'player');
+    const cuePotted = cuePottedThisShot;
+    const potted = shotPottedBalls.slice();
+    const first = shotFirstContact;
+
+    const target = snookerTarget;
+    const targetIsRed = (target === 'red');
+    const targetIsColor = (target === 'color');
+    const targetValue = targetIsRed ? 1 : (targetIsColor ? 2 : target);
+
+    let foul = false;
+    let penalty = Math.max(4, targetValue);
+
+    if (cuePotted) foul = true;
+    if (!first) {
+      foul = true;
+    } else if (targetIsRed) {
+      if (first.type !== 'red') {
+        foul = true;
+        if (first.type === 'color') penalty = Math.max(penalty, first.points);
+      }
+    } else if (targetIsColor) {
+      if (first.type !== 'color') {
+        foul = true;
+      }
+    } else {
+      if (first.type !== 'color' || first.points !== target) {
+        foul = true;
+        if (first.type === 'color') {
+          penalty = Math.max(penalty, first.points);
+        }
+      }
+    }
+
+    let gained = 0;
+    if (!foul) {
+      if (targetIsRed) {
+        const reds = potted.filter(b => b.type === 'red');
+        const colors = potted.filter(b => b.type === 'color');
+        if (colors.length > 0) {
+          foul = true;
+          let p = 4;
+          for (const c of colors) p = Math.max(p, c.points);
+          penalty = p;
+        } else {
+          gained = reds.length;
+        }
+      } else if (targetIsColor) {
+        const reds = potted.filter(b => b.type === 'red');
+        const colors = potted.filter(b => b.type === 'color');
+        if (reds.length > 0) {
+          foul = true;
+          penalty = Math.max(4, 1);
+        } else if (colors.length > 1) {
+          foul = true;
+          let p = 4;
+          for (const c of colors) p = Math.max(p, c.points);
+          penalty = p;
+          gained = 0;
+        } else if (colors.length === 1) {
+          gained = colors[0].points;
+        }
+      } else {
+        const right = potted.find(b => b.type === 'color' && b.points === target);
+        const wrong = potted.filter(b => b.type === 'color' && b.points !== target);
+        if (wrong.length > 0) {
+          let p = Math.max(4, target);
+          for (const w of wrong) p = Math.max(p, w.points);
+          penalty = p;
+          foul = true;
+          gained = 0;
+        } else if (right) {
+          gained = target;
+        }
+      }
+    }
+    if (foul) {
+      for (const b of potted) {
+        if (b.type === 'color') penalty = Math.max(penalty, b.points);
+      }
+      if (!targetIsRed && !targetIsColor) {
+        for (const b of potted) {
+          if (b.type === 'color') respawnColorBall(b);
+        }
+      }
+    }
+
+    if (foul) {
+      if (isPlayer) scoreA += penalty;
+      else scoreP += penalty;
+    } else if (gained > 0) {
+      if (isPlayer) scoreP += gained;
+      else scoreA += gained;
+    }
+
+    const keepTurn = (!foul && gained > 0);
+    if (!keepTurn) turn = isPlayer ? 'ai' : 'player';
+
+    const redsNow = balls.filter(b => b.type === 'red' && !b.potted).length;
+
+    if (redsNow > 0) {
+      if (keepTurn) {
+        snookerTarget = targetIsRed ? 'color' : 'red';
+      } else {
+        snookerTarget = 'red';
+      }
+    } else if (targetIsRed) {
+      snookerTarget = 'color';
+    } else {
+      const low = lowestRemainingColor();
+      snookerTarget = (low === null) ? 'red' : low;
+    }
+  }
+
+  // ============================================================
+  //  ★★★★★ 9 球规则结算 ★★★★★
+  // ============================================================
+  function lowestNineBall(arr) {
+    const a = arr || balls;
+    let best = null;
+    for (const b of a) {
+      if (b.potted || b.type === 'cue') continue;
+      if (!best || b.num < best.num) best = b;
+    }
+    return best;
+  }
+
+  function resolveNine() {
+    const isPlayer = (turn === 'player');
+    const cuePotted = cuePottedThisShot;
+    const potted = shotPottedBalls.slice();
+    const first = shotFirstContact;
+    const target = shotTargetBall;    // 击球前的最小号球
+
+    // ---- 犯规判定：必须先碰到最小号球 ----
+    let foul = false;
+    if (cuePotted) foul = true;
+    if (!first) foul = true;
+    else if (target && first !== target) foul = true;
+
+    // ---- 9 号球入袋 ----
+    const nine = potted.find(b => b.num === 9);
+    if (nine) {
+      if (foul) {
+        // 犯规打进 9 号球：重新摆回置球点，比赛继续
+        respawnColorBall(nine);
+        pottedCount = Math.max(0, pottedCount - 1);
+        beep(220, 0.22, 0.12, 'sine');
+      } else {
+        // 合法打进 9 号球：直接获胜
+        gameOver = true;
+        winner = isPlayer ? 'player' : 'ai';
+        if (isPlayer) scoreP += 1; else scoreA += 1;
+        beep(180, 0.30, 0.16, 'sine');
+        setTimeout(() => beep(900, 0.18, 0.12, 'sine'), 120);
+        return;
+      }
+    }
+
+    // ---- 犯规后果：对手获得全台自由球 ----
+    if (foul) {
+      ballInHandMode = 'anywhere';
+      pendingBallInHand = true;
+    }
+
+    // ---- 打进任何球（无犯规）均可继续 ----
+    const keepTurn = (!foul && potted.length > 0);
+    if (!keepTurn) turn = isPlayer ? 'ai' : 'player';
+  }
+
+  // ============================================================
+  //  路径检测
+  // ============================================================
+  function pathClear(x1, y1, x2, y2, ignore, clearance, ballsArr) {
+    const arr = ballsArr || balls;
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1e-6) return true;
+    const len = Math.sqrt(len2);
+    const ux = dx / len, uy = dy / len;
+    for (const b of arr) {
+      if (b.potted || ignore.indexOf(b) >= 0) continue;
+      const t = (b.x - x1) * ux + (b.y - y1) * uy;
+      if (t < 0 || t > len) continue;
+      const px = x1 + ux * t;
+      const py = y1 + uy * t;
+      if (Math.hypot(b.x - px, b.y - py) < clearance) return false;
+    }
+    return true;
+  }
+
+  // ============================================================
+  //  AI 模拟引擎（大师级专用）
+  // ============================================================
+  function simulateShot(angle, power) {
+    const origBalls = balls;
+    const origCue = cueBall;
+    const origPlacing = placingCue;
+    const origFirst = shotFirstContact;
+
+    const newBalls = origBalls.map(b => Object.assign({}, b));
+    const cueIdx = origBalls.indexOf(origCue);
+    if (cueIdx < 0) return null;
+    const newCue = newBalls[cueIdx];
+
+    const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    newCue.vx = dx * speed;
+    newCue.vy = dy * speed;
+    newCue.wx = 0; newCue.wy = 0; newCue.wz = 0;
+
+    balls = newBalls;
+    cueBall = newCue;
+    placingCue = false;
+    SIM_MODE = true;
+    simPottedList = [];
+    simFirstContact = null;
+
+    const simDt = DT / 4;
+    const maxFrames = 240;
+    let frames = 0;
+    let stopped = false;
+
+    try {
+      while (!stopped && frames < maxFrames) {
+        for (let s = 0; s < 4; s++) step(simDt);
+        frames++;
+        stopped = true;
+        for (const b of newBalls) {
+          if (!b.potted && (b.vx !== 0 || b.vy !== 0)) { stopped = false; break; }
+        }
+      }
+    } catch (e) { /* 保底 */ }
+
+    const result = {
+      balls: newBalls,
+      cueBall: newCue,
+      potted: simPottedList.slice(),
+      firstContact: simFirstContact,
+      frames
+    };
+
+    SIM_MODE = false;
+    balls = origBalls;
+    cueBall = origCue;
+    placingCue = origPlacing;
+    shotFirstContact = origFirst;
+    simPottedList = [];
+    simFirstContact = null;
+
+    return result;
+  }
+
+  function nextShotQuality(cx, cy, ballsArr) {
+    let best = 0;
+    let cueRef = null;
+    let targets;
+
+    if (mode === 'eight') {
+      let needEight = false;
+      if (groupsAssigned && aiGroup) {
+        const left = ballsArr.filter(b => !b.potted && b.type === aiGroup && b.num !== 8).length;
+        needEight = (left === 0);
+      }
+      targets = ballsArr.filter(b => {
+        if (b.potted) return false;
+        if (b.type === 'cue') { cueRef = b; return false; }
+        if (b.num === 8) return needEight;
+        if (!groupsAssigned || !aiGroup) return true;
+        return b.type === aiGroup;
+      });
+    } else if (mode === 'snooker') {
+      targets = ballsArr.filter(b => {
+        if (b.potted) return false;
+        if (b.type === 'cue') { cueRef = b; return false; }
+        if (snookerTarget === 'red') return b.type === 'red';
+        if (snookerTarget === 'color') return b.type === 'color';
+        return b.type === 'color' && b.points === snookerTarget;
+      });
+    } else if (mode === 'nine') {
+      let minNum = Infinity;
+      for (const b of ballsArr) {
+        if (b.potted) continue;
+        if (b.type === 'cue') { cueRef = b; continue; }
+        if (b.num < minNum) minNum = b.num;
+      }
+      targets = ballsArr.filter(b =>
+        !b.potted && b.type !== 'cue' && b.num === minNum
+      );
+    } else {
+      targets = ballsArr.filter(b => {
+        if (b.potted) return false;
+        if (b.type === 'cue') { cueRef = b; return false; }
+        return true;
+      });
+    }
+
+    if (targets.length === 0) return 0;
+
+    for (const t of targets) {
+      for (const p of table.pockets) {
+        const dx = p.x - t.x, dy = p.y - t.y;
+        const dl = Math.hypot(dx, dy);
+        if (dl < 1) continue;
+        const ux = dx / dl, uy = dy / dl;
+
+        const gx = t.x - ux * 2 * R;
+        const gy = t.y - uy * 2 * R;
+
+        const cgx = gx - cx, cgy = gy - cy;
+        const cgl = Math.hypot(cgx, cgy);
+        if (cgl < R * 0.5) continue;
+
+        let cosCut = (cgx * ux + cgy * uy) / cgl;
+        if (cosCut > 1) cosCut = 1;
+        if (cosCut < 0.35) continue;
+
+        const ignore1 = [t, cueRef].filter(Boolean);
+        if (!pathClear(cx, cy, gx, gy, ignore1, 2 * R - 2, ballsArr)) continue;
+        if (!pathClear(t.x, t.y, p.x, p.y, [t], 2 * R - 2, ballsArr)) continue;
+
+        const q = cosCut * cosCut * Math.max(0.2, 1 - cgl / 1400);
+        if (q > best) best = q;
+      }
+    }
+    return best;
+  }
+
+  function evaluateSimulation(result, targetIdx) {
+    const cueB = result.cueBall;
+    const targetB = result.balls[targetIdx];
+    let score = 0;
+
+    if (cueB.potted) score -= 800;
+
+    const targetPotted = result.potted.indexOf(targetB) >= 0;
+    if (targetPotted) score += 300;
+    else score -= 100;
+
+    for (const b of result.potted) {
+      if (b === cueB || b === targetB) continue;
+      if (mode === 'eight') {
+        if (b.num === 8) {
+          score -= 2000;
+        } else if (groupsAssigned && aiGroup && b.type !== aiGroup) {
+          score -= 250;
+        } else {
+          score += 40;
+        }
+      } else if (mode === 'snooker') {
+        let ok = false;
+        if (snookerTarget === 'red')   ok = (b.type === 'red');
+        else if (snookerTarget === 'color') ok = (b.type === 'color');
+        else if (typeof snookerTarget === 'number') ok = (b.type === 'color' && b.points === snookerTarget);
+        if (ok) score += 40;
+        else score -= 200;
+      } else if (mode === 'nine') {
+        if (b.num === 9) score += 900;
+        else score += 40;
+      } else {
+        score += 40;
+      }
+    }
+
+    if (!cueB.potted) {
+      const nq = nextShotQuality(cueB.x, cueB.y, result.balls);
+      score += nq * 200;
+    }
+
+    return score;
+  }
+
+  function aiSimulatedChoice(candidates) {
+    const topN = candidates.slice(0, 4);
+    const powerLevels = [0.28, 0.48, 0.72];
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const c of topN) {
+      for (const pw of powerLevels) {
+        const result = simulateShot(c.angle, pw);
+        if (!result) continue;
+
+        const sc = evaluateSimulation(result, c.ballIdx);
+        const adjusted = sc - c.cgl * 0.015;
+
+        if (adjusted > bestScore) {
+          bestScore = adjusted;
+          best = { angle: c.angle, power: pw, score: adjusted };
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function aiFallbackShot(cfg, isLegalTarget) {
+    let best = null, bd = Infinity;
+    for (const t of balls) {
+      if (t.potted || t === cueBall) continue;
+      if (!isLegalTarget(t)) continue;
+      const d = Math.hypot(t.x - cueBall.x, t.y - cueBall.y);
+      if (d < bd) { bd = d; best = t; }
+    }
+    if (!best) return null;
+
+    const angleErr = (aiLevel >= 5) ? 0 : cfg.angleErr;
+    return {
+      angle: Math.atan2(best.y - cueBall.y, best.x - cueBall.x) +
+             (Math.random() - 0.5) * angleErr * 2,
+      power: 0.30 + Math.random() * 0.15
+    };
+  }
+
+  // ============================================================
+  //  防守球算法
+  // ============================================================
+  function getOpponentTargets(ballsArr) {
+    if (mode === 'eight') {
+      if (!groupsAssigned) {
+        return ballsArr.filter(b => !b.potted && b.type !== 'cue' && b.num !== 8);
+      }
+      const oppGroup = (aiGroup === 'solid') ? 'stripe' : 'solid';
+      const oppLeft = ballsArr.filter(b => !b.potted && b.type === oppGroup && b.num !== 8).length;
+      if (oppLeft === 0) {
+        return ballsArr.filter(b => !b.potted && b.num === 8);
+      }
+      return ballsArr.filter(b => !b.potted && b.type === oppGroup && b.num !== 8);
+    }
+    if (mode === 'snooker') {
+      const reds = ballsArr.filter(b => b.type === 'red' && !b.potted);
+      if (reds.length > 0) {
+        return ballsArr.filter(b => !b.potted && b.type !== 'cue');
+      }
+      return ballsArr.filter(b => !b.potted && b.type === 'color');
+    }
+    if (mode === 'nine') {
+      let low = null;
+      for (const b of ballsArr) {
+        if (b.potted || b.type === 'cue') continue;
+        if (!low || b.num < low.num) low = b;
+      }
+      return low ? [low] : [];
+    }
+    return ballsArr.filter(b => !b.potted && b.type !== 'cue');
+  }
+
+  function snookerQuality(cueX, cueY, ballsArr, targets) {
+    if (!targets || targets.length === 0) return 0;
+
+    let blocked = 0;
+    let total = 0;
+
+    for (const t of targets) {
+      if (t.potted) continue;
+      total++;
+      const dx = cueX - t.x, dy = cueY - t.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-3) continue;
+      const ux = dx / len, uy = dy / len;
+
+      let isBlocked = false;
+      for (const b of ballsArr) {
+        if (b.potted || b === t) continue;
+        if (b.type === 'cue') continue;
+        const bx = b.x - t.x, by = b.y - t.y;
+        const proj = bx * ux + by * uy;
+        if (proj <= 0 || proj >= len) continue;
+        const perp = Math.abs(bx * -uy + by * ux);
+        if (perp < 2 * R + 1) {
+          isBlocked = true;
+          break;
+        }
+      }
+      if (isBlocked) blocked++;
+    }
+
+    return total > 0 ? blocked / total : 0;
+  }
+
+  function evaluateDefense(result, isLegalTarget) {
+    const cue = result.cueBall;
+    const arr = result.balls;
+
+    let score = 0;
+
+    if (cue.potted) return -3000;
+
+    if (!result.firstContact) {
+      score -= 1500;
+    } else if (!isLegalTarget(result.firstContact)) {
+      score -= 800;
+    } else {
+      score += 100;
+    }
+
+    for (const b of result.potted) {
+      if (b === cue) continue;
+      if (mode === 'eight') {
+        if (b.num === 8) score -= 2000;
+        else if (groupsAssigned && aiGroup && b.type !== aiGroup) score -= 600;
+        else if (!groupsAssigned) score -= 200;
+      } else if (mode === 'snooker') {
+        const ok =
+          (snookerTarget === 'red' && b.type === 'red') ||
+          (snookerTarget === 'color' && b.type === 'color') ||
+          (typeof snookerTarget === 'number' && b.type === 'color' && b.points === snookerTarget);
+        if (!ok) score -= 500;
+      } else if (mode === 'nine') {
+        if (b.num === 9) score += 600;
+      }
+    }
+
+    const oppTargets = getOpponentTargets(arr);
+    if (oppTargets.length > 0) {
+      const q = snookerQuality(cue.x, cue.y, arr, oppTargets);
+      score += q * 600;
+    }
+
+    let minD = Infinity;
+    for (const t of oppTargets) {
+      if (t.potted) continue;
+      const d = Math.hypot(t.x - cue.x, t.y - cue.y);
+      if (d < minD) minD = d;
+    }
+    if (minD !== Infinity) {
+      score += Math.min(minD, 500) * 0.4;
+    }
+
+    const cx = (table.bounds.left + table.bounds.right) / 2;
+    const cy = (table.bounds.top + table.bounds.bottom) / 2;
+    const dc = Math.hypot(cue.x - cx, cue.y - cy);
+    score += dc * 0.3;
+
+    return score;
+  }
+
+  function aiDefensiveShot(isLegalTarget) {
+    if (mode !== 'eight' && mode !== 'snooker' && mode !== 'nine') return null;
+
+    const targets = balls.filter(b => !b.potted && b !== cueBall && isLegalTarget(b));
+    if (targets.length === 0) return null;
+
+    targets.sort((a, b) => {
+      const da = Math.hypot(a.x - cueBall.x, a.y - cueBall.y);
+      const db = Math.hypot(b.x - cueBall.x, b.y - cueBall.y);
+      return da - db;
+    });
+
+    const candidates = [];
+    const topTargets = targets.slice(0, 4);
+
+    for (const t of topTargets) {
+      const dist = Math.hypot(t.x - cueBall.x, t.y - cueBall.y);
+      const baseAngle = Math.atan2(t.y - cueBall.y, t.x - cueBall.x);
+      const basePw = Math.max(0.18, Math.min(0.55, dist / 1400));
+
+      for (const dAng of [0, -0.06, 0.06]) {
+        for (const pf of [0.75, 1.0, 1.35]) {
+          const pw = Math.max(0.15, Math.min(0.7, basePw * pf));
+          candidates.push({
+            angle: baseAngle + dAng,
+            power: pw,
+            target: t
+          });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const c of candidates) {
+      const result = simulateShot(c.angle, c.power);
+      if (!result) continue;
+
+      const sc = evaluateDefense(result, isLegalTarget);
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = c;
+      }
+    }
+
+    if (!best) return null;
+
+    return { angle: best.angle, power: best.power };
+  }
+
+  // ============================================================
+  //  AI 决策
+  // ============================================================
+  function aiChooseShot() {
+    const cfg = AI_LEVELS[aiLevel];
+    if (!cfg) return null;
+
+    const cue = cueBall;
+    const candidates = [];
+
+    let myGroup = null;
+    let needEight = false;
+    if (mode === 'eight' && groupsAssigned) {
+      myGroup = aiGroup;
+      const left = balls.filter(b => !b.potted && b.type === myGroup && b.num !== 8).length;
+      needEight = (left === 0);
+    }
+
+    const isLegalTarget = (t) => {
+      if (mode === 'eight') {
+        if (!groupsAssigned) return t.num !== 8;
+        if (needEight) return t.num === 8;
+        return (t.type === myGroup && t.num !== 8);
+      }
+      if (mode === 'snooker') {
+        if (snookerTarget === 'red') return t.type === 'red';
+        if (snookerTarget === 'color') return t.type === 'color';
+        return (t.type === 'color' && t.points === snookerTarget);
+      }
+      if (mode === 'nine') {
+        const low = lowestNineBall();
+        return low ? (t.num === low.num) : false;
+      }
+      return true;
+    };
+
+    for (let ti = 0; ti < balls.length; ti++) {
+      const t = balls[ti];
+      if (t.potted || t === cue) continue;
+      if (!isLegalTarget(t)) continue;
+
+      for (const p of table.pockets) {
+        const dx = p.x - t.x, dy = p.y - t.y;
+        const dl = Math.hypot(dx, dy);
+        if (dl < 1) continue;
+        const ux = dx / dl, uy = dy / dl;
+
+        const gx = t.x - ux * 2 * R;
+        const gy = t.y - uy * 2 * R;
+        if (!isInsideTable(gx, gy, R * 0.3)) continue;
+
+        const cgx = gx - cue.x, cgy = gy - cue.y;
+        const cgl = Math.hypot(cgx, cgy);
+        if (cgl < R * 0.6) continue;
+
+        let cosCut = (cgx * ux + cgy * uy) / cgl;
+        if (cosCut > 1) cosCut = 1;
+        if (cosCut < 0.18) continue;
+
+        if (!pathClear(cue.x, cue.y, gx, gy, [cue, t], 2 * R - 1.5)) continue;
+        if (!pathClear(t.x, t.y, p.x, p.y, [t], 2 * R - 1.5)) continue;
+
+        let s = cosCut * cosCut * 3.2;
+        s -= cgl / 900;
+        s -= dl / 1100;
+        if (p.type === 'mid') s -= 0.45;
+        s += Math.random() * cfg.noise;
+
+        candidates.push({
+          angle: Math.atan2(cgy, cgx),
+          cgl, dl, cosCut, score: s,
+          ballIdx: ti
+        });
+      }
+    }
+
+    if (candidates.length === 0) {
+      if (aiLevel >= 5) {
+        const def = aiDefensiveShot(isLegalTarget);
+        if (def) return def;
+      }
+      return aiFallbackShot(cfg, isLegalTarget);
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+
+    if (aiLevel >= 5 && cfg.sim) {
+      const top = candidates[0];
+      const tooHard = (top.cosCut < 0.40 && top.cgl > 320);
+      if (tooHard) {
+        const def = aiDefensiveShot(isLegalTarget);
+        if (def) return def;
+      }
+
+      const choice = aiSimulatedChoice(candidates);
+      if (choice) return choice;
+    }
+
+    const pick = candidates[0];
+    const err = (Math.random() + Math.random() - 1) * cfg.angleErr;
+    const angle = pick.angle + err;
+
+    const need = pick.cgl * 0.6 + pick.dl * 0.5;
+    let pw = 0.16 + need / 1200;
+    pw *= (1 + (Math.random() - 0.5) * cfg.powerErr * 2);
+    pw = Math.max(0.14, Math.min(0.92, pw));
+
+    return { angle, power: pw };
+  }
+
+  // ============================================================
+  //  AI 回合调度
+  // ============================================================
+  function scheduleAI() {
+    if (aiLevel === 0) return;
+    if (turn !== 'ai') return;
+    if (clearPending || aiThinking || aiAiming) return;
+    if (!allStopped()) return;
+
+    if (placingCue) {
+      if (!autoPlaceCueForAI()) return;
+    }
+
+    if (cueBall.potted) return;
+    if (!canShoot()) return;
+
+    const cfg = AI_LEVELS[aiLevel];
+    aiThinking = true;
+
+    aiTimerId = setTimeout(() => {
+      aiTimerId = null;
+      aiThinking = false;
+
+      if (turn !== 'ai' || clearPending || !allStopped() || placingCue) return;
+      if (cueBall.potted || !canShoot()) return;
+
+      const shot = aiChooseShot();
+      if (!shot) return;
+
+      aimAngle = shot.angle;
+      cueHitX = 0;
+      cueHitY = 0;
+      drawCueSpotSelector();
+      aiAiming = true;
+
+      aiTimerId = setTimeout(() => {
+        aiTimerId = null;
+        aiAiming = false;
+
+        if (turn !== 'ai' || clearPending || !allStopped() || placingCue) return;
+        if (cueBall.potted || !canShoot()) return;
+
+        shoot(shot.power);
+        shotInProgress = true;
+      }, cfg.aimPause);
+    }, cfg.think);
   }
 
   // ============================================================
@@ -1532,9 +2638,11 @@
   canvas.addEventListener('pointermove', (e) => {
     mouse = getMouse(e);
     if (placingCue) {
+      if (!isPlayerTurn()) return;
       updateCuePlacementPreview(mouse.x, mouse.y);
       return;
     }
+    if (!isPlayerTurn()) return;
     if (!charging && canShoot()) {
       const d = Math.hypot(mouse.x - cueBall.x, mouse.y - cueBall.y);
       if (d > R * 0.8) {
@@ -1552,6 +2660,8 @@
     e.preventDefault();
     ensureAudio();
     mouse = getMouse(e);
+
+    if (!isPlayerTurn()) return;
 
     if (placingCue) {
       updateCuePlacementPreview(mouse.x, mouse.y);
@@ -1572,6 +2682,7 @@
     if (e.button === 2) return;
 
     if (placingCue) {
+      if (!isPlayerTurn()) return;
       if (placementPreview.valid) {
         cueBall.vx = 0;
         cueBall.vy = 0;
@@ -1586,7 +2697,10 @@
 
     if (!charging) return;
     charging = false;
-    if (power > 0.04 && canShoot()) shoot(power);
+    if (power > 0.04 && canShoot() && isPlayerTurn()) {
+      shoot(power);
+      shotInProgress = true;
+    }
     power = 0;
   });
 
@@ -1603,6 +2717,16 @@
   });
 
   function shoot(p) {
+    shotIsBreak = isBreakShot;
+    isBreakShot = false;
+
+    shotFirstContact = null;
+    shotPottedBalls = [];
+    shotPotted = 0;
+    cuePottedThisShot = false;
+    // ★ 9 球：记录击球前的最小号球（用于判定是否先碰到它）
+    shotTargetBall = (mode === 'nine') ? lowestNineBall() : null;
+
     const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * p;
     const dx = Math.cos(aimAngle);
     const dy = Math.sin(aimAngle);
@@ -1689,7 +2813,6 @@
   }
 
   function drawRectTable() {
-    // 1. 绘制外围木框
     const fw = 35;
     const outerRect = {
         x: TABLE.left - fw,
@@ -1711,7 +2834,6 @@
     ctx.stroke();
     ctx.restore();
 
-    // 2. 台呢
     for (const r of table.rects) {
       const felt = ctx.createRadialGradient(
         r.x + r.w / 2, r.y + r.h / 2, 10,
@@ -1724,7 +2846,6 @@
       ctx.fillRect(r.x, r.y, r.w, r.h);
     }
 
-    // 3. 台呢暗角
     ctx.save();
     ctx.beginPath();
     for (const r of table.rects) ctx.rect(r.x, r.y, r.w, r.h);
@@ -1740,13 +2861,9 @@
     ctx.fillRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
     ctx.restore();
 
-    // 4. 库边
     for (const w of table.walls) drawCushion(w);
-
-    // 5. 袋口
     for (const p of table.pockets) drawPocket(p);
 
-    // 6. 标记点等
     ctx.save();
     if (mode === 'snooker') {
       ctx.strokeStyle = 'rgba(255,255,255,0.10)';
@@ -1783,13 +2900,23 @@
       ctx.fillStyle = 'rgba(255,255,255,0.14)';
       ctx.beginPath(); ctx.arc(HEAD_X, CY, 3, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(footX, CY, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (mode === 'nine') {
+      // ★ 9 球：开球线与置球点
+      const footX = TABLE.left + TW * 0.75;
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(HEAD_X, TABLE.top);
+      ctx.lineTo(HEAD_X, TABLE.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.beginPath(); ctx.arc(HEAD_X, CY, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(footX, CY, 3, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
 
-  // ------------------------------------------------------------
-  //  库边绘制：袋口处收口 + 圆润袋角
-  // ------------------------------------------------------------
   function drawCushion(w) {
     const CUSH = 22;
     const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
@@ -1801,11 +2928,9 @@
     const c1 = w.cut1 || 0;
     const c2 = w.cut2 || 0;
 
-    // 鼻线两端
     const n1x = w.x1 + ux * c1, n1y = w.y1 + uy * c1;
     const n2x = w.x2 - ux * c2, n2y = w.y2 - uy * c2;
 
-    // 背线两端
     const b1x = w.x1 + ux * (c1 * 0.2) - nx * CUSH;
     const b1y = w.y1 + uy * (c1 * 0.2) - ny * CUSH;
     const b2x = w.x2 - ux * (c2 * 0.2) - nx * CUSH;
@@ -1815,7 +2940,6 @@
     ctx.moveTo(n1x, n1y);
     ctx.lineTo(n2x, n2y);
 
-    // 末端 2 的圆弧收口
     if (c2 > 0.5) {
       const mx = (n2x + b2x) * 0.5, my = (n2y + b2y) * 0.5;
       let ox = mx - w.x2, oy = my - w.y2;
@@ -1828,7 +2952,6 @@
 
     ctx.lineTo(b1x, b1y);
 
-    // 末端 1 的圆弧收口
     if (c1 > 0.5) {
       const mx = (n1x + b1x) * 0.5, my = (n1y + b1y) * 0.5;
       let ox = mx - w.x1, oy = my - w.y1;
@@ -1841,7 +2964,6 @@
 
     ctx.closePath();
 
-    // 深色木质/橡胶库边渐变
     const g = ctx.createLinearGradient(
       w.x1, w.y1,
       w.x1 - nx * CUSH, w.y1 - ny * CUSH
@@ -1853,7 +2975,6 @@
     ctx.fillStyle = g;
     ctx.fill();
 
-    // 鼻线高光
     ctx.beginPath();
     ctx.moveTo(n1x, n1y);
     ctx.lineTo(n2x, n2y);
@@ -1862,68 +2983,105 @@
     ctx.stroke();
   }
 
-  // ------------------------------------------------------------
-  //  袋口绘制：带金属环的深洞
-  // ------------------------------------------------------------
   function drawPocket(p) {
     const cfg = pocketCfg(p);
-    const r = cfg.innerR;
+    const isMid = p.type === 'mid';
+
+    const innerR = cfg.innerR;
     const outerR = cfg.outerR;
 
-    // 1. 外圈金属/橡胶包边
+    const kx = isMid ? 1.10 : 1;
+    const ky = isMid ? 0.92 : 1;
+
+    const ox = outerR * kx;
+    const oy = outerR * ky;
+    const ix = innerR * kx;
+    const iy = innerR * ky;
+
+    const px = p.x;
+    const py = p.y;
+
+    const dimple = ctx.createRadialGradient(px, py, ox * 0.92, px, py, ox * 1.55);
+    dimple.addColorStop(0, 'rgba(0,0,0,0.30)');
+    dimple.addColorStop(0.55, 'rgba(0,0,0,0.12)');
+    dimple.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.ellipse(px, py, ox * 1.55, oy * 1.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = dimple;
+    ctx.fill();
+
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 2;
-
-    const rimGrad = ctx.createLinearGradient(
-      p.x - outerR, p.y - outerR,
-      p.x + outerR, p.y + outerR
-    );
-    rimGrad.addColorStop(0, '#2a2a2a');
-    rimGrad.addColorStop(0.4, '#111');
-    rimGrad.addColorStop(0.6, '#000');
-    rimGrad.addColorStop(1, '#1a1a1a');
-
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 3;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, outerR, 0, Math.PI * 2);
+    ctx.ellipse(px, py, ox, oy, 0, 0, Math.PI * 2);
+    const rimGrad = ctx.createRadialGradient(
+      px - ox * 0.32, py - oy * 0.36, ox * 0.12,
+      px, py, ox * 1.02
+    );
+    rimGrad.addColorStop(0, '#666d76');
+    rimGrad.addColorStop(0.28, '#3a3f47');
+    rimGrad.addColorStop(0.58, '#1c1f24');
+    rimGrad.addColorStop(0.85, '#0a0b0d');
+    rimGrad.addColorStop(1, '#000000');
     ctx.fillStyle = rimGrad;
     ctx.fill();
     ctx.restore();
 
-    // 2. 金属包边高光
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, outerR - 1, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // 3. 内部斜坡
-    const innerGrad = ctx.createRadialGradient(
-      p.x, p.y - 2, r * 0.2,
-      p.x, p.y, r
+    const wallGrad = ctx.createRadialGradient(
+      px, py, ix * 0.62,
+      px, py, ox - 2.5
     );
-    innerGrad.addColorStop(0, '#000');
-    innerGrad.addColorStop(0.7, '#020202');
-    innerGrad.addColorStop(1, '#141414');
+    wallGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    wallGrad.addColorStop(0.55, 'rgba(0,0,0,0.45)');
+    wallGrad.addColorStop(0.86, 'rgba(8,10,12,0.94)');
+    wallGrad.addColorStop(1, 'rgba(30,34,40,0.98)');
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fillStyle = innerGrad;
+    ctx.ellipse(px, py, ox - 2.5, oy - 2.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = wallGrad;
     ctx.fill();
 
-    // 4. 极深处的黑洞
     ctx.beginPath();
-    ctx.arc(p.x, p.y - 1, r * 0.7, 0, Math.PI * 2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-
-    // 5. 内圈边缘阴影
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r - 0.5, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.lineWidth = 2;
+    ctx.ellipse(px, py, ox - 1.3, oy - 1.3, 0, Math.PI * 0.06, Math.PI * 0.94);
+    ctx.strokeStyle = 'rgba(110,130,150,0.16)';
+    ctx.lineWidth = 1.3;
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.ellipse(px, py, ix + 1.2, iy + 1.2, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 2.3;
+    ctx.stroke();
+
+    const holeGrad = ctx.createRadialGradient(
+      px - ix * 0.22, py - iy * 0.28, ix * 0.08,
+      px, py + iy * 0.12, ix * 1.08
+    );
+    holeGrad.addColorStop(0, '#000000');
+    holeGrad.addColorStop(0.62, '#000000');
+    holeGrad.addColorStop(1, '#060607');
+
+    ctx.beginPath();
+    ctx.ellipse(px, py, ix, iy, 0, 0, Math.PI * 2);
+    ctx.fillStyle = holeGrad;
+    ctx.fill();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(px, py, ix, iy, 0, 0, Math.PI * 2);
+    ctx.clip();
+    const bounce = ctx.createRadialGradient(
+      px, py + iy * 0.78, 1,
+      px, py + iy * 0.72, ix * 0.98
+    );
+    bounce.addColorStop(0, 'rgba(56,116,74,0.26)');
+    bounce.addColorStop(0.5, 'rgba(26,62,38,0.10)');
+    bounce.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bounce;
+    ctx.fillRect(px - ix - 2, py - iy - 2, ix * 2 + 4, iy * 2 + 4);
+    ctx.restore();
   }
 
   function drawPlacementZone() {
@@ -1945,18 +3103,24 @@
       ctx.arc(BALK_X, CY, D_RADIUS, Math.PI / 2, Math.PI * 1.5);
       ctx.stroke();
       ctx.setLineDash([]);
-    } else if (mode === 'eight') {
-      ctx.fillStyle = 'rgba(120, 255, 160, 0.07)';
-      ctx.fillRect(TABLE.left, TABLE.top, HEAD_X - TABLE.left, TH);
+    } else if (mode === 'eight' || mode === 'nine') {
+      if (ballInHandMode === 'kitchen') {
+        ctx.fillStyle = 'rgba(120, 255, 160, 0.07)';
+        ctx.fillRect(TABLE.left, TABLE.top, HEAD_X - TABLE.left, TH);
 
-      ctx.strokeStyle = 'rgba(120, 255, 160, 0.45)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(HEAD_X, TABLE.top);
-      ctx.lineTo(HEAD_X, TABLE.bottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(120, 255, 160, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(HEAD_X, TABLE.top);
+        ctx.lineTo(HEAD_X, TABLE.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        const b = table.bounds;
+        ctx.fillStyle = 'rgba(120, 255, 160, 0.05)';
+        ctx.fillRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+      }
     } else {
       if (table.isPolygon) {
         const p = table.polygon;
@@ -1981,9 +3145,6 @@
     ctx.restore();
   }
 
-  // ============================================================
-  //  球面纹理渲染
-  // ============================================================
   function drawStripeBand(color, M, k) {
     const ax = M[0], ay = M[3], az = M[6];
     const threshold = k * R;
@@ -2071,9 +3232,6 @@
     ctx.fill();
   }
 
-  // ============================================================
-  //  单个球渲染
-  // ============================================================
   function drawBall(b) {
     const x = b.x, y = b.y;
 
@@ -2110,7 +3268,7 @@
       }
     }
 
-    if (b.num > 0 && (mode === 'eight' || mode === 'crazy' || mode === 'polygon')) {
+    if (b.num > 0 && (mode === 'eight' || mode === 'nine' || mode === 'crazy' || mode === 'polygon')) {
       drawBallNumber(b.num, M);
     }
 
@@ -2146,7 +3304,7 @@
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    if (b.type === 'cue' && b.vx === 0 && b.vy === 0 && !placingCue && !clearPending) {
+    if (b.type === 'cue' && b.vx === 0 && b.vy === 0 && !placingCue && !clearPending && isPlayerTurn()) {
       const mx = x + cueHitX * R * 0.58;
       const my = y + cueHitY * R * 0.58;
       ctx.beginPath();
@@ -2188,13 +3346,24 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
+    let hint = valid ? '松开放置母球' : '位置重叠';
+    if (mode === 'eight' || mode === 'nine') {
+      if (ballInHandMode === 'kitchen') {
+        hint = valid ? '松开放置母球（线后）' : '线后位置重叠';
+      } else {
+        hint = valid ? '松开放置母球（自由球）' : '位置重叠';
+      }
+    } else if (mode === 'snooker') {
+      hint = valid ? '松开放置母球（D 区）' : 'D 区位置重叠';
+    }
+
     ctx.font = 'bold 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = valid ? 'rgba(180,255,200,0.95)' : 'rgba(255,150,150,0.95)';
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 6;
-    ctx.fillText(valid ? '松开放置母球' : '位置重叠', x, y - R - 18);
+    ctx.fillText(hint, x, y - R - 18);
     ctx.restore();
   }
 
@@ -2218,9 +3387,6 @@
     return { t, px, py, wall: w };
   }
 
-  // ============================================================
-  //  瞄准 + 分离线绘制
-  // ============================================================
   function drawAim() {
     if (placingCue || clearPending || cueBall.potted || !allStopped()) return;
 
@@ -2260,10 +3426,13 @@
     const ex = cueBall.x + dx * dist;
     const ey = cueBall.y + dy * dist;
 
+    const isAI = !isPlayerTurn();
+
     ctx.save();
     ctx.setLineDash([9, 9]);
     ctx.lineDashOffset = -(performance.now() / 45) % 18;
-    ctx.strokeStyle = charging ? 'rgba(255,235,130,0.92)' : 'rgba(255,255,255,0.68)';
+    ctx.strokeStyle = charging ? 'rgba(255,235,130,0.92)'
+                     : (isAI ? 'rgba(150,215,255,0.80)' : 'rgba(255,255,255,0.68)');
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(cueBall.x + dx * R, cueBall.y + dy * R);
@@ -2401,6 +3570,8 @@
     ctx.globalAlpha = 1;
   }
 
+  const SNOOKER_COLOR_NAMES = { 2: '黄球', 3: '绿球', 4: '棕球', 5: '蓝球', 6: '粉球', 7: '黑球' };
+
   function drawHUD() {
     const hx = 18;
     const hy = 22;
@@ -2419,6 +3590,33 @@
       const left = 15 - pottedCount;
       ctx.fillStyle = left > 0 ? 'rgba(255,255,255,0.82)' : '#7dffa8';
       ctx.fillText(`剩余  ${Math.max(0, left)} / 15`, hx, hy + 24);
+
+      if (placingCue) {
+        ctx.fillStyle = 'rgba(255,220,120,0.95)';
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        const txt = (ballInHandMode === 'kitchen') ? '线后放置母球' : '自由球：任意位置放置';
+        ctx.fillText(txt, hx, hy + 46);
+        ctx.font = 'bold 16px system-ui, sans-serif';
+      }
+    } else if (mode === 'nine') {
+      // ★ 9 球 HUD
+      const left = balls.filter(b => b.type !== 'cue' && !b.potted).length;
+      ctx.fillStyle = left > 0 ? 'rgba(255,255,255,0.82)' : '#7dffa8';
+      ctx.fillText(`剩余  ${left} / 9`, hx, hy + 24);
+
+      const t = lowestNineBall();
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = 'bold 14px system-ui, sans-serif';
+      ctx.fillText(`目标  ${t ? (t.num + ' 号球') : '—'}`, hx, hy + 46);
+      ctx.font = 'bold 16px system-ui, sans-serif';
+
+      if (placingCue) {
+        ctx.fillStyle = 'rgba(255,220,120,0.95)';
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        const txt = (ballInHandMode === 'kitchen') ? '线后放置母球' : '自由球：任意位置放置';
+        ctx.fillText(txt, hx, hy + 68);
+        ctx.font = 'bold 16px system-ui, sans-serif';
+      }
     } else if (mode === 'crazy') {
       const left = totalBalls - pottedCount;
       ctx.fillStyle = left > 0 ? 'rgba(255,255,255,0.82)' : '#7dffa8';
@@ -2449,12 +3647,132 @@
       ctx.fillText(`正 ${table.polygon.sides} 边形`, hx, hy + 46);
       ctx.font = 'bold 16px system-ui, sans-serif';
     } else {
-      ctx.fillStyle = '#9fe8b8';
-      ctx.fillText(`得分  ${score}`, hx, hy + 24);
-
       const redsLeft = balls.filter(b => b.type === 'red' && !b.potted).length;
       ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.fillText(`红球  ${redsLeft}`, hx + 100, hy + 24);
+      ctx.fillText(`红球  ${redsLeft}`, hx, hy + 24);
+
+      let tName;
+      if (snookerTarget === 'red') tName = '红球';
+      else if (snookerTarget === 'color') tName = '任意彩球';
+      else tName = SNOOKER_COLOR_NAMES[snookerTarget] || '—';
+
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = 'bold 14px system-ui, sans-serif';
+      ctx.fillText(`目标  ${tName}`, hx, hy + 46);
+      ctx.font = 'bold 16px system-ui, sans-serif';
+    }
+
+    if (aiLevel > 0) {
+      const rx = W - 18;
+      ctx.textAlign = 'right';
+      ctx.shadowBlur = 8;
+
+      if (mode === 'eight') {
+        const pGrp = playerGroup ? (playerGroup === 'solid' ? '实心' : '花色') : '未定';
+        const aGrp = aiGroup ? (aiGroup === 'solid' ? '实心' : '花色') : '未定';
+        const pLeft = playerGroup
+          ? balls.filter(b => !b.potted && b.type === playerGroup && b.num !== 8).length : '-';
+        const aLeft = aiGroup
+          ? balls.filter(b => !b.potted && b.type === aiGroup && b.num !== 8).length : '-';
+
+        ctx.font = 'bold 15px system-ui, sans-serif';
+
+        ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`你  ${pGrp} · 剩 ${pLeft}`, rx, hy);
+
+        ctx.fillStyle = turn === 'ai' ? '#8fd8ff' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`AI  ${aGrp} · 剩 ${aLeft}`, rx, hy + 24);
+
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        let txt, col;
+        if (turn === 'ai') {
+          col = 'rgba(150,215,255,0.95)';
+          txt = aiAiming ? `AI Lv${aiLevel} 瞄准中…`
+              : aiThinking ? `AI Lv${aiLevel} 思考中…`
+              : (placingCue ? `AI Lv${aiLevel} 放置母球…` : `AI Lv${aiLevel} 出杆`);
+        } else {
+          col = 'rgba(150,255,190,0.95)';
+          txt = placingCue ? '放置母球 · 点击拖动 · 松开确认' : '你的回合 · 按住蓄力';
+        }
+        ctx.fillStyle = col;
+        ctx.fillText(txt, rx, hy + 48);
+      } else if (mode === 'nine') {
+        // ★ 9 球 AI HUD
+        ctx.font = 'bold 15px system-ui, sans-serif';
+
+        ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.48)';
+        ctx.fillText('你', rx - 62, hy);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.30)';
+        ctx.fillText('VS', rx - 28, hy);
+
+        ctx.fillStyle = turn === 'ai' ? '#8fd8ff' : 'rgba(255,255,255,0.48)';
+        ctx.fillText('AI', rx, hy);
+
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        let txt, col;
+        if (turn === 'ai') {
+          col = 'rgba(150,215,255,0.95)';
+          txt = aiAiming ? `AI Lv${aiLevel} 瞄准中…`
+              : aiThinking ? `AI Lv${aiLevel} 思考中…`
+              : (placingCue ? `AI Lv${aiLevel} 放置母球…` : `AI Lv${aiLevel} 出杆`);
+        } else {
+          col = 'rgba(150,255,190,0.95)';
+          txt = placingCue ? '放置母球 · 点击拖动 · 松开确认' : '你的回合 · 按住蓄力';
+        }
+        ctx.fillStyle = col;
+        ctx.fillText(txt, rx, hy + 24);
+      } else if (mode === 'snooker') {
+        ctx.font = 'bold 16px system-ui, sans-serif';
+
+        ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`你 ${scoreP}`, rx - 92, hy);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.30)';
+        ctx.fillText(':', rx - 62, hy);
+
+        ctx.fillStyle = turn === 'ai' ? '#8fd8ff' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`AI ${scoreA}`, rx, hy);
+
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        let txt, col;
+        if (turn === 'ai') {
+          col = 'rgba(150,215,255,0.95)';
+          txt = aiAiming ? `AI Lv${aiLevel} 瞄准中…`
+              : aiThinking ? `AI Lv${aiLevel} 思考中…`
+              : `AI Lv${aiLevel} 出杆`;
+        } else {
+          col = 'rgba(150,255,190,0.95)';
+          txt = '你的回合 · 按住蓄力';
+        }
+        ctx.fillStyle = col;
+        ctx.fillText(txt, rx, hy + 24);
+      } else {
+        ctx.font = 'bold 16px system-ui, sans-serif';
+
+        ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`你 ${scoreP}`, rx - 92, hy);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.30)';
+        ctx.fillText(':', rx - 62, hy);
+
+        ctx.fillStyle = turn === 'ai' ? '#8fd8ff' : 'rgba(255,255,255,0.48)';
+        ctx.fillText(`AI ${scoreA}`, rx, hy);
+
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        let txt, col;
+        if (turn === 'ai') {
+          col = 'rgba(150,215,255,0.95)';
+          txt = aiAiming ? `AI Lv${aiLevel} 瞄准中…`
+              : aiThinking ? `AI Lv${aiLevel} 思考中…`
+              : `AI Lv${aiLevel} 出杆`;
+        } else {
+          col = 'rgba(150,255,190,0.95)';
+          txt = '你的回合 · 按住蓄力';
+        }
+        ctx.fillStyle = col;
+        ctx.fillText(txt, rx, hy + 22);
+      }
     }
 
     ctx.restore();
@@ -2530,14 +3848,33 @@
     let title = '清台！';
     if (mode === 'crazy') title = '55 球清空！';
     else if (mode === 'polygon') title = `正 ${table.polygon.sides} 边形清空！`;
+    else if (mode === 'eight' && aiLevel > 0) title = '8 球对决结束';
+    else if (mode === 'nine' && aiLevel > 0) title = '9 球对决结束';
+    else if (mode === 'snooker' && aiLevel > 0) title = '斯诺克结束';
     ctx.fillText(title, 0, -12);
 
     ctx.shadowBlur = 10;
     ctx.font = 'bold 20px system-ui, -apple-system, "PingFang SC", sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
+
     let sub;
-    if (mode === 'snooker') sub = `得分 ${score} · 即将重新开始`;
-    else sub = `共 ${shots} 杆 · 即将重新开始`;
+    if (aiLevel > 0) {
+      if (mode === 'eight') {
+        sub = winner === 'player' ? '你赢了 🏆' : (winner === 'ai' ? 'AI 获胜' : '平局');
+      } else if (mode === 'nine') {
+        sub = winner === 'player' ? '你赢了 🏆' : (winner === 'ai' ? 'AI 获胜' : '平局');
+      } else if (mode === 'snooker') {
+        const w = scoreP > scoreA ? '你赢了 🏆' : (scoreP < scoreA ? 'AI 获胜' : '平局');
+        sub = `你 ${scoreP} : ${scoreA} AI  ·  ${w}`;
+      } else {
+        const w = scoreP > scoreA ? '你赢了 🏆' : (scoreP < scoreA ? 'AI 获胜' : '平局');
+        sub = `你 ${scoreP} : ${scoreA} AI  ·  ${w}`;
+      }
+    } else if (mode === 'snooker') {
+      sub = `得分 ${scoreP} · 即将重新开始`;
+    } else {
+      sub = `共 ${shots} 杆 · 即将重新开始`;
+    }
     ctx.fillText(sub, 0, 52);
 
     ctx.restore();
@@ -2556,9 +3893,6 @@
     drawClearMessage();
   }
 
-  // ============================================================
-  //  主循环
-  // ============================================================
   function updateParticles(dt) {
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
@@ -2572,16 +3906,32 @@
   }
 
   function loop() {
-    if (!allStopped()) {
+    const moving = !allStopped();
+
+    if (moving) {
       for (let s = 0; s < SUBSTEPS; s++) step(DT / SUBSTEPS);
     } else {
       while (pendingRespawns.length > 0) {
         const b = pendingRespawns.shift();
-        const redsLeft = balls.filter(x => x.type === 'red' && !x.potted).length;
-        if (redsLeft > 0) respawnColorBall(b);
+        const inRedPhase = (snookerTarget === 'red' || snookerTarget === 'color');
+        if (inRedPhase) respawnColorBall(b);
       }
 
-      if (!clearPending && isTableCleared()) {
+      if (shotInProgress) {
+        shotInProgress = false;
+        resolveShot();
+      }
+
+      if (!clearPending && isGameFinished()) {
+        if (!winner) {
+          if (mode === 'snooker' && aiLevel > 0) {
+            winner = scoreP > scoreA ? 'player' : (scoreA > scoreP ? 'ai' : 'tie');
+          } else if (mode === 'eight' && aiLevel === 0) {
+            winner = 'player';
+          } else {
+            winner = scoreP > scoreA ? 'player' : (scoreA > scoreP ? 'ai' : 'tie');
+          }
+        }
         clearPending = true;
         clearTime = performance.now();
         beep(660, 0.12, 0.14, 'sine');
@@ -2595,9 +3945,12 @@
         newGame();
       }
 
-      if (!clearPending && cueBall.potted && !placingCue) {
-        startCuePlacement();
+      if (!clearPending && !placingCue && (cueBall.potted || pendingBallInHand)) {
+        startCuePlacement(ballInHandMode);
+        pendingBallInHand = false;
       }
+
+      if (!clearPending) scheduleAI();
     }
 
     if (charging) {
