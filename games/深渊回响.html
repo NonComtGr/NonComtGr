@@ -4821,9 +4821,8 @@ function render(){
 
   if (!P) return;
 
-  
-  const camX = G.cam.x + (sh ? rand(-sh, sh) : 0);
-  const camY = G.cam.y + (sh ? rand(-sh, sh) : 0);
+  const camX = G.cam.x;
+  const camY = G.cam.y;
 
   const gs = 90;
   const ox = -((camX % gs) + gs) % gs;
