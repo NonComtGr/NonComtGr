@@ -308,17 +308,21 @@
   canvas.height = H * DPR;
   ctx.scale(DPR, DPR);
 
-  const TABLE = { left: 70, top: 70, right: 890, bottom: 470 };
-  const TW = TABLE.right - TABLE.left;
-  const TH = TABLE.bottom - TABLE.top;
-  const CY = (TABLE.top + TABLE.bottom) / 2;
+  // ★ 以下几何量会随模式切换而重算（斯诺克桌更大、球更小、按真实比例）
+  let TABLE = { left: 70, top: 70, right: 890, bottom: 470 };
+  let TW = TABLE.right - TABLE.left;
+  let TH = TABLE.bottom - TABLE.top;
+  let CY = (TABLE.top + TABLE.bottom) / 2;
 
   let POLY_SIDES = 6;
   const POLY_RADIUS = 210;
   const POLY_CX = W / 2;
   const POLY_CY = H / 2 - 10;
 
-  const R = 12;
+  let R = 12;                       // 球半径（斯诺克模式会缩小）
+  let pocketScale = 1;              // 袋口随球半径等比缩放
+  let scaledPocketCache = null;
+
   const CUSHION_E = 0.86;
   const BALL_E = 0.95;
   const MAX_SPEED = 1550;
@@ -344,14 +348,53 @@
     9: '#f2c414'
   };
 
-  const BALK_X = TABLE.left + TW * 0.207;
-  const D_RADIUS = TW * 0.082;
-  const HEAD_X = TABLE.left + TW * 0.25;
-  const SPOT = {
+  // 这些值在 configureLayout() 中根据模式重新计算
+  let BALK_X = TABLE.left + TW * 0.207;
+  let D_RADIUS = TW * 0.082;
+  let HEAD_X = TABLE.left + TW * 0.25;
+  let SPOT = {
     centerX: TABLE.left + TW * 0.5,
     pinkX: TABLE.left + TW * 0.75,
     blackX: TABLE.left + TW * 0.925
   };
+
+  // ============================================================
+  //  桌面 / 球半径 布局（★ 斯诺克按真实比例）
+  // ============================================================
+  //  真实数据：斯诺克台面 3569 × 1778 mm（2:1），球直径 52.5 mm
+  //  → 台面长度 ≈ 68 个球直径，球半径 = 台面长 / 136
+  function configureLayout() {
+    if (mode === 'snooker') {
+      // 尽量铺满画布，保持 2:1（850 × 425）
+      TABLE = { left: 55, top: 57, right: 905, bottom: 482 };
+      TW = TABLE.right - TABLE.left;      // 850
+      TH = TABLE.bottom - TABLE.top;      // 425
+      // ★ 球径放大：真实比例是 TW/136，这里改用 TW/90，
+      //   球直径从约 12.3px 提升到约 18.9px，视觉上明显更大。
+      //   想再大一点可用 82~86；想小一点可用 95~100。
+      R = TW / 90;                        // ≈ 9.44
+      pocketScale = R / 12;               // 袋口随球半径等比缩放
+    } else {
+      TABLE = { left: 70, top: 70, right: 890, bottom: 470 };
+      TW = TABLE.right - TABLE.left;
+      TH = TABLE.bottom - TABLE.top;
+      R = 12;
+      pocketScale = 1;
+    }
+
+    CY = (TABLE.top + TABLE.bottom) / 2;
+
+    BALK_X = TABLE.left + TW * 0.207;
+    D_RADIUS = TW * 0.082;
+    HEAD_X = TABLE.left + TW * 0.25;
+    SPOT = {
+      centerX: TABLE.left + TW * 0.5,
+      pinkX: TABLE.left + TW * 0.75,
+      blackX: TABLE.left + TW * 0.925
+    };
+
+    scaledPocketCache = null;
+  }
 
   // ============================================================
   //  袋口参数
@@ -361,7 +404,21 @@
     mid:           { innerR: 20, outerR: 28, captureX: 28, captureY: 16, cutR: 26, mouthR: 24 },
     polygonCorner: { innerR: 22, outerR: 30, captureR: 23, cutR: 26, mouthR: 26 }
   };
-  const pocketCfg = (p) => POCKET_CFG[p.type] || POCKET_CFG.corner;
+
+  // ★ 袋口按 pocketScale 等比缩放
+  function pocketCfg(p) {
+    const key = (p && p.type) || 'corner';
+    const base = POCKET_CFG[key] || POCKET_CFG.corner;
+    if (pocketScale === 1) return base;
+    if (!scaledPocketCache) scaledPocketCache = {};
+    let c = scaledPocketCache[key];
+    if (!c) {
+      c = {};
+      for (const k in base) c[k] = base[k] * pocketScale;
+      scaledPocketCache[key] = c;
+    }
+    return c;
+  }
 
   let sepLength = 135;
   let sepAlpha = 0.90;
@@ -726,7 +783,7 @@
   // ============================================================
   function buildRectTable() {
     const midX = TABLE.left + TW / 2;
-    const midGap = 20;
+    const midGap = 20 * pocketScale;
 
     const walls = [
       { x1: TABLE.left, y1: TABLE.top, x2: TABLE.left, y2: TABLE.bottom, nx: 1, ny: 0 },
@@ -746,13 +803,14 @@
       { x: TABLE.right, y: TABLE.bottom, type: 'corner' }
     ];
 
+    const reach = 80 * pocketScale;
     const nearestPocket = (x, y) => {
       let best = null, bd = 1e9;
       for (const p of pockets) {
         const d = Math.hypot(p.x - x, p.y - y);
         if (d < bd) { bd = d; best = p; }
       }
-      return bd < 80 ? { p: best, d: bd } : null;
+      return bd < reach ? { p: best, d: bd } : null;
     };
 
     const wallsWithPockets = walls.map(w => {
@@ -903,6 +961,9 @@
   function newGame() {
     clearAITimers();
 
+    // ★ 先按模式配置桌面尺寸与球半径
+    configureLayout();
+
     balls = [];
     particles = [];
     pendingRespawns = [];
@@ -992,7 +1053,7 @@
     }
   }
 
-  // ★★★★★ 9 球开局：菱形摆放，1 号在顶点，9 号在正中 ★★★★★
+  // 9 球开局：菱形摆放，1 号在顶点，9 号在正中
   function setupNineBall() {
     totalBalls = 9;
     cueBall = makeBall(HEAD_X, CY, { type: 'cue', num: 0 });
@@ -1003,7 +1064,6 @@
     const gap = 2 * R + 0.6;
     const rowDX = gap * Math.sqrt(3) / 2;
 
-    // 菱形 1-2-3-2-1 共 9 个位置
     const rowCounts = [1, 2, 3, 2, 1];
     const slots = [];
     for (let row = 0; row < rowCounts.length; row++) {
@@ -1016,7 +1076,6 @@
       }
     }
 
-    // 1 号在顶点(0)，9 号在正中(4)
     const order = new Array(9).fill(0);
     order[0] = 1;
     order[4] = 9;
@@ -1974,7 +2033,7 @@
   }
 
   // ============================================================
-  //  ★★★★★ 9 球规则结算 ★★★★★
+  //  9 球规则结算
   // ============================================================
   function lowestNineBall(arr) {
     const a = arr || balls;
@@ -1991,24 +2050,20 @@
     const cuePotted = cuePottedThisShot;
     const potted = shotPottedBalls.slice();
     const first = shotFirstContact;
-    const target = shotTargetBall;    // 击球前的最小号球
+    const target = shotTargetBall;
 
-    // ---- 犯规判定：必须先碰到最小号球 ----
     let foul = false;
     if (cuePotted) foul = true;
     if (!first) foul = true;
     else if (target && first !== target) foul = true;
 
-    // ---- 9 号球入袋 ----
     const nine = potted.find(b => b.num === 9);
     if (nine) {
       if (foul) {
-        // 犯规打进 9 号球：重新摆回置球点，比赛继续
         respawnColorBall(nine);
         pottedCount = Math.max(0, pottedCount - 1);
         beep(220, 0.22, 0.12, 'sine');
       } else {
-        // 合法打进 9 号球：直接获胜
         gameOver = true;
         winner = isPlayer ? 'player' : 'ai';
         if (isPlayer) scoreP += 1; else scoreA += 1;
@@ -2018,13 +2073,11 @@
       }
     }
 
-    // ---- 犯规后果：对手获得全台自由球 ----
     if (foul) {
       ballInHandMode = 'anywhere';
       pendingBallInHand = true;
     }
 
-    // ---- 打进任何球（无犯规）均可继续 ----
     const keepTurn = (!foul && potted.length > 0);
     if (!keepTurn) turn = isPlayer ? 'ai' : 'player';
   }
@@ -2724,7 +2777,6 @@
     shotPottedBalls = [];
     shotPotted = 0;
     cuePottedThisShot = false;
-    // ★ 9 球：记录击球前的最小号球（用于判定是否先碰到它）
     shotTargetBall = (mode === 'nine') ? lowestNineBall() : null;
 
     const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * p;
@@ -2901,7 +2953,6 @@
       ctx.beginPath(); ctx.arc(HEAD_X, CY, 3, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(footX, CY, 3, 0, Math.PI * 2); ctx.fill();
     } else if (mode === 'nine') {
-      // ★ 9 球：开球线与置球点
       const footX = TABLE.left + TW * 0.75;
       ctx.strokeStyle = 'rgba(255,255,255,0.09)';
       ctx.lineWidth = 2;
@@ -3599,7 +3650,6 @@
         ctx.font = 'bold 16px system-ui, sans-serif';
       }
     } else if (mode === 'nine') {
-      // ★ 9 球 HUD
       const left = balls.filter(b => b.type !== 'cue' && !b.potted).length;
       ctx.fillStyle = left > 0 ? 'rgba(255,255,255,0.82)' : '#7dffa8';
       ctx.fillText(`剩余  ${left} / 9`, hx, hy + 24);
@@ -3697,7 +3747,6 @@
         ctx.fillStyle = col;
         ctx.fillText(txt, rx, hy + 48);
       } else if (mode === 'nine') {
-        // ★ 9 球 AI HUD
         ctx.font = 'bold 15px system-ui, sans-serif';
 
         ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.48)';
