@@ -37,6 +37,13 @@
   /* ★ 减速状态 */
   #speedBtn.slow { color:#41d8ff; border-color:#1f4a6b; }
   #speedBtn.slow:hover { background:#0e2436; border-color:#41d8ff; }
+    /* ★ AI 托管按钮 */
+  #aiBtn { pointer-events:auto; cursor:pointer; color:#57d9a3; font-weight:bold;
+    border:1px solid #2f6b52; border-radius:7px; padding:1px 9px; font-size:13px;
+    transition:.12s; white-space:nowrap; }
+  #aiBtn:hover { background:#123528; border-color:#57d9a3; }
+  #aiBtn.on { color:#08120e; background:#57d9a3; border-color:#57d9a3;
+    box-shadow:0 0 12px rgba(87,217,163,.55); }
     /* ★ 当前关卡背景主题 */
   #zoneText { color:#7fe8c0; font-weight:bold; letter-spacing:1px;
     white-space:nowrap; transition:color .3s, text-shadow .3s; }
@@ -77,6 +84,15 @@
     font-size: 12.5px;
   }
   #enhPanel.hidden { display: none !important; }
+
+   /* ★ 折叠状态：隐藏内容区，只留标题栏 */
+  #enhPanel.collapsed { max-height: none; }
+  #enhPanel.collapsed #enhList,
+  #enhPanel.collapsed .eph-sec { display: none !important; }
+  #enhPanel.collapsed .eph-hd {
+    padding-bottom: 0; margin-bottom: 0; border-bottom: none;
+  }
+  #enhPanel.collapsed #ephToggle { transform: rotate(-90deg); }
   #enhPanel .eph-hd {
     flex: 0 0 auto;
     display: flex; align-items: center; justify-content: space-between;
@@ -690,6 +706,7 @@
     padding: 8px 11px;
   }
   #itemtip { width: 240px; }
+    #aiBtn { font-size: 11px; padding: 1px 7px; }
 }
 
 /* 弹窗面板在小屏上更紧凑 */
@@ -802,6 +819,7 @@
       <div>击杀 <span class="val" id="killText">0</span></div>
       <div>等级 <span class="val" id="plvText">1</span></div>
       <div id="speedBtn" title="游戏速度（Q 减速 / E 加速 / T 循环切换）">⏩ ×1</div>
+      <div id="aiBtn" style="display:none;" title="AI 托管（仅已通关关卡可用，R 键切换）">🤖 AI 托管</div>
     </div>
     <div id="bars">
       <div class="bar"><div class="fill" id="hpfill"></div><span id="hpText"></span></div>
@@ -812,7 +830,15 @@
 
   <!-- ★ 左侧属性增强面板 -->
   <div id="enhPanel" class="hidden">
-    <div class="eph-hd"><span>属性增强</span><b id="enhCount"></b></div>
+  <div class="eph-hd">
+    <span>属性增强</span>
+    <span style="display:flex;align-items:center;gap:8px;">
+      <b id="enhCount"></b>
+      <span id="ephToggle" style="cursor:pointer;color:#8f8fbe;font-size:12px;
+        user-select:none;padding:0 4px;transition:transform .18s;"
+        title="收起 / 展开">▾</span>
+    </span>
+  </div>
     <div id="enhList"></div>
 
     <!-- ★ 怪物技能抗性（关卡内固定） -->
@@ -2566,6 +2592,8 @@ const G = {
 
   skillResist: {},
   curCastSkill: null,
+    aiMode: false,
+  _aiSeq: 0,
 };
 
 let P = null;
@@ -2592,6 +2620,7 @@ addEventListener('keydown', e => {
   if (k === 'q') speedDown();
   if (k === 'e') speedUp();
   if (k === 't') cycleSpeed();
+    if (k === 'r') toggleAI();
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -2684,7 +2713,7 @@ canvas.addEventListener('touchcancel', endTouch);
 /* ============================================================
    ★ 游戏加速（Q 减速 / E 加速 / T 循环切换）
    ============================================================ */
-const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
+const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8, 10];
 let speedIdx = SPEED_STEPS.indexOf(1);
 
 function setSpeed(idx){
@@ -3030,10 +3059,7 @@ function doCombineRaw(pl, group){
     }
     if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
-    const maxIdx = Math.max(...consumed.map(it => it.srcIdx || it.idx || IDX_MAX));
-    const topList = consumed.filter(it => (it.srcIdx || it.idx || IDX_MAX) === maxIdx);
-    const pickIt = topList[Math.floor(Math.random() * topList.length)];
-    const srcIdx = maxIdx;
+    const srcIdx = randi(46, 50);
     result = makeInstance(group.slotBase, newTier, normalAffixes.concat(skillAffixes), srcIdx);
   }
 
@@ -3159,6 +3185,7 @@ function startLevel(n){
   G.level = n;
   G.timeLeft = 300;
   resetWorld();
+    if (P){ P.spawnX = P.x; P.spawnY = P.y; }   // ★ 记录本关出生点
   G.endless = false;
   G.endlessT = 0;
   G.endlessWave = 0;
@@ -3170,6 +3197,8 @@ function startLevel(n){
   touchCtl.active = false;
   touchCtl.id = null;
   touchCtl.dx = 0; touchCtl.dy = 0;
+    if (G.aiMode && n > getCleared()) G.aiMode = false;
+  _aiBtnSig = '';
   updateHUD();
 }
 
@@ -3177,12 +3206,15 @@ function startEndless(){
   G.level = MAX_LEVEL;
   G.timeLeft = 0;
   resetWorld();
+    if (P){ P.spawnX = P.x; P.spawnY = P.y; }   // ★ 记录出生点
   G.endless = true;
   G.endlessT = 0;
   G.endlessWave = 0;
   G.endlessBoss = 0;
   G.skillResist = genSkillResist(MAX_LEVEL);
   G.state = 'playing';
+    G.aiMode = false;
+  _aiBtnSig = '';
   document.getElementById('clearpanel').classList.add('hidden');
   addFloat(P.x, P.y - 70, '♾ 无 尽 模 式 开 始', '#2fae82');
   updateHUD();
@@ -3350,6 +3382,465 @@ function hurtPlayer(dmg, type){
     P.hp = 0;
     gameOver(false);
   }
+}
+
+/* ============================================================
+   ★ AI 托管系统
+   ============================================================ */
+let _aiBtnSig = '';
+
+
+
+/* ★ 增强卡分类 */
+const ENH_AI_ATK = new Set([
+  'atk','might','berserk','bloodlust','executioner','giant','titan','warlord','abyss','ultimate',
+  'dmgMul','chaos','infinity','deathstare','stormeye','oneness',
+  'skillDmg','arcanefount','elemental','elementtyrant',
+  'crit','assassineye','precision','shadowstep',
+  'atkSpeed','reflex','swifthunter',
+  'cdr','hourglass',
+  'proj','barrage',
+]);
+const ENH_AI_DEF = new Set([
+  'hp','dragonheart','ironbody','regenbody','holyward',
+  'vampire','regen','lifesteal','armor','thornking',
+]);
+
+/* ★ 单张技能卡评分：装备加成多 + 抗性惩罚 + 专精偏好（不再按 AOE 优先） */
+function aiScoreSkillCard(sid, sbMap, allBonus, lowHp){
+  const s = SKILL_DEFS.find(x => x.id === sid);
+  if (!s) return -1e9;
+  const cur    = P.skills[sid] || 0;
+  const next   = cur + 1;
+  const resist = (G.skillResist && G.skillResist[sid]) || 0;
+
+  /* 抗性淘汰：全新技能且有明显抗性直接跳过 */
+  if (cur === 0 && resist >= 0.18) return -1e6;
+
+  const eqBonus = (sbMap[sid] || 0) + allBonus;
+
+  let score = 0;
+  score += eqBonus * 100;               // 装备加成：每 1% → +1
+  score -= resist * 120;                // 抗性：每 1% → -1.2
+  score += cur > 0 ? 10 + cur * 3 : 6;  // 偏好已有技能（专精）
+  if (next >= 6) score += 22;           // 终极形态大加分
+
+  /* 治疗/生存技能：低血量时加权 */
+  if (lowHp && ['healamulet','healingwave','holydomain',
+                'bloodsiphon','soulsiphon','warcry'].includes(sid)){
+    score += 16;
+  }
+  return score;
+}
+
+/* ★ 单张增强卡评分 */
+function aiScoreEnhanceCard(eid, lowHp){
+  const e = ENHANCE_DEFS.find(x => x.id === eid);
+  if (!e) return -1e9;
+  const n = (P.enhance && P.enhance[eid]) || 0;
+  let score = 10;
+  if (ENH_AI_ATK.has(eid)) score += 12;
+  if (lowHp && ENH_AI_DEF.has(eid)) score += 10;
+  score -= n * 0.5;                     // 层数递减
+  return score;
+}
+
+/* ★ 从卡片列表中选出 AI 认为最优的一张 */
+function aiPickBestCard(cards){
+  if (!P) return null;
+  const sbMap    = (P.stats && P.stats.skillBonus) || {};
+  const allBonus = sbMap.all || 0;
+  const hpRatio  = P.hp / (P.stats.maxHp || 1);
+  const lowHp    = hpRatio < 0.5;
+
+  let best = null, bestScore = -Infinity;
+  for (const c of cards){
+    let score = -1e9;
+    if (c.dataset.sid){
+      score = aiScoreSkillCard(c.dataset.sid, sbMap, allBonus, lowHp);
+    } else if (c.dataset.eid){
+      score = aiScoreEnhanceCard(c.dataset.eid, lowHp);
+    }
+    if (score > bestScore){ bestScore = score; best = c; }
+  }
+  return best;
+}
+
+function updateAIBtn(){
+  const el = document.getElementById('aiBtn');
+  if (!el) return;
+  const cleared = getCleared();
+  const playable = !!P && (G.state === 'playing' || G.state === 'paused' || G.state === 'levelup');
+  const canUse = playable && !G.endless && G.level <= cleared;
+  const sig = (canUse ? '1' : '0') + (G.aiMode ? '1' : '0') + (G.level | 0);
+  if (sig === _aiBtnSig) return;
+  _aiBtnSig = sig;
+  if (!canUse){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.textContent = G.aiMode ? '🤖 AI 托管中' : '🤖 AI 托管';
+  el.classList.toggle('on', G.aiMode);
+}
+
+function toggleAI(){
+  if (!P) return;
+  if (G.aiMode){
+    G.aiMode = false;
+    addFloat(P.x, P.y - 60, '🤖 AI 托管已关闭', '#ff8a9a');
+  } else {
+    const cleared = getCleared();
+    if (G.endless || G.level > cleared){
+      addFloat(P.x, P.y - 60, '⚠ 仅已通关关卡可用 AI', '#ff8a9a');
+      return;
+    }
+    G.aiMode = true;
+    addFloat(P.x, P.y - 60, '🤖 AI 托管已开启', '#57d9a3');
+  }
+  _aiBtnSig = '';
+  updateAIBtn();
+}
+
+/* ============================================================
+   ★ AI 危险度评估（0 = 完全安全，1 = 极度危险）
+      综合：血量比、护甲减免后的怪物 DPS、自身回血/吸血、弹幕
+   ============================================================ */
+function aiAssessDanger(p){
+  const st = p.stats;
+  const hpRatio = p.hp / (st.maxHp || 1);
+  const reduce  = st.armor / (st.armor + 60);   // 与 hurtPlayer 同口径
+
+  let danger = 0;
+
+  /* ---- 1. 血量比：低血直接拉满 ---- */
+  if (hpRatio < 0.35) return 1;
+  if (hpRatio < 0.55){
+    danger = Math.max(danger, (0.55 - hpRatio) / 0.20 * 0.75);
+  }
+
+  /* ---- 2. 弹幕威胁（BOSS / 追踪弹权重最高） ---- */
+  let bulletThreat = 0;
+  for (const b of G.eBullets){
+    const bdx = p.x - b.x, bdy = p.y - b.y;
+    const bd  = Math.hypot(bdx, bdy) || 1;
+    if (bd > 220) continue;
+    const bs  = Math.hypot(b.vx, b.vy) || 1;
+    const dot = (b.vx * bdx + b.vy * bdy) / (bs * bd);
+    if (dot < (b.homing ? -0.2 : 0.4)) continue;
+    const prox = 1 - bd / 220;
+    bulletThreat += prox * (b.fromBoss ? 2.4 : (b.homing ? 1.4 : 0.6));
+  }
+  if (bulletThreat > 0){
+    danger = Math.max(danger, Math.min(1, bulletThreat / 1.6));
+  }
+
+  /* ---- 3. 怪物伤害 DPS vs 回血 ----
+     接触伤害 0.75s/次；远程 2.1s/次（与 update 同口径）
+     距离平方衰减：贴脸 1.0，340 距离 0 */
+  let incomingDps = 0;
+  for (const e of G.enemies){
+    const ed = Math.hypot(p.x - e.x, p.y - e.y);
+    if (ed > 340) continue;
+    const baseDps = (e.dmg * (1 - reduce)) / (e.ranged ? 2.1 : 0.75);
+    const prox    = Math.max(0, 1 - ed / 340);
+    incomingDps += baseDps * prox * prox;
+  }
+
+  /* 吸血只在身边有怪时才生效，用近似公式估算每秒回复 */
+  const lifestealDps = (G.enemies.length > 0)
+    ? st.lifesteal * st.atk * st.atkSpeed * 2.0
+    : 0;
+  const healDps = (st.regen || 0) + lifestealDps;
+
+  /* 净伤害 → 存活时间 → 危险度 */
+  const netDps = incomingDps - healDps;
+  if (netDps > 0.1){
+    const surviveTime = p.hp / netDps;
+    const tDanger = clamp(1 - (surviveTime - 1) / 4, 0, 1);
+    // 存活 <1s → 危险 1；存活 >5s → 危险 0
+    danger = Math.max(danger, tDanger);
+  }
+
+  return clamp(danger, 0, 1);
+}
+
+/* ============================================================
+   ★ AI 安全拾取：站桩（环境安全）时主动清理地面掉落
+     优先级：磁铁 > 血包（低血）> 经验球群（数量够多）
+   ============================================================ */
+function aiPointSafe(x, y, radius){
+  for (const e of G.enemies){
+    const danger = radius + (e.isBoss ? 220 : e.ranged ? 170 : 90);
+    const dx = e.x - x, dy = e.y - y;
+    if (dx * dx + dy * dy < danger * danger) return false;
+  }
+  for (const b of G.eBullets){
+    const danger = radius + 70 + (b.fromBoss ? 40 : 0);
+    const dx = b.x - x, dy = b.y - y;
+    if (dx * dx + dy * dy < danger * danger) return false;
+  }
+  return true;
+}
+
+function aiDirTo(p, x, y){
+  const dx = x - p.x, dy = y - p.y;
+  const dd = Math.hypot(dx, dy);
+  if (dd < 4) return null;
+  return { mx: dx / dd, my: dy / dd };
+}
+
+function aiFindSafePickup(p, threat){
+  const pickupR = p.stats.pickupRange || 90;
+  const hpRatio = p.hp / (p.stats.maxHp || 1);
+
+  /* ---- ① 磁铁：最高优先级（一次吸光所有经验球） ---- */
+  let magnet = null, magnetD = Infinity;
+  for (const d of G.drops){
+    if (d.kind !== 'magnet') continue;
+    const dd = Math.hypot(d.x - p.x, d.y - p.y);
+    if (dd > 900 || dd >= magnetD) continue;
+    if (!aiPointSafe(d.x, d.y, 200)) continue;
+    magnetD = dd;
+    magnet = d;
+  }
+  if (magnet) return aiDirTo(p, magnet.x, magnet.y);
+
+  /* ---- ② 血包：血量不健康时优先 ---- */
+  if (hpRatio < 0.65){
+    let heal = null, healD = Infinity;
+    for (const d of G.drops){
+      if (d.kind !== 'heal') continue;
+      const dd = Math.hypot(d.x - p.x, d.y - p.y);
+      if (dd > 750 || dd >= healD) continue;
+      if (!aiPointSafe(d.x, d.y, 160)) continue;
+      healD = dd;
+      heal = d;
+    }
+    if (heal) return aiDirTo(p, heal.x, heal.y);
+  }
+
+  /* ---- ③ 经验球群：数量够多才去清理，避免来回乱跑 ---- */
+  let count = 0, cx = 0, cy = 0;
+  let nearestOrb = null, nearestD = Infinity;
+  for (const o of G.orbs){
+    const dx = o.x - p.x, dy = o.y - p.y;
+    const dd = Math.hypot(dx, dy);
+    if (dd < pickupR || dd > 700) continue;
+    count++;
+    cx += o.x;  cy += o.y;
+    if (dd < nearestD){ nearestD = dd; nearestOrb = o; }
+  }
+
+  /* 阈值：默认 ≥8 个才捡；威胁偏高时放宽到 ≥12 个 */
+  const needCount = threat > 0.4 ? 12 : 8;
+  if (count >= needCount && nearestOrb){
+    const gx = cx / count, gy = cy / count;
+    if (aiPointSafe(gx, gy, 180)) return aiDirTo(p, gx, gy);
+    if (aiPointSafe(nearestOrb.x, nearestOrb.y, 110)){
+      return aiDirTo(p, nearestOrb.x, nearestOrb.y);
+    }
+  }
+
+  return null;
+}
+
+function aiComputeMove(){
+  const p = P;
+  if (!p) return { mx: 0, my: 0 };
+
+  /* 先算最近敌人（静止判定 + 后续逻辑都会用） */
+  let near = null, nd = Infinity;
+  for (const e of G.enemies){
+    const dd = d2(p.x, p.y, e.x, e.y);
+    if (dd < nd){ nd = dd; near = e; }
+  }
+
+  /* ============================================================
+     ★★ 静止偏好：安全就站桩，危险才走位（带滞回防抖动） ★★
+     ============================================================ */
+  const threat    = aiAssessDanger(p);
+  const wasStill  = !!p._aiStill;
+  /* 滞回：正在站桩时需威胁明显升高才动；正在走位时需明显安全才停 */
+  const wantStill = wasStill ? (threat < 0.62) : (threat < 0.28);
+  p._aiStill = wantStill;
+
+  if (wantStill){
+    /* ★ 环境安全：先看有没有值得安全拾取的掉落（磁铁 > 血包 > 经验球群） */
+    const pick = aiFindSafePickup(p, threat);
+    if (pick) return pick;
+
+    /* 站桩时若最近敌人超出普攻射程(640)，用 35% 速度慢慢靠近一丢丢，
+       避免“明明能打赢但一直够不到怪”的尴尬；其余情况原地不动。 */
+    if (near && nd > 600 * 600){
+      const dist = Math.sqrt(nd) || 1;
+      return {
+        mx: (near.x - p.x) / dist * 0.35,
+        my: (near.y - p.y) / dist * 0.35,
+      };
+    }
+    return { mx: 0, my: 0 };
+  }
+
+  /* ============================================================
+     以下为原有走位逻辑（威胁高时才进入）
+     ============================================================ */
+  let mx = 0, my = 0;
+
+  /* 追逃绕圈 */
+  if (near){
+    const dist = Math.sqrt(nd) || 1;
+    const nx = (p.x - near.x) / dist;
+    const ny = (p.y - near.y) / dist;
+    const desired = near.isBoss ? 320 : (near.ranged ? 270 : 195);
+    const wantDist = desired + near.r;
+
+    if (dist < wantDist * 0.6){
+      mx += nx * 2.0;
+      my += ny * 2.0;
+    } else if (dist > wantDist * 1.3){
+      mx -= nx * 0.8;
+      my -= ny * 0.8;
+    } else {
+      const sign = Math.sin(G.time * 0.35) > 0 ? 1 : -1;
+      mx += -ny * 0.9 * sign;
+      my += nx * 0.9 * sign;
+    }
+  }
+
+  /* 远离敌群质心 */
+  let cx = 0, cy = 0, cw = 0;
+  for (const e of G.enemies){
+    if (e === near) continue;
+    const dd = Math.hypot(p.x - e.x, p.y - e.y) || 1;
+    if (dd < 260){
+      const w = (260 - dd) / 260;
+      cx += (p.x - e.x) / dd * w;
+      cy += (p.y - e.y) / dd * w;
+      cw += w;
+    }
+  }
+  if (cw > 0){
+    mx += cx / cw * 1.2;
+    my += cy / cw * 1.2;
+  }
+
+  /* 躲子弹（BOSS / 追踪弹最高优先级） */
+  let bossThreatSum = 0;
+  for (const b of G.eBullets){
+    const fromBoss = !!b.fromBoss;
+    const homing   = !!b.homing;
+
+    const bdx = p.x - b.x, bdy = p.y - b.y;
+    const bd  = Math.hypot(bdx, bdy) || 1;
+
+    const scanR = fromBoss ? 380 : 240;
+    if (bd > scanR) continue;
+
+    const bs  = Math.hypot(b.vx, b.vy) || 1;
+    const dot = (b.vx * bdx + b.vy * bdy) / (bs * bd);
+
+    const threatDot = homing ? -0.2 : (fromBoss ? 0.35 : 0.55);
+    if (dot < threatDot) continue;
+
+    const perpX = -b.vy / bs, perpY = b.vx / bs;
+    const side  = bdx * perpX + bdy * perpY;
+    const sx = side >= 0 ? perpX : -perpX;
+    const sy = side >= 0 ? perpY : -perpY;
+
+    const prox   = 1 - bd / scanR;
+    const baseW  = 1.6 + prox * 2.2;
+    const w = baseW
+            * (fromBoss ? 2.6 : (homing ? 1.4 : 0.8))
+            * (homing ? 1.6 : 1.0);
+
+    mx += sx * w;
+    my += sy * w;
+    bossThreatSum += (fromBoss ? w : 0);
+
+    if (homing){
+      mx += (bdx / bd) * w * 0.4;
+      my += (bdy / bd) * w * 0.4;
+    }
+  }
+
+  if (bossThreatSum > 8){
+    let bx = 0, by = 0, bw = 0;
+    for (const b of G.eBullets){
+      if (!b.fromBoss) continue;
+      const dx = b.x - p.x, dy = b.y - p.y;
+      const dd = Math.hypot(dx, dy) || 1;
+      const w = 1 / Math.max(40, dd);
+      bx += dx / dd * w; by += dy / dd * w; bw += w;
+    }
+    if (bw > 0){
+      const bl = Math.hypot(bx, by) || 1;
+      mx += (bx / bl) * 3.0;
+      my += (by / bl) * 3.0;
+    }
+  }
+
+  /* 主动拾取经验球 / 掉落物 */
+  const pickupR = p.stats.pickupRange || 90;
+  const maxR    = 720;
+  const hpRatio = p.hp / (p.stats.maxHp || 1);
+  const hpFactor = hpRatio < 0.25 ? 0.20 : hpRatio < 0.5 ? 0.55 : 1;
+
+  let px = 0, py = 0, pw = 0;
+  for (const o of G.orbs){
+    const dx = o.x - p.x, dy = o.y - p.y;
+    const dd = Math.hypot(dx, dy);
+    if (dd < pickupR + 6 || dd > maxR) continue;
+    const w = 1 - (dd - pickupR) / (maxR - pickupR);
+    px += dx / dd * w;
+    py += dy / dd * w;
+    pw += w;
+  }
+  for (const d of G.drops){
+    const dx = d.x - p.x, dy = d.y - p.y;
+    const dd = Math.hypot(dx, dy);
+    if (dd < pickupR || dd > maxR) continue;
+    const bonus = d.kind === 'heal' ? 2.6 : d.kind === 'magnet' ? 2.0 : 1.4;
+    const w = (1 - (dd - pickupR) / (maxR - pickupR)) * bonus;
+    px += dx / dd * w;
+    py += dy / dd * w;
+    pw += w;
+  }
+
+  if (pw > 0.05){
+    const pl = Math.hypot(px, py) || 1;
+    const ux = px / pl, uy = py / pl;
+
+    let dirDanger = 0;
+    if (near){
+      const tdx = (near.x - p.x) / Math.sqrt(nd);
+      const tdy = (near.y - p.y) / Math.sqrt(nd);
+      const dot = ux * tdx + uy * tdy;
+      if (dot > 0.4) dirDanger = (dot - 0.4) / 0.6;
+    }
+
+    const w = 1.3 * hpFactor * (1 - dirDanger * 0.7);
+    if (w > 0.03){
+      mx += ux * w;
+      my += uy * w;
+    }
+  }
+
+  /* 回拉出生点 */
+  if (typeof P.spawnX === 'number' && typeof P.spawnY === 'number'){
+    const sdx = p.x - P.spawnX;
+    const sdy = p.y - P.spawnY;
+    const sd  = Math.hypot(sdx, sdy);
+    const SOFT = 300;
+    const HARD = 520;
+    if (sd > SOFT){
+      const t = Math.min(1, (sd - SOFT) / (HARD - SOFT));
+      const w = t * t * 3.0;
+      mx += (-sdx / sd) * w;
+      my += (-sdy / sd) * w;
+    }
+  }
+
+  const len = Math.hypot(mx, my);
+  if (len > 1){ mx /= len; my /= len; }
+  return { mx, my };
 }
 
 /* ============================================================
@@ -3782,6 +4273,7 @@ function makeEnhanceCard(e){
     : '';
 
   const card = document.createElement('div');
+  card.dataset.eid = e.id;
   card.className = 'card enh';
   card.innerHTML = `
     <div class="ico">${e.ico}</div>
@@ -3821,14 +4313,21 @@ function showLevelUp(){
   }
 
   const skillOpts = [];
-  const seen = new Set();
-  let guard = 0;
-  while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 400){
-    const s = weighted[Math.floor(Math.random() * weighted.length)];
-    if (!s || seen.has(s.id)) continue;
-    seen.add(s.id);
-    skillOpts.push(s);
+const seen = new Set();
+let guard = 0;
+while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
+  const s = weighted[Math.floor(Math.random() * weighted.length)];
+  if (!s || seen.has(s.id)) continue;
+
+  /* ★ AI 模式下，本关有抗性的「全新技能」直接跳过生成，让增强卡补位 */
+  if (G.aiMode && !(P.skills[s.id] > 0)){
+    const r = (G.skillResist && G.skillResist[s.id]) || 0;
+    if (r >= 0.18) continue;
   }
+
+  seen.add(s.id);
+  skillOpts.push(s);
+}
 
   if (skillOpts.length === 0){
     const e = pick(ENHANCE_DEFS);
@@ -3894,6 +4393,7 @@ function showLevelUp(){
       ${bonusHtml}
       ${resistHtml}
     `;
+    card.dataset.sid = s.id;
     card._apply = () => {
       P.skills[s.id] = next;
       finishChoice();
@@ -3919,7 +4419,28 @@ function showLevelUp(){
     };
   }
 
-  document.getElementById('levelup').classList.remove('hidden');
+    document.getElementById('levelup').classList.remove('hidden');
+
+  /* ★ AI 自动选卡（按评分：AOE + 装备加成 + 抗性 + 生存价值） */
+if (G.aiMode){
+  G._aiSeq = (G._aiSeq || 0) + 1;
+  const seq = G._aiSeq;
+  setTimeout(() => {
+    if (G._aiSeq !== seq) return;
+    if (G.state !== 'levelup') return;
+    if (!G.aiMode) return;
+    const cards = Array.from(box.querySelectorAll('.card'));
+    if (!cards.length) return;
+
+    const best = aiPickBestCard(cards);
+    if (best && best._apply) best._apply();
+    else {
+      // 兜底（理论上不会走到）
+      const c = cards[Math.floor(Math.random() * cards.length)];
+      if (c && c._apply) c._apply();
+    }
+  }, 260);
+}
 }
 
 /* ============================================================
@@ -3973,9 +4494,16 @@ function update(dt){
   if (keys['s'] || keys['arrowdown'])  kmy += 1;
   const hasKeyInput = kmx !== 0 || kmy !== 0;
 
-  if (hasKeyInput){
+    if (hasKeyInput){
     mx = kmx; my = kmy;
     mouseCtl.active = false;
+    touchCtl.active = false;
+  } else if (G.aiMode && P){
+    /* ★ AI 托管：计算方向 */
+    const ai = aiComputeMove();
+    mx = ai.mx; my = ai.my;
+    mouseCtl.active = false;
+    touchCtl.active = false;
   } else if (touchCtl.active){
     const tl = Math.hypot(touchCtl.dx, touchCtl.dy);
     if (tl > 8){
@@ -3984,6 +4512,7 @@ function update(dt){
     }
     mouseCtl.active = false;
   } else if (mouseCtl.active){
+    /* 原有鼠标逻辑 */
     const dxm = mouseCtl.tx - P.x;
     const dym = mouseCtl.ty - P.y;
     const dm  = Math.hypot(dxm, dym);
@@ -4058,7 +4587,11 @@ function update(dt){
   e.atkCd = hpRatio < 0.5 ? Math.max(0.3, baseCd * 0.65) : baseCd;
 
   const mode = pick(BOSS_ATTACKS);
+  const _b0 = G.eBullets.length;                       // ★ 记录发射前长度
   mode.fn(e, e.dmg * enemyBulletDmgMul(), G.bulletSpdMul, e.bulletSize, hpRatio);
+  for (let k = _b0; k < G.eBullets.length; k++){        // ★ 打上 BOSS 标记
+    G.eBullets[k].fromBoss = true;
+  }
 
   G.effects.push({
     kind:'ring', x:e.x, y:e.y, r:e.r + 22,
@@ -4481,12 +5014,19 @@ function levelClear(){
     btnNext.classList.remove('hidden');
     btnEnd.classList.add('hidden');
     btnNext.textContent = '进入下一关';
-    btnNext.onclick = () => {
-      document.getElementById('clearpanel').classList.add('hidden');
-      G.state = 'playing';
-      startLevel(G.level + 1);
-      updateHUD();
-    };
+btnNext.onclick = () => {
+  document.getElementById('clearpanel').classList.add('hidden');
+  G.state = 'playing';
+  /* ★ 进入下一关：从头开始，不继承上一关的等级 / 技能 / 永久增强，仅保留装备 */
+  P = createPlayer();
+  G.pendingLevelUps = 0;
+  G.cam.x = 0; G.cam.y = 0;
+  loadGearIntoPlayer();   // 从存档读取最新装备（上一关结算已 saveCleared 写入）
+  computeStats();
+  P.hp = P.stats.maxHp;
+  startLevel(G.level + 1);
+  updateHUD();
+};
   }
 
   btnBack.textContent = '返 回 选 关';
@@ -4495,10 +5035,42 @@ function levelClear(){
     P = null;
     openLevelSelect();
   };
+    btnBack.textContent = '返 回 选 关';
+  btnBack.onclick = () => {
+    document.getElementById('clearpanel').classList.add('hidden');
+    P = null;
+    openLevelSelect();
+  };
+
+  /* ★ AI 自动续关：通关 1.8s 后自动继续 */
+  /* ★ AI 自动续关：通关 1.8s 后自动继续（同样从头开始） */
+if (G.aiMode){
+  const cleared = getCleared();
+  const curLv = G.level;
+  setTimeout(() => {
+    if (G.state !== 'clear') return;
+    if (!G.aiMode) return;
+    document.getElementById('clearpanel').classList.add('hidden');
+    /* ★ 从头开始，不继承上一关属性 */
+    P = createPlayer();
+    G.pendingLevelUps = 0;
+    G.cam.x = 0; G.cam.y = 0;
+    loadGearIntoPlayer();
+    computeStats();
+    P.hp = P.stats.maxHp;
+    if (curLv < cleared){
+      startLevel(curLv + 1);
+    } else {
+      startLevel(curLv);
+    }
+    updateHUD();
+  }, 1800);
+}
 }
 
 function gameOver(win){
   G.state = 'over';
+    G.aiMode = false;
   mouseCtl.down = false;
   mouseCtl.active = false;
 
@@ -5451,6 +6023,7 @@ function updateHUD(){
   }
 
   updateMobileBtns();
+  updateAIBtn();
 }
 
 /* ★ 手机端悬浮按钮显隐 */
@@ -5562,6 +6135,26 @@ function renderResistPanel(){
   }
 }
 
+/* ★ 属性增强面板折叠状态（持久化到 localStorage） */
+const ENH_COLLAPSE_KEY = 'abyss_enh_collapsed';
+let enhCollapsed = false;
+try { enhCollapsed = localStorage.getItem(ENH_COLLAPSE_KEY) === '1'; } catch(e){}
+
+function applyEnhCollapse(){
+  const panel = document.getElementById('enhPanel');
+  if (!panel) return;
+  panel.classList.toggle('collapsed', enhCollapsed);
+  const t = document.getElementById('ephToggle');
+  if (t) t.textContent = enhCollapsed ? '▸' : '▾';
+}
+applyEnhCollapse();
+
+document.getElementById('ephToggle').onclick = () => {
+  enhCollapsed = !enhCollapsed;
+  try { localStorage.setItem(ENH_COLLAPSE_KEY, enhCollapsed ? '1' : '0'); } catch(e){}
+  applyEnhCollapse();
+};
+
 function updateEnhPanel(){
   const panel = document.getElementById('enhPanel');
   const list  = document.getElementById('enhList');
@@ -5578,7 +6171,7 @@ function updateEnhPanel(){
   panel.classList.remove('hidden');
 
   renderResistPanel();
-
+applyEnhCollapse();
   const st = computeEnhOnlyStats();
   const enh = P.enhance || {};
 
@@ -6181,6 +6774,7 @@ document.getElementById('bigBtn').onclick = () => openLevelSelect();
 document.getElementById('menuBagBtn').onclick = () => openBag();
 document.getElementById('closeBag').onclick = () => closeBag();
 document.getElementById('speedBtn').onclick = () => cycleSpeed();
+document.getElementById('aiBtn').onclick = () => toggleAI();
 document.getElementById('autoEquipBtn').onclick = () => {
   const pl = P || bagTempPlayer;
   if (pl) autoEquip(pl);
@@ -6241,9 +6835,10 @@ function loop(now){
   raw = Math.min(0.1, raw);
 
   let total = raw * (G.speed || 1);
-  const maxStep = 1 / 60;
+  total = Math.min(total, 1.0);
+  const maxStep = 1 / 45;
   let guard = 0;
-  while (total > 1e-4 && guard++ < 12){
+  while (total > 1e-4 && guard++ < 50){
     const step = Math.min(total, maxStep);
     update(step);
     total -= step;
