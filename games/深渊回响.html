@@ -2,13 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>深渊回响 · Roguelike</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:#07070d;
-    font-family:"Microsoft YaHei",system-ui,sans-serif; color:#e8e8f0; user-select:none; }
-  #game { display:block; position:absolute; inset:0; }
+    font-family:"Microsoft YaHei",system-ui,sans-serif; color:#e8e8f0;
+    user-select:none; -webkit-user-select:none;
+    -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+    touch-action:none; overscroll-behavior:none; }
+  #game { display:block; position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
 
   /* ---------- HUD ---------- */
   #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
@@ -199,7 +202,7 @@
   #menuBtns > button { width:min(300px, 82%); margin:0; padding:12px 0;
     font-size:16px; border-radius:10px; }
   #menuBtns > #bigBtn { font-size:17px; padding:14px 0; margin:0; }
-  #menuBtns > #continueBtn { border-color:#57d9a3; color:#7fe8c0; }
+  
   #menuBtns > #introBtn { border-color:#4a5a9e; color:#a9b8ff; }
 
   /* ---------- 游戏简介 ---------- */
@@ -273,7 +276,7 @@
   #levelselect .panel {
     display: flex;
     flex-direction: column;
-    overflow: hidden;              /* 由内部 lvscroll 滚动 */
+    overflow: hidden;
   }
   #levelselect .panel > h2,
   #levelselect .panel > .sub {
@@ -318,11 +321,9 @@
   #bagpanel .bagwrap {
     flex: 1 1 auto;
     min-height: 0;
-    /* ★ 滚动条不在这里，已下放到物品栏 */
   }
   #bagpanel .charwrap {
     flex: 0 0 auto;
-    
   }
 
   /* ★ 物品栏外框（内部独立滚动） */
@@ -331,7 +332,7 @@
     min-height: 160px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;              /* 由内部 baglist 滚动 */
+    overflow: hidden;
     background: #0c0c17;
     border: 1px solid #26263f;
     border-radius: 12px;
@@ -368,7 +369,7 @@
   /* 人形装备面板 */
     .charwrap {
     display: grid;
-    grid-template-columns: 260px 110px 160px 110px; /* 属性 左 中 右 */
+    grid-template-columns: 260px 110px 160px 110px;
     gap: 10px;
     justify-content: center;
     align-items: start;
@@ -379,7 +380,7 @@
   .statpanel {
     box-sizing: border-box;
     width: 100%;
-    max-height: 364px;                 /* 与左列 6 格对齐 */
+    max-height: 364px;
     display: flex;
     flex-direction: column;
     background: #12121f;
@@ -458,7 +459,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    height: 364px; /* 匹配左列6个格子+间隔的高度(54*6+8*5=364) */
+    height: 364px;
     width: 100%;
   }
 
@@ -543,8 +544,8 @@
     grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
     gap: 10px;
     margin-top: 4px;
-    align-items: start;            /* 关键：每张卡片独立高度 */
-    grid-auto-rows: max-content;   /* ★ 行高完全由内容撑开，长词条不会再压到下一行 */
+    align-items: start;
+    grid-auto-rows: max-content;
     align-content: start;
   }
 
@@ -553,14 +554,14 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    margin: 0;                    /* ★ 间距统一交给 grid gap，去掉 margin-bottom 避免叠加错位 */
+    margin: 0;
     box-sizing: border-box;
     position: relative;
     align-items: center;
     gap: 3px;
     padding: 9px 7px 8px;
-    min-height: 132px;            /* 矮卡片保持最小高度 */
-    height: auto;                 /* 高卡片随内容增长 */
+    min-height: 132px;
+    height: auto;
     overflow: hidden;
     text-align: center;
     background: #151527;
@@ -604,9 +605,6 @@
     padding: 3px 0;
   }
 
-
-
-
   .btn { pointer-events:auto; background:#282850; border:1px solid #3d3d68; color:#cfcaff;
     border-radius:7px; padding:4px 11px; font-size:12px; cursor:pointer; transition:.12s;
     font-family:inherit; }
@@ -633,10 +631,166 @@
   .center { text-align:center; }
   .hint { font-size:12px; color:#5d5d80; margin-top:14px; }
   #saveTip { font-size:12px; color:#57d9a3; margin-top:10px; min-height:18px; }
+
+/* ============================================================
+   ★ 移动端适配
+   ============================================================ */
+#mobileBtns {
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+#mobileBtns .mbtn {
+  pointer-events: auto;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: rgba(20,20,36,.82);
+  border: 1.5px solid #3d3d68;
+  color: #cfcaff;
+  font-size: 22px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  touch-action: manipulation;
+  transition: .12s;
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,.55);
+}
+#mobileBtns .mbtn:active {
+  background: rgba(70,66,140,.95);
+  border-color: #7c5cff;
+  transform: scale(0.93);
+}
+
+/* 手机端顶部 HUD 紧凑化 */
+@media (max-width: 640px) {
+  #topwrap { top: calc(8px + env(safe-area-inset-top, 0px)); gap: 6px; width: 94vw; }
+  #topbar { gap: 9px; padding: 5px 11px; font-size: 11.5px; border-radius: 10px; }
+  #topbar .val { font-size: 12px; }
+  #timer { font-size: 14px; }
+  #timer.boss { font-size: 14px; }
+  #zoneText { font-size: 11.5px; letter-spacing: 0; }
+  #speedBtn { font-size: 11px; padding: 1px 7px; }
+  #bars { gap: 5px; }
+  .bar { height: 13px; border-radius: 7px; }
+  .bar .fill { border-radius: 7px; }
+  .bar span { font-size: 9.5px; line-height: 13px; letter-spacing: 0; }
+  #skillbar { gap: 5px; }
+  .skchip { padding: 2px 7px; font-size: 10.5px; border-radius: 6px; }
+  .skchip.enh { font-size: 10px; padding: 2px 6px; }
+  #skilltip, #itemtip {
+    max-width: 78vw; font-size: 11.5px;
+    padding: 8px 11px;
+  }
+  #itemtip { width: 240px; }
+}
+
+/* 弹窗面板在小屏上更紧凑 */
+@media (max-width: 640px) {
+  .panel { padding: 18px 14px; border-radius: 12px; width: 96%; max-height: 92vh; }
+  .panel h2 { font-size: 18px; }
+  .panel .sub { font-size: 12px; }
+  .introbox { font-size: 12.5px; line-height: 1.75; }
+  .introbox h3 { font-size: 13px; margin: 12px 0 4px; }
+  #menuBtns > button { width: min(280px, 88%); padding: 12px 0; font-size: 15px; }
+  #bigBtn2b { margin-left: 0; margin-top: 10px; }
+}
+
+/* 升级卡片：手机竖排 */
+@media (max-width: 640px) {
+  .cards { flex-direction: column; gap: 10px; }
+  .card { flex: 0 0 auto; padding: 14px; }
+  .card .ico { font-size: 28px; }
+  .card .nm { font-size: 15px; }
+  .card .ds { min-height: 0; font-size: 12px; }
+  .card-diff { max-height: 90px; }
+}
+
+/* 选关网格：手机 3 列 */
+@media (max-width: 640px) {
+  .levelgrid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+  .lvbtn { padding: 9px 4px; font-size: 13px; border-radius: 10px; }
+  .lvbtn .lvb-lv { font-size: 9.5px; margin-top: 3px; }
+  #levelselect .lv-footer { margin-top: 10px; padding-top: 8px; }
+}
+
+/* 背包：小屏改为两列装备 + 竖排形象 */
+@media (max-width: 760px) {
+  #bagpanel .panel { padding: 14px 11px; overflow-y: auto; }
+  #bagpanel .bagwrap { flex: 0 0 auto; gap: 10px; }
+  #bagpanel .charwrap {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  #bagpanel .statpanel { display: none !important; }
+  #bagpanel .charMidCol {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    height: auto;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+  }
+  #bagpanel .charMidCol #eqTopM,
+  #bagpanel .charMidCol #eqBot { display: none !important; }
+  #bagpanel .charview { width: 128px; height: 144px; flex: none; }
+  #bagpanel .custom-btn { width: auto; padding: 9px 16px; margin: 0; flex: none; }
+  #bagpanel #eqLeft { grid-column: 1; grid-row: 2; }
+  #bagpanel #eqRight { grid-column: 2; grid-row: 2; }
+  #bagpanel .charCustom { grid-column: 1 / -1; grid-row: 3; }
+  #bagpanel .eqslot2 { height: 46px; padding: 4px 7px; border-radius: 7px; }
+  #bagpanel .eqslot2 .sl { font-size: 10px; margin-bottom: 1px; }
+  #bagpanel .eqslot2 .it { font-size: 11px; }
+  #bagpanel .eqcol { gap: 6px; }
+
+  #bagpanel .bagitems { min-height: 120px; padding: 10px; }
+  #baglist { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 7px; }
+  .bagcard { min-height: 112px; padding: 8px 6px; border-radius: 10px; }
+  .bagcard .ic { font-size: 26px; }
+  .bagcard .nm { font-size: 11px; }
+  .bagcard .aff { font-size: 9px; }
+  .bagcard .eqbtn { font-size: 10.5px; padding: 3px 0; }
+
+  #bagpanel .panel { display: flex; flex-direction: column; }
+  #bagpanel .bag-footer {
+    position: sticky;
+    bottom: -14px;
+    background: #101020;
+    padding: 10px 0 4px;
+    margin-top: 8px;
+    z-index: 2;
+  }
+  #bagpanel #baglist { overflow-y: visible; min-height: 0; }
+  #bagpanel .bagitems { overflow: visible; min-height: 0; }
+}
+
+/* 极窄屏 */
+@media (max-width: 380px) {
+  #topbar { gap: 7px; padding: 4px 9px; font-size: 10.5px; }
+  #timer { font-size: 12.5px; }
+  #zoneText { font-size: 10.5px; }
+  #mobileBtns .mbtn { width: 48px; height: 48px; font-size: 19px; }
+  #baglist { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+
+<!-- ★ 移动端按钮 -->
+<div id="mobileBtns" class="hidden">
+  <button class="mbtn" id="mPauseBtn" aria-label="暂停">⏸</button>
+  <button class="mbtn" id="mBagBtn" aria-label="背包">🎒</button>
+</div>
 
 <!-- ================= HUD ================= -->
 <div id="hud">
@@ -686,7 +840,7 @@
     <p class="sub" style="max-width:560px;margin:0 auto 18px;"><b>WASD / 方向键</b> 或 <b>鼠标左键</b> 移动，自动攻击最近敌人。<br>点击下方「📖 游戏简介」查看完整玩法说明。</p>
     <div id="menuBtns">
       <button id="bigBtn">开 始 冒 险</button>
-      <button class="btn hidden" id="continueBtn">继 续 冒 险</button>
+      
       <button class="btn" id="menuBagBtn">装 备 背 包</button>
       <button class="btn" id="introBtn">📖 游 戏 简 介</button>
     </div>
@@ -707,11 +861,12 @@
       <h3>📋 玩法速览</h3>
       <p>共 <b>100 个关卡</b>，每关 <b>5 分钟</b>；BOSS 每 <b>2:30</b> 降临一个；技能上限 <b>5 个</b>；怪物密度 ×2（原 ×10），血量 ×5，经验 ÷2，且属性随关卡<b>指数级增长</b>。</p>
       <p><b>WASD / 方向键</b> 或 <b>鼠标左键</b> 移动，角色自动攻击最近的敌人。按 <b>I</b> 打开背包，<b>ESC</b> 暂停（可返回主菜单），<b>Q / E</b> 减速 / 加速，<b>T</b> 循环切换游戏速度（×0.25 ~ ×3）。</p>
+      <p style="color:#ffd166;">📱 <b>手机端</b>：按住屏幕任意位置拖动即可移动（自动出现虚拟摇杆）；右下角按钮可暂停游戏 / 打开背包；技能条图标可点击查看说明；已装备格子连点两次可卸下。</p>
       <p>击杀怪物掉落经验球。升级后三选一<b>攻击技能</b>，最多掌握 5 个，每个技能满 <b>6 级</b>进化为终极形态。技能池共 <b>50 种</b>主动技能，属性增强共 <b>50 种</b>永久加成（可无限叠加）。</p>
       <p>每关进行到 <b>2:30</b> 出现第一个 BOSS，<b>5:00</b> 出现第二个 BOSS 并进入 BOSS 战（不限时），击败全部 BOSS 才能通关。</p>
       <p><b>第 11 关起</b>怪物生命 / 伤害按关卡指数级暴涨，且会携带<b style="color:#ff8a9a;">技能抗性</b>（11-20 关 3 个、21-30 关 6 个、31-40 关 9 个……每个抗性降低该技能 20%~40% 伤害），请靠技能与永久增强叠出足够的成长曲线。</p>
       <p>通关当前关卡才能解锁下一关。通关第 100 关后可进入「<b>无尽模式</b>」：怪物每 30 秒强化一次，BOSS 每 2:30 降临一个。</p>
-      <p>存档只记录装备与未完成的冒险。</p>
+      <p>存档只记录装备与通关进度。<b style="color:#ff8b3d;">关卡中途退出将放弃本关，不会获得任何通关奖励</b>；只有击败本关全部 BOSS 通关，才能拿到装备掉落。</p>
 
       <h3>🎒 装备、合成与技能词缀</h3>
       <p>装备在每关通关后掉落，<b>数量随关卡线性增长</b>（第 1 关 10~20 件，每关递增约 1 件），并<b>自动合成</b>：3 件相同初级 → 1 件中级 → 高级，依次类推。</p>
@@ -820,13 +975,13 @@
 <div id="pausepanel" class="overlay hidden">
   <div class="panel center">
     <h2>已暂停</h2>
-    <p class="sub">按 ESC 继续游戏，或返回主菜单（当前进度会保存为「未完成的冒险」）</p>
-    <div>
-      <button class="btn gold" id="resumeBtn"
-        style="padding:11px 32px;font-size:15px;border-radius:10px;">继 续 游 戏</button>
-      <button class="btn" id="quitBtn"
-        style="padding:11px 32px;font-size:15px;border-radius:10px;margin-left:10px;border-color:#7a3b4a;color:#ffb3c0;">保 存 并 退 出</button>
-    </div>
+    <p class="sub">按 ESC 继续游戏。<b style="color:#ff8b3d;">退出关卡将放弃本关，不获得任何通关奖励</b>（已拾取的装备保留）</p>
+<div>
+  <button class="btn gold" id="resumeBtn"
+    style="padding:11px 32px;font-size:15px;border-radius:10px;">继 续 游 戏</button>
+  <button class="btn" id="quitBtn"
+    style="padding:11px 32px;font-size:15px;border-radius:10px;margin-left:10px;border-color:#7a3b4a;color:#ffb3c0;">退 出 关 卡</button>
+</div>
   </div>
 </div>
 
@@ -875,6 +1030,11 @@ const distToSeg = (px, py, x1, y1, x2, y2) => {
 };
 let uid = 1;
 
+/* ★ 是否触屏设备（手机上显示虚拟按钮 / 摇杆） */
+const IS_TOUCH = ('ontouchstart' in window)
+  || (navigator.maxTouchPoints > 0)
+  || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+
 /* 颜色工具 */
 function hex2rgb(h){
   h = h.replace('#','');
@@ -900,7 +1060,7 @@ function hexA(h, a){
 }
 
 function xpNeeded(lv){
-  return Math.floor(35 + 25 * lv + 4.5 * Math.pow(lv, 1.6)); //升级需要的经验
+  return Math.floor(35 + 25 * lv + 4.5 * Math.pow(lv, 1.6));
 }
 
 /* ---------------- 数字缩写（用于显示关卡强度） ---------------- */
@@ -918,9 +1078,9 @@ function fmtNum(v){
    ============================================================ */
 const MAX_LEVEL = 100;
 
-const LEVEL_HP_GROWTH  = 1.22;   // 每关怪物生命倍率
-const LEVEL_DMG_GROWTH = 1.15;   // 每关怪物伤害倍率
-const LEVEL_XP_GROWTH  = 1.01;   // 每关怪物经验倍率（保证高关还能升级）
+const LEVEL_HP_GROWTH  = 1.22;
+const LEVEL_DMG_GROWTH = 1.15;
+const LEVEL_XP_GROWTH  = 1.01;
 
 function levelScaling(lv){
   const k = Math.max(0, (lv || 1) - 1);
@@ -935,16 +1095,14 @@ function levelScaling(lv){
    ★ 敌人弹道伤害成长（时间 + 关卡）
    ============================================================ */
 const ENEMY_BULLET_CFG = {
-  timeStep:   30,     // 每 30 秒提升一档
-  timeGrowth: 0.10,   // 每档 +10%
-  lvGrowth:   0.02,   // 每关额外 +2%（叠加在 levelScaling 的指数之上）
+  timeStep:   30,
+  timeGrowth: 0.10,
+  lvGrowth:   0.02,
 };
 
 function enemyBulletDmgMul(){
-  /* 关卡内计时：含 BOSS 战，不含暂停与结算（G.levelTime 只在 update 累加） */
   const t = G.levelTime || 0;
   const timeMul = 1 + Math.floor(t / ENEMY_BULLET_CFG.timeStep) * ENEMY_BULLET_CFG.timeGrowth;
-  /* 关卡项：levelScaling 已提供指数成长，这里再加一层温和的线性补强 */
   const lvMul = 1 + Math.max(0, (G.level || 1) - 1) * ENEMY_BULLET_CFG.lvGrowth;
   return timeMul * lvMul;
 }
@@ -1014,16 +1172,26 @@ function getBgTheme(){
 /* ---------------- 画布 ---------------- */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const DPR = Math.min(2, window.devicePixelRatio || 1);
 let W = innerWidth, H = innerHeight;
-function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
-addEventListener('resize', resize); resize();
+function resize(){
+  W = innerWidth;
+  H = innerHeight;
+  canvas.width  = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener('resize', () => {
+  resize();
+  if (typeof G !== 'undefined' && G.state === 'bag') renderBag();
+});
+resize();
 
 /* ============================================================
    ★ 人物形象自定义（Emoji + 可编辑配色）
    ============================================================ */
 const CHAR_STYLE_KEY = 'abyss_char_style';
 
-/* 可选 Emoji 形象（30 种） */
 const CHAR_EMOJIS = [
   '🧙','🧝','🧛','🧟','🥷','🦸','🤖','👾','👻','💀',
   '🐸','🐱','🐶','🐺','🦊','🐲','🦄','🐙','🦉','🐧',
@@ -1031,11 +1199,10 @@ const CHAR_EMOJIS = [
 ];
 
 const CHAR_DEFAULTS = {
-  emoji: '🧙',          // 形象
-  glow:  '#7c5cff',     // 光效（外圈光环 + 发光 + 底盘柔光）
+  emoji: '🧙',
+  glow:  '#7c5cff',
 };
 
-/* 底盘柔光由光效色自动派生，因此只保留「光效」一组可选色 */
 const CHAR_PALETTES = {
   glow: [
     '#7c5cff','#ff6b6b','#57d9a3','#ffd166','#41d8ff','#ff7ad9','#ffffff','#ff8b3d',
@@ -1054,10 +1221,9 @@ function loadCharStyle(){
     const raw = localStorage.getItem(CHAR_STYLE_KEY);
     if (raw){ const d = JSON.parse(raw); charStyle = { ...CHAR_DEFAULTS, ...d }; }
   } catch (e){}
-  /* 兜底：非法 emoji 或缺失字段 */
   if (!charStyle.emoji || CHAR_EMOJIS.indexOf(charStyle.emoji) < 0) charStyle.emoji = CHAR_DEFAULTS.emoji;
   if (!charStyle.glow) charStyle.glow = CHAR_DEFAULTS.glow;
-  delete charStyle.body;   // 底盘配色已并入光效，旧存档字段直接丢弃
+  delete charStyle.body;
 }
 
 function saveCharStyle(){
@@ -1102,12 +1268,8 @@ const BOSSES = [
 ];
 /* ============================================================
    ★ BOSS 攻击模式（9 种，随机选择）
-   ------------------------------------------------------------
-   每个 fn 接收：(boss, 伤害, 弹速倍率, 弹道尺寸, 血量比例)
-   关卡越靠后 → 弹道越大（spawnBoss 里计算 bulletSize）
    ============================================================ */
 const BOSS_ATTACKS = [
-  /* 1. 环形爆发 —— 均匀环形全方向 */
   { name:'环形爆发', fn(e, dmg, mul, sz, hp){
     const n = (hp < 0.5 ? 16 : 11) + Math.floor((sz - 8) * 0.8);
     const base = rand(0, Math.PI * 2);
@@ -1121,7 +1283,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 2. 瞄准连发 —— 朝玩家方向的连续射击 */
   { name:'瞄准连发', fn(e, dmg, mul, sz, hp){
     const a0 = Math.atan2(P.y - e.y, P.x - e.x);
     const n = hp < 0.5 ? 5 : 3;
@@ -1135,7 +1296,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 3. 螺旋弹幕 —— 旋转双臂/四臂 */
   { name:'螺旋弹幕', fn(e, dmg, mul, sz, hp){
     const arms = hp < 0.5 ? 4 : 2;
     const per  = hp < 0.5 ? 3 : 2;
@@ -1152,7 +1312,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 4. 追踪弹 —— 缓慢追踪玩家 */
   { name:'追踪弹', fn(e, dmg, mul, sz, hp){
     const n = hp < 0.5 ? 3 : 2;
     for (let k = 0; k < n; k++){
@@ -1166,7 +1325,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 5. 十字弹 —— 四臂十字弹幕 */
   { name:'十字弹', fn(e, dmg, mul, sz, hp){
     const a0 = rand(0, Math.PI * 2);
     const arms = 4, per = 3 + Math.floor((sz - 8) * 0.5);
@@ -1183,7 +1341,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 6. 天降弹雨 —— 从玩家周围上空落下 */
   { name:'天降弹雨', fn(e, dmg, mul, sz, hp){
     const n = hp < 0.5 ? 12 : 8;
     for (let k = 0; k < n; k++){
@@ -1197,7 +1354,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 7. 双环交错 —— 内外两圈不同速度 */
   { name:'双环交错', fn(e, dmg, mul, sz, hp){
     const n = hp < 0.5 ? 14 : 10;
     const base = rand(0, Math.PI * 2);
@@ -1217,7 +1373,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 8. 扇形散射 —— 朝玩家大角度扇形 */
   { name:'扇形散射', fn(e, dmg, mul, sz, hp){
     const a0 = Math.atan2(P.y - e.y, P.x - e.x);
     const n = hp < 0.5 ? 10 : 7;
@@ -1232,7 +1387,6 @@ const BOSS_ATTACKS = [
     }
   }},
 
-  /* 9. 巨型弹 —— 更慢、更大、更痛 */
   { name:'巨型弹', fn(e, dmg, mul, sz, hp){
     const n = hp < 0.5 ? 2 : 1;
     for (let k = 0; k < n; k++){
@@ -1311,24 +1465,21 @@ function prefixOf(idx){
   return PREFIX_T3[idx - 46] || '未知';
 }
 
-/* ★ 按档位等概率随机取前缀：初级 30 选 1 / 中级 15 选 1 / 高级 5 选 1 */
 function randomPrefixOf(tier){
   const pool = tier <= 1 ? PREFIX_T1 : tier === 2 ? PREFIX_T2 : PREFIX_T3;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/* ★ 取部位名词（长剑/战甲/…），供随机前缀拼接名字 */
 function slotNoun(slotBase){
   const d = SLOT_DEFS.find(s => s.key === slotBase);
   return d ? d.noun : '装备';
 }
 
 
-/* 同档位内越靠后的种类越强（平滑递增，避免跳变） */
 function statMult(idx){
-  if (idx <= 30) return 1.00 + (idx - 1) / 29 * 0.45;   // 1.00 ~ 1.45
-  if (idx <= 45) return 2.40 + (idx - 31) / 14 * 0.90;  // 2.40 ~ 3.30
-  return 5.20 + (idx - 46) / 4 * 1.20;                  // 5.20 ~ 6.40
+  if (idx <= 30) return 1.00 + (idx - 1) / 29 * 0.45;
+  if (idx <= 45) return 2.40 + (idx - 31) / 14 * 0.90;
+  return 5.20 + (idx - 46) / 4 * 1.20;
 }
 
 function getDef(slotBase, idx){
@@ -1340,10 +1491,9 @@ function getDef(slotBase, idx){
   const mult = statMult(idx);
   const stats = {};
   for (const [st, v] of Object.entries(d.base)) stats[st] = +(v * mult).toFixed(4);
-  
+
 return ITEM_CACHE[k] = {
   key: k, slotBase, idx, tier,
-  /* ★ 由 idx 确定性生成，读档 / 刷新 / 缓存重建都不会变 */
   name: prefixOf(idx) + d.noun,
   stats,
   tierName: ['', '初级', '中级', '高级'][tier],
@@ -1359,7 +1509,6 @@ const AFFIX_POOL = [
   { id:'spd',      name:'迅捷', stat:'spd',      base:0.025, per:0.01,  pct:1, fmt:v => `移速 +${(v*100).toFixed(1)}%` },
   { id:'atkSpeed', name:'狂热', stat:'atkSpeed', base:0.035, per:0.012, pct:1, fmt:v => `攻速 +${(v*100).toFixed(1)}%` },
   { id:'def',      name:'守护', stat:'def',      base:2.5,   per:2,    fmt:v => `护甲 +${Math.round(v)}` },
-  /* ★ 新增词缀（对应属性总览中的各项） */
   { id:'pickup',   name:'磁力', stat:'pickupRange', base:0.04,  per:0.015, pct:1, fmt:v => `拾取范围 +${(v*100).toFixed(1)}%` },
   { id:'dmgMul',   name:'破坏', stat:'dmgMul',      base:0.03,  per:0.01,  pct:1, fmt:v => `伤害 +${(v*100).toFixed(1)}%` },
   { id:'skillDmgMul', name:'奥术', stat:'skillDmgMul', base:0.04, per:0.015, pct:1, fmt:v => `技能伤害 +${(v*100).toFixed(1)}%` },
@@ -1372,7 +1521,6 @@ const AFFIX_POOL = [
 
 function rollAffix(tier){
   const a = pick(AFFIX_POOL);
-  // 中级（tier2）开始使用基础值，每高一级增加一个 per
   const raw = (a.base + a.per * Math.max(0, tier - 2)) * rand(0.85, 1.15);
   const value = a.pct ? +raw.toFixed(4) : +raw.toFixed(2);
   return { id: a.id, name: a.name, stat: a.stat, value, text: a.fmt(value) };
@@ -1383,7 +1531,7 @@ function rollAffix(tier){
 function toRoman(n){
   n = Math.floor(n);
   if (n <= 0) return '';
-  if (n > 3999) return String(n);   // 超出常规罗马数字范围就用阿拉伯数字
+  if (n > 3999) return String(n);
   const map = [
     [1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],
     [100,'C'], [90,'XC'], [50,'L'], [40,'XL'],
@@ -1397,7 +1545,6 @@ function toRoman(n){
 }
 
 
-/* ★ 生成带随机词缀的实例装备（用于中级/高级掉落与合成） */
 function makeAffixedItem(slotBase, idx, numAffixes){
   idx = clamp(idx, 1, IDX_MAX); 
   const base = getDef(slotBase, idx);
@@ -1436,7 +1583,6 @@ function makeInstance(slotBase, tier, affixes, srcIdx){
   for (const k in statBase.stats)
     boosted[k] = +(statBase.stats[k] * tierBoost).toFixed(4);
 
-  /* ★ 由素材最强 idx 确定性生成，配合罗马数字区分合成等级 */
   const baseName = prefixOf(resolvedIdx) + slotNoun(slotBase);
 
   return {
@@ -1452,7 +1598,6 @@ function makeInstance(slotBase, tier, affixes, srcIdx){
   };
 }
 
-/* ★ 技能词缀不参与普通属性累加，单独由 computeStats 收集 */
 function itemStats(item){
   const s = { ...item.stats };
   if (item.affixes) for (const a of item.affixes){
@@ -1464,7 +1609,6 @@ function itemStats(item){
 
 function tierClass(t){ return t <= 1 ? 't1' : t === 2 ? 't2' : t === 3 ? 't3' : t === 4 ? 't4' : 't5'; }
 
-/* 装备评分（用于一键装备） */
 function itemScore(it){
   const s = itemStats(it);
   return (s.atk || 0) * 3
@@ -1488,8 +1632,6 @@ function itemScore(it){
 
 /* ============================================================
    4. 主动技能（共 50 种）
-   ------------------------------------------------------------
-   前 12 种为原生技能（独立实现），后 38 种由 cd() / cast() 驱动。
    ============================================================ */
 const SKILL_DEFS = [
   { id:'fireball', name:'火球术', ico:'🔥', max:6,
@@ -1553,9 +1695,9 @@ const SKILL_DEFS = [
       : `每 ${(3.2 - l * 0.3).toFixed(1)} 秒掷出战锤，往返各造成攻击力×${(0.9 + l * 0.5).toFixed(1)}` },
 ];
 
-/* ---------- 新增技能 13 - 50（统一由 cd() / cast() 驱动） ---------- */
+/* ---------- 新增技能 13 - 50 ---------- */
 const EXTRA_SKILLS = [
-  /* 13 */ { id:'icebolt', name:'冰锥术', ico:'🧊', max:6,
+  { id:'icebolt', name:'冰锥术', ico:'🧊', max:6,
     desc: l => l >= 6
       ? '每 0.5 秒射出 6 发巨型冰锥，穿透 3 次并冻结敌人（终极）'
       : `每 ${(2.2 - l * 0.24).toFixed(2)} 秒射出 ${1 + Math.floor(l / 2)} 发冰锥：攻击力×${(0.8 + l * 0.32).toFixed(1)}`,
@@ -1573,7 +1715,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 14 */ { id:'poisondart', name:'毒镖', ico:'🐍', max:6,
+  { id:'poisondart', name:'毒镖', ico:'🐍', max:6,
     desc: l => l >= 6
       ? '每 0.7 秒射出毒镖，命中处留下大范围剧毒池（终极）'
       : `每 ${(2.0 - l * 0.22).toFixed(2)} 秒射出毒镖：攻击力×${(0.7 + l * 0.3).toFixed(1)}，命中留下毒池`,
@@ -1595,7 +1737,7 @@ const EXTRA_SKILLS = [
       });
     } },
 
-  /* 15 */ { id:'bonespear', name:'骨矛', ico:'🦴', max:6,
+  { id:'bonespear', name:'骨矛', ico:'🦴', max:6,
     desc: l => l >= 6
       ? '每 0.9 秒射出巨型骨矛，无限穿透（终极）'
       : `每 ${(2.4 - l * 0.26).toFixed(2)} 秒射出骨矛，穿透 ${2 + l} 个敌人：攻击力×${(1.0 + l * 0.4).toFixed(1)}`,
@@ -1610,7 +1752,7 @@ const EXTRA_SKILLS = [
         pierce: ult ? 99 : 2 + l, hit:new Set() });
     } },
 
-  /* 16 */ { id:'holybolt', name:'圣光弹', ico:'✨', max:6,
+  { id:'holybolt', name:'圣光弹', ico:'✨', max:6,
     desc: l => l >= 6
       ? '每 0.55 秒射出 5 发圣光弹（终极）'
       : `每 ${(2.1 - l * 0.23).toFixed(2)} 秒射出 ${1 + Math.floor(l / 2)} 发圣光弹：攻击力×${(0.9 + l * 0.34).toFixed(1)}`,
@@ -1627,7 +1769,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 17 */ { id:'shadowarrow', name:'暗影箭', ico:'🌑', max:6,
+  { id:'shadowarrow', name:'暗影箭', ico:'🌑', max:6,
     desc: l => l >= 6
       ? '每 0.75 秒射出 3 支巨型暗影箭，穿透 2 次（终极）'
       : `每 ${(2.3 - l * 0.25).toFixed(2)} 秒射出暗影箭：攻击力×${(1.2 + l * 0.5).toFixed(1)}，穿透 1 次`,
@@ -1646,7 +1788,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 18 */ { id:'arcaneorb', name:'奥术球', ico:'🔮', max:6,
+  { id:'arcaneorb', name:'奥术球', ico:'🔮', max:6,
     desc: l => l >= 6
       ? `每 1.0 秒投掷巨型奥术球，爆炸半径 ×1.8（终极）`
       : `每 ${(2.6 - l * 0.28).toFixed(2)} 秒投掷奥术球：攻击力×${(1.0 + l * 0.4).toFixed(1)}，命中爆炸`,
@@ -1671,7 +1813,7 @@ const EXTRA_SKILLS = [
       });
     } },
 
-  /* 19 */ { id:'shotgun', name:'霰弹枪', ico:'💥', max:6,
+  { id:'shotgun', name:'霰弹枪', ico:'💥', max:6,
     desc: l => l >= 6
       ? '每 0.6 秒射出 12 发爆裂弹丸（终极）'
       : `每 ${(2.0 - l * 0.22).toFixed(2)} 秒射出 ${4 + l} 发弹丸：攻击力×${(0.35 + l * 0.15).toFixed(2)} 每发`,
@@ -1688,7 +1830,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 20 */ { id:'crossslash', name:'十字斩', ico:'✚', max:6,
+  { id:'crossslash', name:'十字斩', ico:'✚', max:6,
     desc: l => l >= 6
       ? '每 0.9 秒射出 16 道十字剑气（终极）'
       : `每 ${(2.5 - l * 0.27).toFixed(2)} 秒射出 4 道十字剑气：攻击力×${(0.9 + l * 0.35).toFixed(1)}`,
@@ -1709,7 +1851,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 21 */ { id:'spiral', name:'螺旋弹幕', ico:'🌀', max:6,
+  { id:'spiral', name:'螺旋弹幕', ico:'🌀', max:6,
     desc: l => l >= 6
       ? '每 0.8 秒射出 20 发螺旋弹幕（终极）'
       : `每 ${(2.4 - l * 0.26).toFixed(2)} 秒射出 ${6 + l * 2} 发螺旋弹幕：攻击力×${(0.45 + l * 0.2).toFixed(2)}`,
@@ -1725,7 +1867,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 22 */ { id:'boomerang', name:'回旋战轮', ico:'🪃', max:6,
+  { id:'boomerang', name:'回旋战轮', ico:'🪃', max:6,
     desc: l => l >= 6
       ? `每 1.2 秒掷出巨型战轮，往返 2 次造成攻击力×4.5（终极）`
       : `每 ${(2.8 - l * 0.28).toFixed(2)} 秒掷出战轮：往返各造成攻击力×${(1.0 + l * 0.45).toFixed(1)}`,
@@ -1741,7 +1883,7 @@ const EXTRA_SKILLS = [
         hit:new Set(), phase:'out', travel:0, maxDist:300 + l * 22 });
     } },
 
-  /* 23 */ { id:'burningground', name:'燃烧地面', ico:'🔥', max:6,
+  { id:'burningground', name:'燃烧地面', ico:'🔥', max:6,
     desc: l => l >= 6
       ? '每 1.4 秒在敌群脚下燃起大范围火海（终极）'
       : `每 ${(3.4 - l * 0.34).toFixed(1)} 秒在敌人脚下燃起火焰，每秒攻击力×${(0.5 + l * 0.22).toFixed(2)}`,
@@ -1755,7 +1897,7 @@ const EXTRA_SKILLS = [
         dmg: atk * (0.5 + l * 0.22), type:'fire', color:'#ff6b35' });
     } },
 
-  /* 24 */ { id:'frostfield', name:'冰霜领域', ico:'🌨️', max:6,
+  { id:'frostfield', name:'冰霜领域', ico:'🌨️', max:6,
     desc: l => l >= 6
       ? '每 1.6 秒制造巨大冰霜领域，持续减速并冻结（终极）'
       : `每 ${(3.6 - l * 0.34).toFixed(1)} 秒制造冰霜领域：每秒攻击力×${(0.45 + l * 0.2).toFixed(2)} 并减速`,
@@ -1769,7 +1911,7 @@ const EXTRA_SKILLS = [
         dmg: atk * (0.45 + l * 0.2), type:'ice', color:'#7fd8ff' });
     } },
 
-  /* 25 */ { id:'thunderstorm', name:'雷暴', ico:'⛈️', max:6,
+  { id:'thunderstorm', name:'雷暴', ico:'⛈️', max:6,
     desc: l => l >= 6
       ? '每 1.3 秒降下 10 道天雷轰击全场敌人（终极）'
       : `每 ${(3.2 - l * 0.3).toFixed(1)} 秒降下 ${2 + l} 道天雷：攻击力×${(0.8 + l * 0.35).toFixed(1)}`,
@@ -1789,7 +1931,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 26 */ { id:'holydomain', name:'圣光领域', ico:'🌟', max:6,
+  { id:'holydomain', name:'圣光领域', ico:'🌟', max:6,
     desc: l => l >= 6
       ? '每 1.8 秒展开圣光领域，伤害敌人并持续治疗自己（终极）'
       : `每 ${(4.0 - l * 0.36).toFixed(1)} 秒展开圣光领域：每秒攻击力×${(0.4 + l * 0.18).toFixed(2)}，治疗自身`,
@@ -1804,7 +1946,7 @@ const EXTRA_SKILLS = [
       P.hp = Math.min(P.stats.maxHp, P.hp + heal);
     } },
 
-  /* 27 */ { id:'voidrift', name:'虚空裂隙', ico:'🕳️', max:6,
+  { id:'voidrift', name:'虚空裂隙', ico:'🕳️', max:6,
     desc: l => l >= 6
       ? '每 1.6 秒撕开巨型虚空裂隙，持续吞噬敌人（终极）'
       : `每 ${(3.5 - l * 0.33).toFixed(1)} 秒撕开虚空裂隙：每秒攻击力×${(0.55 + l * 0.24).toFixed(2)}`,
@@ -1818,7 +1960,7 @@ const EXTRA_SKILLS = [
         dmg: atk * (0.55 + l * 0.24), type:'arcane', color:'#b47cff' });
     } },
 
-  /* 28 */ { id:'frostaura', name:'寒冰光环', ico:'🧊', max:6,
+  { id:'frostaura', name:'寒冰光环', ico:'🧊', max:6,
     desc: l => l >= 6
       ? '光环范围翻倍，每 0.4 秒造成攻击力×1.2 并强力减速（终极）'
       : `周身寒气：每 0.4 秒攻击力×${(0.2 + l * 0.1).toFixed(2)} 并减速`,
@@ -1832,7 +1974,7 @@ const EXTRA_SKILLS = [
       for (const e of list){ skillHit(e, dmg, 'ice'); e.slowT = Math.max(e.slowT, 0.6); }
     } },
 
-  /* 29 */ { id:'poisonaura', name:'毒雾光环', ico:'🟢', max:6,
+  { id:'poisonaura', name:'毒雾光环', ico:'🟢', max:6,
     desc: l => l >= 6
       ? '毒雾范围翻倍，每 0.4 秒攻击力×1.1（终极）'
       : `周身毒雾：每 0.4 秒攻击力×${(0.18 + l * 0.09).toFixed(2)}`,
@@ -1846,7 +1988,7 @@ const EXTRA_SKILLS = [
       for (const e of list) skillHit(e, dmg, 'poison');
     } },
 
-  /* 30 */ { id:'healamulet', name:'治愈之光', ico:'💚', max:6,
+  { id:'healamulet', name:'治愈之光', ico:'💚', max:6,
     desc: l => l >= 6
       ? '每 2.5 秒回复最大生命 22%，并对周围造成伤害（终极）'
       : `每 ${(5.0 - l * 0.45).toFixed(1)} 秒回复最大生命 ${(4 + l * 2)}%`,
@@ -1863,7 +2005,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 31 */ { id:'lightningaura', name:'闪电光环', ico:'⚡', max:6,
+  { id:'lightningaura', name:'闪电光环', ico:'⚡', max:6,
     desc: l => l >= 6
       ? '光环范围翻倍，每 0.35 秒造成攻击力×1.15（终极）'
       : `周身电光：每 0.35 秒攻击力×${(0.2 + l * 0.1).toFixed(2)}`,
@@ -1877,7 +2019,7 @@ const EXTRA_SKILLS = [
       for (const e of list) skillHit(e, dmg, 'lightning');
     } },
 
-  /* 32 */ { id:'thornaura', name:'荆棘光环', ico:'🌵', max:6,
+  { id:'thornaura', name:'荆棘光环', ico:'🌵', max:6,
     desc: l => l >= 6
       ? '光环范围翻倍，每 0.45 秒造成攻击力×1.4（终极）'
       : `周身荆棘：每 0.45 秒攻击力×${(0.24 + l * 0.12).toFixed(2)}`,
@@ -1891,7 +2033,7 @@ const EXTRA_SKILLS = [
       for (const e of list) skillHit(e, dmg, 'physical');
     } },
 
-  /* 33 */ { id:'lasersweep', name:'激光扫射', ico:'🔴', max:6,
+  { id:'lasersweep', name:'激光扫射', ico:'🔴', max:6,
     desc: l => l >= 6
       ? '每 0.8 秒扫射宽幅激光，攻击力×4.2（终极）'
       : `每 ${(2.4 - l * 0.26).toFixed(2)} 秒射出激光：攻击力×${(1.1 + l * 0.45).toFixed(1)}`,
@@ -1910,7 +2052,7 @@ const EXTRA_SKILLS = [
         w, life:0.28, maxLife:0.28, color:'#ff4d00' });
     } },
 
-  /* 34 */ { id:'starfall', name:'星辰坠落', ico:'🌟', max:6,
+  { id:'starfall', name:'星辰坠落', ico:'🌟', max:6,
     desc: l => l >= 6
       ? '每 1.5 秒召唤 5 颗星辰，攻击力×4.0（终极）'
       : `每 ${(3.6 - l * 0.32).toFixed(1)} 秒召唤 ${1 + Math.floor(l / 2)} 颗星辰：攻击力×${(1.5 + l * 0.55).toFixed(1)}`,
@@ -1932,7 +2074,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 35 */ { id:'lightlance', name:'光矛', ico:'🗡', max:6,
+  { id:'lightlance', name:'光矛', ico:'🗡', max:6,
     desc: l => l >= 6
       ? '每 1.1 秒投射巨型光矛，攻击力×6.0 贯穿全场（终极）'
       : `每 ${(3.0 - l * 0.3).toFixed(1)} 秒投射光矛：攻击力×${(1.8 + l * 0.7).toFixed(1)} 贯穿`,
@@ -1951,7 +2093,7 @@ const EXTRA_SKILLS = [
         w, life:0.3, maxLife:0.3, color:'#ffd700' });
     } },
 
-  /* 36 */ { id:'frozengrasp', name:'冰霜枷锁', ico:'🌨️', max:6,
+  { id:'frozengrasp', name:'冰霜枷锁', ico:'🌨️', max:6,
     desc: l => l >= 6
       ? '每 1.2 秒冻结全场 3 秒并造成攻击力×3.2（终极）'
       : `每 ${(4.5 - l * 0.45).toFixed(1)} 秒冻结周围敌人 ${(0.8 + l * 0.18).toFixed(1)} 秒：攻击力×${(0.8 + l * 0.3).toFixed(1)}`,
@@ -1969,7 +2111,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r:Math.min(r, 400), life:0.5, maxLife:0.5, color:'#7fd8ff' });
     } },
 
-  /* 37 */ { id:'lavafountain', name:'熔岩喷泉', ico:'🌋', max:6,
+  { id:'lavafountain', name:'熔岩喷泉', ico:'🌋', max:6,
     desc: l => l >= 6
       ? '每 1.5 秒在脚下喷发巨型熔岩池（终极）'
       : `每 ${(3.5 - l * 0.33).toFixed(1)} 秒在脚下喷发熔岩：每秒攻击力×${(0.6 + l * 0.26).toFixed(2)}`,
@@ -1982,7 +2124,7 @@ const EXTRA_SKILLS = [
         dmg: atk * (0.6 + l * 0.26), type:'fire', color:'#ff8b3d' });
     } },
 
-  /* 38 */ { id:'poisonnova', name:'剧毒新星', ico:'☣️', max:6,
+  { id:'poisonnova', name:'剧毒新星', ico:'☣️', max:6,
     desc: l => l >= 6
       ? '每 1.2 秒爆发巨型毒环，攻击力×3.4（终极）'
       : `每 ${(3.2 - l * 0.3).toFixed(1)} 秒爆发毒环：攻击力×${(0.9 + l * 0.36).toFixed(1)} 并扩散`,
@@ -1997,7 +2139,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.5, maxLife:0.5, color:'#8fe04a' });
     } },
 
-  /* 39 */ { id:'starstrike', name:'星火打击', ico:'✴️', max:6,
+  { id:'starstrike', name:'星火打击', ico:'✴️', max:6,
     desc: l => l >= 6
       ? '每 1.1 秒打击 9 个敌人，攻击力×4.2（终极）'
       : `每 ${(2.8 - l * 0.26).toFixed(1)} 秒打击 ${2 + l} 个敌人：攻击力×${(1.0 + l * 0.4).toFixed(1)}`,
@@ -2017,7 +2159,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 40 */ { id:'voidburst', name:'虚空爆发', ico:'💜', max:6,
+  { id:'voidburst', name:'虚空爆发', ico:'💜', max:6,
     desc: l => l >= 6
       ? '每 1.3 秒在 6 个敌人脚下引发虚空爆炸（终极）'
       : `每 ${(3.0 - l * 0.28).toFixed(1)} 秒在 ${2 + Math.floor(l / 2)} 个敌人处引发虚空爆炸：攻击力×${(1.2 + l * 0.45).toFixed(1)}`,
@@ -2039,7 +2181,7 @@ const EXTRA_SKILLS = [
       }
     } },
 
-  /* 41 */ { id:'icespike', name:'冰刺爆发', ico:'❄️', max:6,
+  { id:'icespike', name:'冰刺爆发', ico:'❄️', max:6,
     desc: l => l >= 6
       ? '每 1.0 秒从脚下爆发 24 根巨型冰刺（终极）'
       : `每 ${(2.6 - l * 0.25).toFixed(1)} 秒从脚下爆发冰刺：攻击力×${(0.8 + l * 0.34).toFixed(1)}`,
@@ -2054,7 +2196,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.45, maxLife:0.45, color:'#7fd8ff' });
     } },
 
-  /* 42 */ { id:'healingwave', name:'治疗波', ico:'💖', max:6,
+  { id:'healingwave', name:'治疗波', ico:'💖', max:6,
     desc: l => l >= 6
       ? '每 1.8 秒回复最大生命 18%，并造成攻击力×3.0 范围伤害（终极）'
       : `每 ${(4.6 - l * 0.42).toFixed(1)} 秒回复最大生命 ${(4 + l * 2)}%：攻击力×${(0.6 + l * 0.25).toFixed(1)} 范围伤害`,
@@ -2069,7 +2211,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.45, maxLife:0.45, color:'#7ee787' });
     } },
 
-  /* 43 */ { id:'bloodsiphon', name:'生命虹吸', ico:'🩸', max:6,
+  { id:'bloodsiphon', name:'生命虹吸', ico:'🩸', max:6,
     desc: l => l >= 6
       ? '每 1.1 秒吸取目标生命，攻击力×5.2 并大量回复（终极）'
       : `每 ${(2.6 - l * 0.24).toFixed(1)} 秒吸取目标生命：攻击力×${(1.6 + l * 0.6).toFixed(1)}，回复 25%`,
@@ -2084,7 +2226,7 @@ const EXTRA_SKILLS = [
         life:0.25, maxLife:0.25, color:'#e63946' });
     } },
 
-  /* 44 */ { id:'warcry', name:'战吼', ico:'📣', max:6,
+  { id:'warcry', name:'战吼', ico:'📣', max:6,
     desc: l => l >= 6
       ? '每 2.0 秒发出战吼：攻击力×4.0 范围伤害并回复生命（终极）'
       : `每 ${(4.4 - l * 0.4).toFixed(1)} 秒战吼：攻击力×${(0.9 + l * 0.4).toFixed(1)} 范围伤害`,
@@ -2099,7 +2241,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.4, maxLife:0.4, color:'#ff8b3d' });
     } },
 
-  /* 45 */ { id:'blackhole', name:'黑洞', ico:'⚫', max:6,
+  { id:'blackhole', name:'黑洞', ico:'⚫', max:6,
     desc: l => l >= 6
       ? '每 2.2 秒制造巨型黑洞，牵引并持续吞噬敌人（终极）'
       : `每 ${(4.8 - l * 0.42).toFixed(1)} 秒制造黑洞：牵引敌人并造成攻击力×${(1.2 + l * 0.5).toFixed(1)}`,
@@ -2128,7 +2270,7 @@ const EXTRA_SKILLS = [
         tickRate:0.4, tickAcc:0, dmg: dmg * 0.22, type:'arcane', color:'#b47cff' });
     } },
 
-  /* 46 */ { id:'timewarp', name:'时间扭曲', ico:'⏳', max:6,
+  { id:'timewarp', name:'时间扭曲', ico:'⏳', max:6,
     desc: l => l >= 6
       ? '每 2.0 秒让全场敌人陷入时间停滞 3.5 秒（终极）'
       : `每 ${(4.2 - l * 0.38).toFixed(1)} 秒扭曲时间：大范围敌人减速 ${(1.5 + l * 0.25).toFixed(1)} 秒`,
@@ -2147,7 +2289,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.6, maxLife:0.6, color:'#7fd8ff' });
     } },
 
-  /* 47 */ { id:'phantomstrike', name:'幻影突袭', ico:'👤', max:6,
+  { id:'phantomstrike', name:'幻影突袭', ico:'👤', max:6,
     desc: l => l >= 6
       ? '每 1.3 秒瞬移至目标并引爆幻影，攻击力×5.6（终极）'
       : `每 ${(3.0 - l * 0.28).toFixed(1)} 秒瞬移至最近敌人：攻击力×${(1.5 + l * 0.6).toFixed(1)} 范围伤害`,
@@ -2165,7 +2307,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.4, maxLife:0.4, color:'#b47cff' });
     } },
 
-  /* 48 */ { id:'deathray', name:'死亡射线', ico:'☠️', max:6,
+  { id:'deathray', name:'死亡射线', ico:'☠️', max:6,
     desc: l => l >= 6
       ? '每 1.2 秒射出巨型死亡射线，攻击力×7.5 贯穿全场（终极）'
       : `每 ${(3.4 - l * 0.32).toFixed(1)} 秒射出死亡射线：攻击力×${(2.2 + l * 0.8).toFixed(1)} 贯穿`,
@@ -2184,7 +2326,7 @@ const EXTRA_SKILLS = [
         w, life:0.35, maxLife:0.35, color:'#c800ff' });
     } },
 
-  /* 49 */ { id:'toxicexplosion', name:'毒爆', ico:'💣', max:6,
+  { id:'toxicexplosion', name:'毒爆', ico:'💣', max:6,
     desc: l => l >= 6
       ? '每 1.4 秒引爆超大范围毒爆，攻击力×4.4（终极）'
       : `每 ${(3.2 - l * 0.3).toFixed(1)} 秒引爆毒爆：攻击力×${(1.0 + l * 0.4).toFixed(1)} 并附加中毒`,
@@ -2202,7 +2344,7 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.45, maxLife:0.45, color:'#8fe04a' });
     } },
 
-  /* 50 */ { id:'soulsiphon', name:'灵魂虹吸', ico:'👻', max:6,
+  { id:'soulsiphon', name:'灵魂虹吸', ico:'👻', max:6,
     desc: l => l >= 6
       ? '每 1.5 秒抽取全场敌人灵魂，攻击力×4.8 并大量回血（终极）'
       : `每 ${(4.0 - l * 0.36).toFixed(1)} 秒抽取周围敌人灵魂：攻击力×${(1.0 + l * 0.4).toFixed(1)} 并回复生命`,
@@ -2267,12 +2409,6 @@ function rollSkillAffix(tier){
 
 /* ============================================================
    ★ 关卡技能抗性
-   ------------------------------------------------------------
-   11-20 关：随机 3 个技能抗性
-   21-30 关：随机 6 个
-   31-40 关：随机 9 个
-   …… 每 10 关 +3 个
-   每个抗性数值 20%~40%（乘算减伤）
    ============================================================ */
 function genSkillResist(level){
   const res = {};
@@ -2281,7 +2417,6 @@ function genSkillResist(level){
   if (n <= 0) return res;
 
   const ids = SKILL_DEFS.map(s => s.id);
-  /* Fisher–Yates 洗牌 */
   for (let i = ids.length - 1; i > 0; i--){
     const j = Math.floor(Math.random() * (i + 1));
     const t = ids[i]; ids[i] = ids[j]; ids[j] = t;
@@ -2294,11 +2429,8 @@ function genSkillResist(level){
 
 /* ============================================================
    4.5 永久属性增强（共 50 种）
-   ------------------------------------------------------------
-   每条增强拥有独立的 apply(st, n) 函数，n = 已叠加层数。
    ============================================================ */
 const ENHANCE_DEFS = [
-  /* --- 1-10 基础属性 --- */
   { id:'atk',      name:'力量增幅', ico:'⚔️', desc:'攻击力永久 +12%（可叠加）',
     apply:(st,n)=>{ st.atk *= 1 + n * 0.12; } },
   { id:'spd',      name:'疾风之靴', ico:'💨', desc:'移动速度永久 +10%（可叠加）',
@@ -2320,7 +2452,6 @@ const ENHANCE_DEFS = [
   { id:'regen',    name:'生命回复', ico:'🌿', desc:'每秒回复生命 +1.5（可叠加）',
     apply:(st,n)=>{ st.regen += n * 1.5; } },
 
-  /* --- 11-20 进阶属性 --- */
   { id:'lifesteal', name:'血之献祭', ico:'🩸', desc:'生命偷取永久 +1.5%（可叠加）',
     apply:(st,n)=>{ st.lifesteal += n * 0.015; } },
   { id:'thorns',   name:'荆棘之甲', ico:'🌵', desc:'反伤永久 +8%（可叠加）',
@@ -2342,7 +2473,6 @@ const ENHANCE_DEFS = [
   { id:'executioner', name:'斩杀专精', ico:'🗡️', desc:'攻击力 +10% · 暴击 +3%（每层）',
     apply:(st,n)=>{ st.atk *= 1 + n * 0.10; st.crit += n * 0.03; } },
 
-  /* --- 21-30 混合强化 --- */
   { id:'swifthunter', name:'迅影猎手', ico:'🏃', desc:'移速 +6% · 攻速 +6%（每层）',
     apply:(st,n)=>{ st.speed *= 1 + n * 0.06; st.atkSpeed *= 1 + n * 0.06; } },
   { id:'elemental', name:'元素亲和', ico:'🔥', desc:'技能伤害 +10% · 冷却 -4%（每层）',
@@ -2364,7 +2494,6 @@ const ENHANCE_DEFS = [
   { id:'shadowstep', name:'暗影步', ico:'🌑', desc:'移速 +10% · 暴击 +2%（每层）',
     apply:(st,n)=>{ st.speed *= 1 + n * 0.10; st.crit += n * 0.02; } },
 
-  /* --- 31-40 高阶强化 --- */
   { id:'might',    name:'巨力猛击', ico:'💪', desc:'攻击力永久 +18%（可叠加）',
     apply:(st,n)=>{ st.atk *= 1 + n * 0.18; } },
   { id:'reflex',   name:'超速反应', ico:'💫', desc:'攻击速度永久 +18%（可叠加）',
@@ -2386,7 +2515,6 @@ const ENHANCE_DEFS = [
   { id:'chaos',    name:'混沌之力', ico:'🌌', desc:'全部伤害永久 +15%（可叠加）',
     apply:(st,n)=>{ st.dmgMul *= 1 + n * 0.15; } },
 
-  /* --- 41-50 极致强化 --- */
   { id:'scholar',  name:'星空学者', ico:'🌟', desc:'经验获取永久 +18%（可叠加）',
     apply:(st,n)=>{ st.xpMul *= 1 + n * 0.18; } },
   { id:'barrage',  name:'弹幕大师', ico:'🎆', desc:'投射物 +1（每 3 层）· 全伤害 +4%（每层）',
@@ -2436,14 +2564,12 @@ const G = {
   bulletSpdMul: 1,
   pendingClear: 0,
 
-  /* ★ 关卡级技能抗性：{ skillId: 0.2~0.4 } */
   skillResist: {},
-  /* ★ 当前正在 cast 的技能 id（供 skillHit 默认取值） */
   curCastSkill: null,
 };
 
 let P = null;
-let bagTempPlayer = null;   /* 主菜单查看背包时的临时数据 */
+let bagTempPlayer = null;
 
 /* ============================================================
    6. 输入
@@ -2469,24 +2595,19 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
 /* ============================================================
    ★ 鼠标左键移动
-   ------------------------------------------------------------
-   · 按下左键 → 记录世界坐标目标点，人物朝它走
-   · 按住拖动 → 目标点实时跟随鼠标
-   · 松开左键 → 保留目标，走到后自然停下
-   · 键盘输入 → 自动取消鼠标寻路（键盘优先）
    ============================================================ */
 const mouseCtl = { down: false, active: false, tx: 0, ty: 0, sx: 0, sy: 0 };
 
 function updateMouseTarget(){
-  /* 屏幕坐标 → 世界坐标（相机左上角 + 屏幕位置） */
   mouseCtl.tx = mouseCtl.sx + G.cam.x;
   mouseCtl.ty = mouseCtl.sy + G.cam.y;
 }
 
 canvas.addEventListener('mousedown', ev => {
-  if (ev.button !== 0) return;            // 只响应左键
+  if (ev.button !== 0) return;
   if (G.state !== 'playing' || !P) return;
   ev.preventDefault();
   mouseCtl.down = true;
@@ -2496,7 +2617,6 @@ canvas.addEventListener('mousedown', ev => {
   updateMouseTarget();
 });
 
-/* 监听在 window 上：即使拖出 canvas 仍能跟随 */
 addEventListener('mousemove', ev => {
   mouseCtl.sx = ev.clientX;
   mouseCtl.sy = ev.clientY;
@@ -2506,16 +2626,66 @@ addEventListener('mousemove', ev => {
 addEventListener('mouseup', ev => {
   if (ev.button !== 0) return;
   mouseCtl.down = false;
-  /* active 保持：让人物继续走完到目标点的剩余路程 */
 });
+
 /* ============================================================
-   ★ 游戏加速
+   ★ 触屏虚拟摇杆
    ============================================================ */
+const touchCtl = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0, maxR: 62 };
+
+canvas.addEventListener('touchstart', ev => {
+  if (G.state !== 'playing' || !P) return;
+  ev.preventDefault();
+  const t = ev.changedTouches[0];
+  if (!t) return;
+  touchCtl.active = true;
+  touchCtl.id = t.identifier;
+  touchCtl.ox = t.clientX;
+  touchCtl.oy = t.clientY;
+  touchCtl.dx = 0;
+  touchCtl.dy = 0;
+  mouseCtl.down = false;
+  mouseCtl.active = false;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', ev => {
+  if (!touchCtl.active) return;
+  ev.preventDefault();
+  for (const t of ev.changedTouches){
+    if (t.identifier !== touchCtl.id) continue;
+    let dx = t.clientX - touchCtl.ox;
+    let dy = t.clientY - touchCtl.oy;
+    const len = Math.hypot(dx, dy);
+    const maxR = touchCtl.maxR;
+    if (len > maxR){
+      touchCtl.ox = t.clientX - dx / len * maxR;
+      touchCtl.oy = t.clientY - dy / len * maxR;
+      dx = dx / len * maxR;
+      dy = dy / len * maxR;
+    }
+    touchCtl.dx = dx;
+    touchCtl.dy = dy;
+  }
+}, { passive: false });
+
+function endTouch(ev){
+  for (const t of ev.changedTouches){
+    if (t.identifier === touchCtl.id){
+      touchCtl.active = false;
+      touchCtl.id = null;
+      touchCtl.dx = 0;
+      touchCtl.dy = 0;
+    }
+  }
+}
+canvas.addEventListener('touchend', endTouch);
+canvas.addEventListener('touchcancel', endTouch);
+
 /* ============================================================
    ★ 游戏加速（Q 减速 / E 加速 / T 循环切换）
    ============================================================ */
 const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
-let speedIdx = SPEED_STEPS.indexOf(1);   // 默认 ×1
+let speedIdx = SPEED_STEPS.indexOf(1);
 
 function setSpeed(idx){
   speedIdx = clamp(idx, 0, SPEED_STEPS.length - 1);
@@ -2528,14 +2698,10 @@ function setSpeed(idx){
   }
 }
 
-/* 单步减速 / 加速（到顶到底即停） */
 function speedDown(){ setSpeed(speedIdx - 1); }
 function speedUp(){   setSpeed(speedIdx + 1); }
-
-/* T 键：档位循环 */
 function cycleSpeed(){ setSpeed((speedIdx + 1) % SPEED_STEPS.length); }
 
-/* 点击按钮同样走循环切换 */
 setSpeed(speedIdx);
 
 /* ============================================================
@@ -2551,11 +2717,11 @@ function serializeItem(it){
       sb: it.slotBase,
       t:  it.tier,
       si: it.srcIdx || it.idx || IDX_MAX,
-      n:  it.name,                                   // ★ 保存名字
+      n:  it.name,
       a:  (it.affixes || []).map(x => ({ ...x })),
     };
   }
-  return { i: 0, sb: it.slotBase, idx: it.idx, n: it.name };  // ★ 初级也保存名字
+  return { i: 0, sb: it.slotBase, idx: it.idx, n: it.name };
 }
 
 function deserializeItem(d){
@@ -2563,11 +2729,11 @@ function deserializeItem(d){
   try {
     if (d.i){
       const it = makeInstance(d.sb, d.t, (d.a || []).map(x => ({ ...x })), d.si);
-      if (d.n) it.name = d.n;                        // ★ 恢复名字
+      if (d.n) it.name = d.n;
       return it;
     }
     const base = getDef(d.sb, d.idx);
-    return { ...base, name: d.n || base.name };      // ★ 返回副本，绝不污染缓存
+    return { ...base, name: d.n || base.name };
   } catch (e) { return null; }
 }
 
@@ -2589,6 +2755,7 @@ function ensureSave(){
   let d = loadSave();
   if (!d) d = { v: 2, cleared: 0, gear: { equip: {}, bag: [] }, run: null };
   if (!d.gear) d.gear = { equip: {}, bag: [] };
+  d.run = null; 
   return d;
 }
 
@@ -2619,26 +2786,7 @@ function saveCleared(level){
   writeSave(d);
 }
 
-function saveRun(){
-  if (!P) return;
-  const d = ensureSave();
-  d.gear = serializeGear();
-  d.run = {
-    level: G.level,
-    kills: G.kills,
-    timeLeft:  G.timeLeft,     // ★ 新增
-    levelTime: G.levelTime,    // ★ 新增（敌人子弹伤害成长计时）
-    skillResist: { ...G.skillResist },  // ★ 关卡技能抗性
-    player: {
-      level: P.level,
-      xp: P.xp,
-      hp: P.hp,
-      skills: { ...P.skills },
-      enhance: { ...(P.enhance || {}) },
-    }
-  };
-  writeSave(d);
-}
+
 
 function getCleared(){
   const d = loadSave();
@@ -2685,7 +2833,6 @@ function createPlayer(){
   return p;
 }
 
-/* ★ 角色基线属性（无装备、无永久增强） */
 const STAT_BASE = {
   maxHp: 100, atk: 10, atkSpeed: 1.3, speed: 175,
   crit: 0.05, critDmg: 1.5, armor: 0, lifesteal: 0, thorns: 0,
@@ -2693,8 +2840,6 @@ const STAT_BASE = {
   skillDmgMul: 1, cdMul: 1, xpMul: 1,
 };
 
-/* ★ 通用属性计算：可传入任意 { equip, enhance } 组合
-   —— 全局玩家与背包临时角色共用同一套算法 */
 function calcStatsFor(pl){
   const st = { ...STAT_BASE, skillBonus: {} };
   if (!pl) return st;
@@ -2712,7 +2857,6 @@ function calcStatsFor(pl){
     
     st.speed    *= (1 + (s.spd || 0));
     st.atkSpeed *= (1 + (s.atkSpeed || 0));
-    /* ★ 新增词缀影响 */
     st.pickupRange *= (1 + (s.pickupRange || 0));
     st.dmgMul      *= (1 + (s.dmgMul || 0));
     st.skillDmgMul *= (1 + (s.skillDmgMul || 0));
@@ -2722,7 +2866,6 @@ function calcStatsFor(pl){
     st.thorns      += (s.thorns || 0);
     st.regen       += (s.regen || 0);
 
-    /* 技能强化词缀 */
     if (it.affixes){
       for (const a of it.affixes){
         if (!a.skillId) continue;
@@ -2731,7 +2874,6 @@ function calcStatsFor(pl){
     }
   }
 
-  /* 永久属性增强 */
   const enh = pl.enhance || {};
   for (const d of ENHANCE_DEFS){
     const n = enh[d.id] || 0;
@@ -2764,7 +2906,6 @@ function addItemRawTo(pl, item, n = 1){
   pl.bag[item.key].count += n;
 }
 
-/* 把 bagTempPlayer 的装备写回存档（只改 gear，不动 run/cleared） */
 function saveBagTempGear(){
   if (!bagTempPlayer) return;
   const d = ensureSave();
@@ -2780,7 +2921,6 @@ function saveBagTempGear(){
   writeSave(d);
 }
 
-/* 装备变动后的统一收尾 */
 function afterBagChange(pl){
   if (pl === P){
     computeStats();
@@ -2793,7 +2933,6 @@ function afterBagChange(pl){
   renderBag();
 }
 
-/* 兼容旧签名：原有 addItemRaw(item, n) 的调用全部继续指向 P */
 function addItemRaw(item, n = 1){
   addItemRawTo(P, item, n);
 }
@@ -2847,18 +2986,13 @@ function doCombineRaw(pl, group){
   let result;
 
   if (t < 3){
-    /* ★ 初级合成 → 随机一件中级（1 条词缀）
-       中级合成 → 随机一件高级（2 条词缀） */
     const idx = t === 1 ? randi(31, 45) : randi(46, 50);
     result = makeAffixedItem(group.slotBase, idx, tierOf(idx) - 1);
   } else {
     const newTier = t + 1;
-    /* ★ 普通词缀数量 = 等级 - 1（4级3条，5级4条…） */
     const normalCount = newTier - 1;
-    /* 技能词缀数量保持不变（4级1条，5级2条…） */
     const skillCount = Math.max(0, newTier - 3);
 
-    /* ---- 收集可继承的普通词缀 ---- */
     const inheritedNormal = [];
     for (const it of consumed){
       if (!it.affixes) continue;
@@ -2877,7 +3011,6 @@ function doCombineRaw(pl, group){
       if (!normalAffixes.some(a => a.id === na.id)) normalAffixes.push(na);
     }
 
-    /* ---- 收集可继承的技能词缀 ---- */
     const inheritedSkill = [];
     for (const it of consumed){
       if (!it.affixes) continue;
@@ -2897,7 +3030,6 @@ function doCombineRaw(pl, group){
     }
     if (skillAffixes.length > skillCount) skillAffixes.length = skillCount;
 
-    /* 取素材里最强的那件的前缀（idx 越大越强；instance 的 idx 记为 IDX_MAX） */
     const maxIdx = Math.max(...consumed.map(it => it.srcIdx || it.idx || IDX_MAX));
     const topList = consumed.filter(it => (it.srcIdx || it.idx || IDX_MAX) === maxIdx);
     const pickIt = topList[Math.floor(Math.random() * topList.length)];
@@ -2928,7 +3060,6 @@ function equipFromBag(bagKey, pl){
   const item = entry.item;
   const base = item.slotBase;
 
-  /* ★ 圣物与主武器/副手不再互斥，可同时佩戴，属性全部生效 */
   const candidates = EQUIP_SLOTS.filter(s => slotBaseOf(s) === base);
   const target = candidates.find(s => !pl.equip[s]) || candidates[0];
 
@@ -2985,7 +3116,6 @@ function autoEquip(pl){
   if (rings[0]){ pl.equip.ring1 = rings[0]; take(rings[0]); }
   if (rings[1]){ pl.equip.ring2 = rings[1]; take(rings[1]); }
 
-  /* ★ 主武器 / 副手 / 圣物 全部装齐，不再二选一 */
   const mh = (byBase.mainhand || [])[0];
   const oh = (byBase.offhand || [])[0];
   const th = (byBase.twohand || [])[0];
@@ -3033,11 +3163,13 @@ function startLevel(n){
   G.endlessT = 0;
   G.endlessWave = 0;
   G.endlessBoss = 0;
-  /* ★ 生成本关怪物技能抗性 */
   G.skillResist = genSkillResist(n);
   G.state = 'playing';
   mouseCtl.down = false;
   mouseCtl.active = false;
+  touchCtl.active = false;
+  touchCtl.id = null;
+  touchCtl.dx = 0; touchCtl.dy = 0;
   updateHUD();
 }
 
@@ -3049,7 +3181,6 @@ function startEndless(){
   G.endlessT = 0;
   G.endlessWave = 0;
   G.endlessBoss = 0;
-  /* ★ 无尽模式沿用 100 关的 27 个技能抗性 */
   G.skillResist = genSkillResist(MAX_LEVEL);
   G.state = 'playing';
   document.getElementById('clearpanel').classList.add('hidden');
@@ -3070,8 +3201,7 @@ function spawnBoss(level, index){
   const sc = levelScaling(level);                       
   const waveMul = G.endless ? endlessScale().hp : 1;
   const hp = (200 + level * 60) * sc.hp * (index === 0 ? 1 : 1.6) * 100 * waveMul; 
-  const dmg = (8 + level * 20) * sc.dmg * (index === 0 ? 1 : 1.3) * (G.endless ? 1 + G.endlessWave * 0.12 : 1); //伤害 
-  /* ★ 弹道尺寸：随关卡增长（1关=8 → 100关≈22） */
+  const dmg = (8 + level * 20) * sc.dmg * (index === 0 ? 1 : 1.3) * (G.endless ? 1 + G.endlessWave * 0.12 : 1);
   const sizeLv = G.endless ? MAX_LEVEL + G.endlessWave * 3 : level;
   const bulletSize = Math.min(24, 8 + (sizeLv - 1) * 0.14);
   const e = {
@@ -3100,7 +3230,7 @@ function spawnEnemy(){
   const ang = rand(0, Math.PI * 2);
   const d = rand(480, 660);
 
-  const sc = levelScaling(lv);                          // ★ 指数级成长
+  const sc = levelScaling(lv);
   const wave = G.endless ? G.endlessWave : 0;
   const hpScale  = sc.hp  * (1 + wave * 0.35);
   const dmgScale = sc.dmg * (1 + wave * 0.15);
@@ -3195,7 +3325,6 @@ function damageEnemy(e, dmg, type, isCrit){
   }
 }
 
-/* ★ 技能命中：第四参数为技能 id，用于查询本关怪物抗性 */
 function skillHit(e, dmg, type, skillId){
   if (!e || e.hp <= 0) return;
   const sid = skillId || G.curCastSkill;
@@ -3262,7 +3391,6 @@ function updateSkills(dt){
   const L = id => P.skills[id] || 0;
   const baseAtk = P.stats.atk * P.stats.skillDmgMul;
   const sb = P.stats.skillBonus || {};
-  /* ★ 单个技能的攻击力（含装备技能强化词缀） */
   const ATK = id => baseAtk * (1 + (sb.all || 0) + (sb[id] || 0));
   const CD = v => v * P.stats.cdMul;
   for (const k in P.cd) if (P.cd[k] > 0) P.cd[k] -= dt;
@@ -3562,12 +3690,11 @@ function updateSkills(dt){
     }
   }
 
-  /* ★ 新增技能通用派发（13-50 号，由 cd() / cast() 驱动） */
+  /* ★ 新增技能通用派发 */
   for (const s of SKILL_DEFS){
     if (!s.cast) continue;
     const lv = L(s.id);
     if (lv <= 0 || P.cd[s.id] > 0) continue;
-    /* 为同步调用 skillHit 提供默认技能 id；H.bullet / H.effect 也会自动写入 */
     G.curCastSkill = s.id;
     const ok = s.cast(lv, ATK(s.id), SKILL_HELPERS);
     G.curCastSkill = null;
@@ -3603,7 +3730,6 @@ function finishChoice(){
   updateHUD();
 }
 
-/* ★ 应用一项永久增强（自动 / 手动共用） */
 function applyEnhance(e){
   const oldMax = P.stats.maxHp;
   if (!P.enhance) P.enhance = {};
@@ -3618,7 +3744,6 @@ function applyEnhance(e){
 function makeEnhanceCard(e){
   const cur = (P.enhance && P.enhance[e.id]) || 0;
 
-  /* ★ 计算「选择前 vs 选择后」的关键属性变化 */
   const before = P.stats || calcStatsFor(P);
   const tempEnh = { ...(P.enhance || {}), [e.id]: cur + 1 };
   const after = calcStatsFor({ equip: P.equip || {}, enhance: tempEnh });
@@ -3688,7 +3813,6 @@ function showLevelUp(){
     pool.push(s);
   }
 
-  /* ★ 50 种技能时，已拥有的技能权重更高，避免难以升级 */
   const weighted = [];
   for (const s of pool){
     const lv = P.skills[s.id] || 0;
@@ -3706,7 +3830,6 @@ function showLevelUp(){
     skillOpts.push(s);
   }
 
-  /* ★ 5 个技能全部满级后：永久属性加成自动随机选取，不再弹窗 */
   if (skillOpts.length === 0){
     const e = pick(ENHANCE_DEFS);
     applyEnhance(e);
@@ -3738,7 +3861,6 @@ function showLevelUp(){
     }
   }
 
-    /* ★ 装备技能词缀加成（供技能卡牌显示） */
   const sbMap = (P.stats && P.stats.skillBonus) || {};
   const allBonus = sbMap.all || 0;
 
@@ -3748,7 +3870,6 @@ function showLevelUp(){
     const isUlt = next >= 6;
     const isNew = cur === 0;
 
-    /* ★ 该技能已从装备词缀获得的加成 */
     const skBonus = sbMap[s.id] || 0;
     let bonusHtml = '';
     if (skBonus > 0 || allBonus > 0){
@@ -3758,7 +3879,6 @@ function showLevelUp(){
       bonusHtml = `<div class="card-bonus">⚡ 装备加成：${parts.join(' · ')}</div>`;
     }
 
-    /* ★ 本关怪物抗性提示 */
     const resistVal = (G.skillResist && G.skillResist[s.id]) || 0;
     const resistHtml = resistVal > 0
       ? `<div class="card-warn">⚠ 本关怪物抗性：${s.name}伤害 -${(resistVal * 100).toFixed(0)}%</div>`
@@ -3786,7 +3906,6 @@ function showLevelUp(){
     box.appendChild(makeEnhanceCard(e));
   }
 
-  /* ★ 随机选择按钮（后期升级次数多时方便快速处理） */
   const rndBtn = document.getElementById('lvlRandomBtn');
   if (rndBtn){
     rndBtn.textContent = G.pendingLevelUps > 1
@@ -3847,7 +3966,6 @@ function update(dt){
     /* 移动 */
   let mx = 0, my = 0;
 
-  /* --- 键盘方向 --- */
   let kmx = 0, kmy = 0;
   if (keys['a'] || keys['arrowleft'])  kmx -= 1;
   if (keys['d'] || keys['arrowright']) kmx += 1;
@@ -3857,14 +3975,20 @@ function update(dt){
 
   if (hasKeyInput){
     mx = kmx; my = kmy;
-    mouseCtl.active = false;            // ★ 键盘操作优先，打断鼠标寻路
+    mouseCtl.active = false;
+  } else if (touchCtl.active){
+    const tl = Math.hypot(touchCtl.dx, touchCtl.dy);
+    if (tl > 8){
+      mx = touchCtl.dx / tl;
+      my = touchCtl.dy / tl;
+    }
+    mouseCtl.active = false;
   } else if (mouseCtl.active){
-    /* --- 鼠标寻路 --- */
     const dxm = mouseCtl.tx - P.x;
     const dym = mouseCtl.ty - P.y;
     const dm  = Math.hypot(dxm, dym);
     if (dm < 6){
-      mouseCtl.active = false;          // ★ 已抵达目标点
+      mouseCtl.active = false;
     } else {
       mx = dxm / dm;
       my = dym / dm;
@@ -3902,7 +4026,6 @@ function update(dt){
   /* 刷怪 */
   {
     const effLv = G.endless ? MAX_LEVEL + G.endlessWave * 0.25 : G.level;
-    /* ★ 敌人数量 ÷5 */
     const rate = Math.min(14, (0.9 + effLv * 0.42) * 2) * (G.bosses.length ? 0.45 : 1);
     const cap  = G.bosses.length ? 120 : 440;
     G.spawnTimer -= dt;
@@ -3930,16 +4053,13 @@ function update(dt){
       const spd = e.spd * (hpRatio < 0.5 ? 1.45 : 1) * spdMul;
       if (dd > 130){ e.x += (dx / dd) * spd * dt; e.y += (dy / dd) * spd * dt; }
       if (e.atkCd <= 0){
-  /* ★ 攻击频率随关卡提高（1关≈1.79s → 100关≈0.6s，残血再 ×0.65） */
   const effLv = G.endless ? MAX_LEVEL + G.endlessWave * 2 : G.level;
   const baseCd = Math.max(0.45, 1.8 - effLv * 0.012);
   e.atkCd = hpRatio < 0.5 ? Math.max(0.3, baseCd * 0.65) : baseCd;
 
-  /* ★ 随机选择 9 种攻击之一 */
   const mode = pick(BOSS_ATTACKS);
   mode.fn(e, e.dmg * enemyBulletDmgMul(), G.bulletSpdMul, e.bulletSize, hpRatio);
 
-  /* 攻击时的可视脉冲 */
   G.effects.push({
     kind:'ring', x:e.x, y:e.y, r:e.r + 22,
     life: 0.25, maxLife: 0.25, color: e.color,
@@ -3955,7 +4075,7 @@ function update(dt){
           x: e.x, y: e.y,
           vx: Math.cos(a) * 235 * G.bulletSpdMul,
           vy: Math.sin(a) * 235 * G.bulletSpdMul,
-          r: 7, dmg: e.dmg * 0.7 * enemyBulletDmgMul(),    // ★ 乘成长因子
+          r: 7, dmg: e.dmg * 0.7 * enemyBulletDmgMul(),
           type: e.type, life: 3.5,
         });
       }
@@ -4045,7 +4165,6 @@ function update(dt){
 
           const isCrit = Math.random() < P.stats.crit;
           let finalDmg = b.dmg * (isCrit ? P.stats.critDmg : 1);
-          /* ★ 技能子弹受本关怪物技能抗性影响 */
           if (b.skillId && G.skillResist && G.skillResist[b.skillId] > 0){
             finalDmg *= (1 - G.skillResist[b.skillId]);
           }
@@ -4053,7 +4172,6 @@ function update(dt){
 
           if (b.slow) e.slowT = Math.max(e.slowT, 1.2);
 
-          /* ★ 通用命中回调（毒镖等） */
           if (b.onHit) b.onHit(e);
 
           if (b.kind === 'hammer') continue;
@@ -4072,8 +4190,7 @@ function update(dt){
   /* 敌人子弹 */
   for (let i = G.eBullets.length - 1; i >= 0; i--){
     const b = G.eBullets[i];
-      /* ★ 追踪弹转向 */
-  if (b.homing){
+      if (b.homing){
     const want = Math.atan2(P.y - b.y, P.x - b.x);
     const curA = Math.atan2(b.vy, b.vx);
     let diff = want - curA;
@@ -4155,7 +4272,6 @@ function update(dt){
   G.shake = Math.max(0, G.shake - dt * 34);
   updateHUD();
 
-  /* ★ BOSS 全灭后延迟结算（升级界面期间 update 不跑，计时器自动冻结） */
   if (G.pendingClear > 0){
     G.pendingClear -= dt;
     if (G.pendingClear <= 0){
@@ -4243,8 +4359,6 @@ function killEnemy(e, idx){
         life: rand(0.4, 1.1), color: e.color, r: rand(2, 6),
       });
     }
-    /* ★ 第二个 BOSS 阵亡 → 交给 update 里的 pendingClear 延迟结算，
-   避免升级界面（state='levelup'）导致结算丢失 */
 if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
   G.pendingClear = 0.9;
 }
@@ -4257,7 +4371,6 @@ if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
       });
     }
 
-    /* ★ 血包概率下调（1.5%），磁铁 2% */
     const roll = Math.random();
     if (roll < 0.020){
       G.drops.push({ kind:'magnet', x: e.x, y: e.y, life: 18 });
@@ -4280,7 +4393,6 @@ if (!G.endless && G.bossSpawned >= 2 && G.bosses.length === 0){
   }
 }
 
-/* ★ 关卡掉落：初级 idx 1~30 / 中级 idx 31~45 / 高级 idx 46~50 */
 function rollLevelClearItem(level){
   const d = pick(SLOT_DEFS);
   const r = Math.random();
@@ -4295,13 +4407,9 @@ function rollLevelClearItem(level){
   if (tier >= 2){
     return makeAffixedItem(d.key, idx, tier - 1);
   }
-  /* ★ 初级：属性仍由 idx 决定；名字用随机前缀副本，key 不变 → 仍可堆叠、仍可合成 */
   const base = getDef(d.key, idx);
   return { ...base};
 }
-/* ★ 通关掉落数量：随关卡线性增长
-   第 1 关 10~20 件，之后每关递增（最少 +0.6 件 / 最多 +1.0 件）
-   例：第 1 关 10~20、第 30 关 27~49、第 60 关 45~79、第 100 关 69~119 */
 const LOOT_BASE_MIN = 10;
 const LOOT_BASE_MAX = 20;
 const LOOT_GROW_MIN = 0.6;
@@ -4321,18 +4429,15 @@ function levelClear(){
   mouseCtl.down = false;
   mouseCtl.active = false;
 
-  /* ★ 只记录本次掉落的装备（不再展示整个背包） */
-    /* ★ 只记录本次掉落的装备（不再展示整个背包） */
   const dropped = [];
-  const lootCount = lootCountForLevel(G.level);   // ★ 随关卡线性增长
+  const lootCount = lootCountForLevel(G.level);
   for (let i = 0; i < lootCount; i++){
     const it = rollLevelClearItem(G.level);
     dropped.push(it);
-    addItemRawTo(P, it, 1);    // ★ 先全部入包
+    addItemRawTo(P, it, 1);
   }
-  autoCombineAll(P);           // ★ 最后统一合成一次（数量多时性能更好）
+  autoCombineAll(P);
 
-  /* 按种类合并计数，稀有度高的排前面 */
   const grouped = {};
   for (const it of dropped){
     if (!grouped[it.key]) grouped[it.key] = { item: it, count: 0 };
@@ -4397,13 +4502,12 @@ function gameOver(win){
   mouseCtl.down = false;
   mouseCtl.active = false;
 
-  /* ★ 中途阵亡也掉落装备：按存活时间比例（最多 5 分钟），数量减半 */
   let lootCount = 0;
   let survived = 0;
   if (!win && P){
     survived = Math.min(300, Math.floor(G.levelTime || 0));
     const ratio = clamp(survived / 300, 0, 1);
-    lootCount = Math.floor(lootCountForLevel(G.level) * 0.5 * ratio);  // ★ 线性基数
+    lootCount = Math.floor(lootCountForLevel(G.level) * 0.5 * ratio);
     for (let i = 0; i < lootCount; i++){
       addItemRawTo(P, rollLevelClearItem(G.level), 1);
     }
@@ -4441,8 +4545,12 @@ function pauseGame(){
   G.state = 'paused';
   mouseCtl.down = false;
   mouseCtl.active = false;
+  touchCtl.active = false;
+  touchCtl.id = null;
+  touchCtl.dx = 0; touchCtl.dy = 0;
   hideSkillTip();
   hideItemTip();
+  updateMobileBtns();
   document.getElementById('pausepanel').classList.remove('hidden');
 }
 
@@ -4450,6 +4558,7 @@ function resumeGame(){
   if (G.state !== 'paused') return;
   G.state = 'playing';
   document.getElementById('pausepanel').classList.add('hidden');
+  updateMobileBtns();
 }
 
 /* ============================================================
@@ -4466,18 +4575,9 @@ function backToMenu(){
 
 function refreshMenu(){
   const d = loadSave();
-  const contBtn = document.getElementById('continueBtn');
   const tip = document.getElementById('saveTip');
-
-  if (d && d.run){
-    contBtn.classList.remove('hidden');
-    contBtn.textContent = `继 续 冒 险（第 ${d.run.level} 关 · Lv.${d.run.player.level}）`;
-    tip.textContent = `💾 有未完成的冒险 · 已通关 ${d.cleared || 0} / ${MAX_LEVEL} 关`;
-  } else {
-    contBtn.classList.add('hidden');
-    if (d && d.cleared) tip.textContent = `💾 已通关 ${d.cleared} / ${MAX_LEVEL} 关 · 可继续挑战更高关卡`;
-    else tip.textContent = '';
-  }
+  if (d && d.cleared) tip.textContent = `💾 已通关 ${d.cleared} / ${MAX_LEVEL} 关 · 可继续挑战更高关卡`;
+  else tip.textContent = '';
 }
 
 function openLevelSelect(){
@@ -4503,7 +4603,6 @@ function renderLevelSelect(){
     const power  = unlocked ? ` · 强度 ×${fmtNum(levelScaling(i).hp)}` : '';
     btn.innerHTML = `第 ${i} 关<span class="lvb-lv">${status}${power}</span>`;
 
-    /* ★ 每关按钮使用对应主题的底色，一眼看出关卡风貌 */
     const th = getBgThemeForLevel(i);
     btn.style.background =
       `linear-gradient(155deg, ${th.top} 0%, ${th.mid} 68%, ${th.bot} 100%)`;
@@ -4542,50 +4641,7 @@ function startNewRun(level){
   updateHUD();
 }
 
-function continueRun(){
-  const d = loadSave();
-  if (!d || !d.run){ startNewRun(1); return; }
-  const r = d.run;
 
-  document.getElementById('menu').classList.add('hidden');
-  document.getElementById('levelselect').classList.add('hidden');
-
-  P = createPlayer();
-  G.kills = r.kills || 0;
-  G.time = 0;
-  G.pendingLevelUps = 0;
-  G.cam.x = 0; G.cam.y = 0;
-
-  loadGearIntoPlayer();
-
-  P.level = Math.max(1, r.player.level || 1);
-  P.xp = Math.max(0, r.player.xp || 0);
-  P.xpNext = xpNeeded(P.level);
-  P.skills = {};
-  for (const s of SKILL_DEFS){
-    const v = (r.player.skills && r.player.skills[s.id]) || 0;
-    if (v > 0) P.skills[s.id] = v;
-  }
-  P.enhance = { ...(r.player.enhance || {}) };
-
-  computeStats();
-  P.hp = clamp(r.player.hp || P.stats.maxHp, 1, P.stats.maxHp);
-
-  startLevel(Math.min(MAX_LEVEL, r.level || 1));
-
-  /* ★ 恢复关卡内计时，而不是从 5:00 重来 */
-  if (typeof r.timeLeft === 'number')  G.timeLeft  = clamp(r.timeLeft, 0, 300);
-  if (typeof r.levelTime === 'number') G.levelTime = Math.max(0, r.levelTime);
-
-  /* ★ 恢复关卡技能抗性（存档中不存在则重新生成） */
-  if (r.skillResist && typeof r.skillResist === 'object'){
-    G.skillResist = { ...r.skillResist };
-  } else {
-    G.skillResist = genSkillResist(Math.min(MAX_LEVEL, r.level || 1));
-  }
-
-  updateHUD();
-}
 
 function startEndlessFromMenu(){
   document.getElementById('levelselect').classList.add('hidden');
@@ -4607,7 +4663,6 @@ function startEndlessFromMenu(){
 /* ============================================================
    14. 渲染
    ============================================================ */
-/* ★ 子弹颜色表（按伤害类型） */
 const BULLET_STYLE = {
   physical: ['#e8e8f0','#9d8bff'],
   fire:     ['#ffb066','#ff6b35'],
@@ -4621,25 +4676,22 @@ const BULLET_STYLE = {
   true:     ['#ffffff','#ffffff'],
 };
 
-/* ★ 人物绘制（Emoji 形象 + 可编辑光效配色） */
 function drawAvatarOn(g, inv, moving, walkPhase, facing, t){
   const S = charStyle;
   const R = 15;
   const bob = moving ? Math.sin(walkPhase) * 2 : Math.sin(t * 2) * 1.2;
   const sway = moving ? Math.sin(walkPhase) * 0.10 : 0;
   const glowCol = inv ? '#ff6b6b' : (S.glow || '#7c5cff');
-  const baseCol = inv ? '#ff8a8a' : shadeColor(glowCol, 0.62);   // 底盘柔光跟随光效
+  const baseCol = inv ? '#ff8a8a' : shadeColor(glowCol, 0.62);
   const emoji   = S.emoji || '🧙';
 
   g.save();
 
-  /* 影子 */
   g.fillStyle = 'rgba(0,0,0,0.38)';
   g.beginPath();
   g.ellipse(0, R * 0.95, R * 0.82, R * 0.4, 0, 0, Math.PI * 2);
   g.fill();
 
-  /* 地面光环 */
   g.save();
   g.shadowBlur = inv ? 22 : 14;
   g.shadowColor = glowCol;
@@ -4653,7 +4705,6 @@ function drawAvatarOn(g, inv, moving, walkPhase, facing, t){
 
   g.translate(0, bob);
 
-  /* 柔和底盘光晕 */
   const grd = g.createRadialGradient(0, 0, 2, 0, 0, R * 1.5);
   grd.addColorStop(0,    hexA(baseCol, 0.55));
   grd.addColorStop(0.55, hexA(glowCol, 0.22));
@@ -4663,7 +4714,6 @@ function drawAvatarOn(g, inv, moving, walkPhase, facing, t){
   g.arc(0, 0, R * 1.5, 0, Math.PI * 2);
   g.fill();
 
-  /* Emoji 本体 */
   g.save();
   g.rotate(sway);
   g.shadowBlur = inv ? 18 : 10;
@@ -4677,15 +4727,11 @@ function drawAvatarOn(g, inv, moving, walkPhase, facing, t){
   g.restore();
 }
 
-/* ============================================================
-   ★ 关卡背景绘制
-   ============================================================ */
 function drawBackground(){
   const th = getBgTheme();
   const t = performance.now() / 1000;
   const cam = G.cam || { x: 0, y: 0 };
 
-  /* ---------- 天空 / 地面渐变 ---------- */
   const sky = ctx.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0,    th.top);
   sky.addColorStop(0.55, th.mid);
@@ -4693,7 +4739,6 @@ function drawBackground(){
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
-  /* ---------- 远景雾霭光晕（视差） ---------- */
   const pOffX = (cam.x * 0.05) % (W * 0.5);
   const pOffY = (cam.y * 0.05) % (H * 0.5);
   const blobs = [
@@ -4713,7 +4758,6 @@ function drawBackground(){
     ctx.fillRect(0, 0, W, H);
   }
 
-  /* ---------- 氛围粒子 ---------- */
   const cfg = BG_DUST_CFG[th.dust] || BG_DUST_CFG.star;
   const N = 64;
   ctx.save();
@@ -4751,7 +4795,6 @@ function drawBackground(){
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  /* ---------- 暗角 ---------- */
   const vg = ctx.createRadialGradient(
     W / 2, H / 2, Math.min(W, H) * 0.32,
     W / 2, H / 2, Math.max(W, H) * 0.80);
@@ -4760,7 +4803,6 @@ function drawBackground(){
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 
-  /* ---------- BOSS 战氛围 ---------- */
   if (G.bosses && G.bosses.length &&
       (G.state === 'playing' || G.state === 'paused' || G.state === 'levelup')){
     const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
@@ -4845,7 +4887,6 @@ function render(){
     ctx.fill();
     ctx.shadowBlur = 0;
   }
-  /* ★ 鼠标移动目标指示器（世界坐标，脉动圆环） */
   if (mouseCtl.active && G.state === 'playing'){
     const pulse = 0.5 + 0.5 * Math.sin(G.time * 6);
     ctx.save();
@@ -5052,6 +5093,34 @@ function render(){
   ctx.globalAlpha = 1;
 
   ctx.restore();
+
+  /* ★ 虚拟摇杆（屏幕坐标） */
+  if (touchCtl.active){
+    const R = touchCtl.maxR;
+    const lx = touchCtl.ox, ly = touchCtl.oy;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#7c5cff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(lx, ly, R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = '#7c5cff';
+    ctx.fill();
+
+    const hx = lx + touchCtl.dx;
+    const hy = ly + touchCtl.dy;
+    ctx.globalAlpha = 0.92;
+    const grd = ctx.createRadialGradient(hx, hy, 2, hx, hy, 26);
+    grd.addColorStop(0, '#e0dcff');
+    grd.addColorStop(1, 'rgba(124,92,255,0.55)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 function renderEffects(){
@@ -5174,7 +5243,7 @@ function hideSkillTip(){
 
 function bindSkillTips(bar){
   bar.querySelectorAll('.skchip').forEach(el => {
-    el.addEventListener('mouseenter', ev => {
+    const show = (ev) => {
       const tip = document.getElementById('skilltip');
       if (!tip) return;
       const sid = el.dataset.sid;
@@ -5202,10 +5271,17 @@ function bindSkillTips(bar){
 
       tip.innerHTML = html;
       tip.classList.remove('hidden');
-      moveSkillTip(ev);
-    });
+      if (ev && typeof ev.clientX === 'number') moveSkillTip(ev);
+    };
+
+    el.addEventListener('mouseenter', show);
     el.addEventListener('mousemove', moveSkillTip);
     el.addEventListener('mouseleave', hideSkillTip);
+    el.addEventListener('click', ev => {
+      show(ev);
+      clearTimeout(el._tipT);
+      el._tipT = setTimeout(hideSkillTip, 3500);
+    });
   });
 }
 
@@ -5232,7 +5308,6 @@ function itemTipHTML(it, isEquipped){
   let html = `<div class="it-name" style="color:${color}">${SLOT_ICON[it.slotBase] || ''} ${it.name}</div>`;
   html += `<div class="it-tier">${it.tierName || ''}${isEquipped ? ' · 已装备' : ''}</div>`;
 
-  /* 基础属性 */
   let baseRows = '';
   for (const k in it.stats){
     const L = STAT_LABEL[k];
@@ -5243,7 +5318,6 @@ function itemTipHTML(it, isEquipped){
     html += `<div class="it-sec">基础属性</div>${baseRows}`;
   }
 
-  /* 词缀（普通 + 技能强化） */
   if (it.affixes && it.affixes.length){
     let affixRows = '';
     for (const a of it.affixes){
@@ -5253,7 +5327,6 @@ function itemTipHTML(it, isEquipped){
     html += `<div class="it-sec">词缀</div>${affixRows}`;
   }
 
-  /* 脚注：操作提示（不显示评分） */
   html += `<div class="tip-foot">${isEquipped ? '点击卸下' : '点击装备'}</div>`;
   return html;
 }
@@ -5314,7 +5387,6 @@ function updateHUD(){
 
     document.getElementById('lvText').textContent = G.endless ? '∞' : G.level;
 
-  /* ★ 当前关卡背景主题 */
   const zEl = document.getElementById('zoneText');
   if (zEl){
     const th = getBgTheme();
@@ -5357,7 +5429,6 @@ function updateHUD(){
     html += `<div class="skchip${lv >= 6 ? ' max' : ''}" data-sid="${s.id}">${s.ico}${s.name} ${lv >= 6 ? '★' : lv}</div>`;
   }
 
-  /* ★ 50 种增强 —— HUD 上最多展示 14 个，其余折叠 */
   const enh = P.enhance || {};
   let enhShown = 0, enhTotal = 0;
   for (const e of ENHANCE_DEFS){
@@ -5379,19 +5450,27 @@ function updateHUD(){
     bar._last = html;
     bindSkillTips(bar);
   }
+
+  updateMobileBtns();
+}
+
+/* ★ 手机端悬浮按钮显隐 */
+function updateMobileBtns(){
+  const el = document.getElementById('mobileBtns');
+  if (!el) return;
+  const show = IS_TOUCH && (G.state === 'playing' || G.state === 'paused');
+  el.classList.toggle('hidden', !show);
 }
 
 /* ============================================================
    ★ 左侧属性增强面板（聚合总加成）
    ============================================================ */
-/* 无装备 / 无增强时的角色基线属性（与 computeStats 初始值保持一致） */
 const ENH_BASELINE = {
   atk: 10, atkSpeed: 1.3, speed: 175, crit: 0.05, critDmg: 1.5,
   maxHp: 100, armor: 0, lifesteal: 0, thorns: 0, pickupRange: 90,
   regen: 0, projectiles: 1, dmgMul: 1, skillDmgMul: 1, cdMul: 1, xpMul: 1,
 };
 
-/* 只把「永久增强」叠加到基线上，用于计算增强贡献了多少 */
 function computeEnhOnlyStats(){
   const st = { ...ENH_BASELINE, skillBonus: {} };
   const enh = (P && P.enhance) || {};
@@ -5399,7 +5478,6 @@ function computeEnhOnlyStats(){
     const n = enh[d.id] || 0;
     if (n > 0) d.apply(st, n);
   }
-  /* ★ 同步收集装备上的技能强化词缀（与 calcStatsFor 同逻辑） */
   const eq = (P && P.equip) || {};
   for (const sk in eq){
     const it = eq[sk];
@@ -5434,7 +5512,6 @@ function renderResistPanel(){
   const eCnt = document.getElementById('endlessCount');
   if (!sec || !listEl) return;
 
-  /* ---------- 技能抗性 ---------- */
   const res = G.skillResist || {};
   const keys = Object.keys(res).filter(k => res[k] > 0);
   keys.sort((a, b) => res[b] - res[a]);
@@ -5457,7 +5534,6 @@ function renderResistPanel(){
     }
   }
 
-  /* ---------- 无尽强化 ---------- */
   if (!eSec || !eList) return;
   if (!G.endless){
     if (eSec.style.display !== 'none') eSec.style.display = 'none';
@@ -5502,96 +5578,76 @@ function updateEnhPanel(){
   }
   panel.classList.remove('hidden');
 
-  /* ★ 抗性 / 无尽强化分区（每帧刷新，带独立签名缓存） */
   renderResistPanel();
 
   const st = computeEnhOnlyStats();
   const enh = P.enhance || {};
 
-  /* 统计实际生效的增强条目 + 总层数 */
   let totalLayers = 0;
   for (const d of ENHANCE_DEFS){
     const n = enh[d.id] || 0;
     if (n > 0) totalLayers += n;
   }
 
-  /* ---------- 构造聚合行 ---------- */
     const rows = [];
   const push = (icon, name, text, key, cat) => rows.push({ icon, name, text, key, cat });
 
-  /* 攻击力 */
   const atkPct = (st.atk / ENH_BASELINE.atk - 1) * 100;
   if (atkPct > 0.05) push('⚔️', '攻击力', fmtPct(atkPct), 'atk');
 
-  /* 生命值 */
   const hpPct = (st.maxHp / ENH_BASELINE.maxHp - 1) * 100;
   if (hpPct > 0.05) push('❤️', '生命值', fmtPct(hpPct), 'hp');
 
-  /* 攻击速度 */
   const asPct = (st.atkSpeed / ENH_BASELINE.atkSpeed - 1) * 100;
   if (asPct > 0.05) push('⚡', '攻击速度', fmtPct(asPct), 'atkSpeed');
 
-  /* 移动速度 */
   const spdPct = (st.speed / ENH_BASELINE.speed - 1) * 100;
   if (spdPct > 0.05) push('💨', '移动速度', fmtPct(spdPct), 'spd');
 
-  /* 技能伤害 */
   const sdPct = (st.skillDmgMul - 1) * 100;
   if (sdPct > 0.05) push('🔮', '技能伤害', fmtPct(sdPct), 'skillDmg');
 
-  /* 冷却缩减（数值越小越好，所以显示负号） */
   const cdrPct = (1 - st.cdMul) * 100;
   if (cdrPct > 0.05){
     const r = Math.abs(cdrPct) < 10 ? cdrPct.toFixed(1) : String(Math.round(cdrPct));
     push('⏱️', '冷却缩减', '-' + r + '%', 'cdr');
   }
 
-  /* 暴击率 */
   const critPct = (st.crit - ENH_BASELINE.crit) * 100;
   if (critPct > 0.05) push('🎯', '暴击率', fmtPct(critPct), 'crit');
 
-  /* 暴击伤害 */
   const cdPct = (st.critDmg - ENH_BASELINE.critDmg) * 100;
   if (cdPct > 0.05) push('💥', '暴击伤害', fmtPct(cdPct), 'critDmg');
 
-  /* 护甲（固定值） */
   if (st.armor > 0) push('🛡️', '护甲', '+' + Math.round(st.armor), 'armor');
 
-  /* 生命回复（每秒固定值） */
   if (st.regen > 0) push('🌿', '生命回复', '+' + st.regen.toFixed(1) + '/s', 'regen');
 
-  /* 生命偷取 */
   const lsPct = st.lifesteal * 100;
   if (lsPct > 0.05) push('🩸', '生命偷取', fmtPct(lsPct), 'lifesteal');
 
-  /* 反伤 */
   const thPct = st.thorns * 100;
   if (thPct > 0.05) push('🌵', '反伤', fmtPct(thPct), 'thorns');
 
-  /* 拾取范围 */
   const puPct = (st.pickupRange / ENH_BASELINE.pickupRange - 1) * 100;
   if (puPct > 0.05) push('🧲', '拾取范围', fmtPct(puPct), 'pickup');
 
-  /* 经验获取 */
   const xpPct = (st.xpMul - 1) * 100;
   if (xpPct > 0.05) push('📚', '经验获取', fmtPct(xpPct), 'xpGain');
 
-  /* 全局伤害 */
   const dmPct = (st.dmgMul - 1) * 100;
   if (dmPct > 0.05) push('👊', '全局伤害', fmtPct(dmPct), 'dmgMul');
 
-    /* 额外投射物（固定数值） */
-  const projExtra = st.projectiles - ENH_BASELINE.projectiles;
+    const projExtra = st.projectiles - ENH_BASELINE.projectiles;
   if (projExtra > 0) push('🏹', '额外投射物', '+' + projExtra, 'proj');
 
-  /* ★ 装备技能强化（来自装备上的技能词缀） */
   const enhRowCount = rows.length;
   const sbMap = st.skillBonus || {};
   const sbKeys = Object.keys(sbMap).filter(k => sbMap[k] > 0);
   sbKeys.sort((a, b) => {
     if (a === 'all') return -1;
     if (b === 'all') return 1;
-    return sbMap[b] - sbMap[a];   // 按加成数值降序
+    return sbMap[b] - sbMap[a];
   });
   for (const sid of sbKeys){
     const v = sbMap[sid];
@@ -5604,7 +5660,6 @@ function updateEnhPanel(){
   }
   const skillRowCount = rows.length - enhRowCount;
 
-  /* ---------- 标题右侧计数 ---------- */
   if (cnt){
     if (!rows.length){
       cnt.textContent = '';
@@ -5617,7 +5672,6 @@ function updateEnhPanel(){
     }
   }
 
-  /* ---------- 变更检测 ---------- */
   const sig = rows.map(r => r.key + ':' + r.text).join('|');
   if (sig === _enhSig) return;
   _enhSig = sig;
@@ -5627,7 +5681,6 @@ function updateEnhPanel(){
     return;
   }
 
-  /* ---------- 渲染 ---------- */
     list.innerHTML = rows.map(r => {
     const cls = r.cat ? ' ' + r.cat : '';
     return `<div class="eph-row${cls}" data-key="${r.key}">`
@@ -5636,7 +5689,6 @@ function updateEnhPanel(){
       + `<span class="eph-n">${r.text}</span></div>`;
   }).join('');
 
-  /* 悬停显示说明 */
   list.querySelectorAll('.eph-row').forEach(el => {
     el.addEventListener('mouseenter', ev => {
       const tip = document.getElementById('skilltip');
@@ -5717,11 +5769,30 @@ function buildSlotEl(sk, pl){
 
   if (it){
     bindItemTip(div, it, true);
-    div.onclick = () => {
-      hideItemTip();
-      unequipSlot(sk, pl);
-      afterBagChange(pl);
-    };
+
+    if (IS_TOUCH){
+      let armed = false, tmr = null;
+      div.onclick = (ev) => {
+        if (!armed){
+          armed = true;
+          showItemTip(ev, it, true);
+          clearTimeout(tmr);
+          tmr = setTimeout(() => { armed = false; hideItemTip(); }, 3000);
+          return;
+        }
+        armed = false;
+        clearTimeout(tmr);
+        hideItemTip();
+        unequipSlot(sk, pl);
+        afterBagChange(pl);
+      };
+    } else {
+      div.onclick = () => {
+        hideItemTip();
+        unequipSlot(sk, pl);
+        afterBagChange(pl);
+      };
+    }
   }
   return div;
 }
@@ -5745,11 +5816,9 @@ function renderCharPreview(){
   const S = charStyle;
   const cx = CW / 2, cy = CH / 2;
 
-  /* 底色 */
   g.fillStyle = '#0f101a';
   g.fillRect(0, 0, CW, CH);
 
-  /* 光晕 */
   const bodyCol = shadeColor(S.glow || '#7c5cff', 0.62);
   const grd = g.createRadialGradient(cx, cy, 6, cx, cy, 82);
   grd.addColorStop(0,    hexA(bodyCol, 0.55));
@@ -5758,7 +5827,6 @@ function renderCharPreview(){
   g.fillStyle = grd;
   g.fillRect(0, 0, CW, CH);
 
-  /* 外圈光环 */
   g.save();
   g.shadowBlur = 20;
   g.shadowColor = S.glow;
@@ -5769,7 +5837,6 @@ function renderCharPreview(){
   g.stroke();
   g.restore();
 
-  /* Emoji 形象 */
   g.save();
   g.shadowBlur = 16;
   g.shadowColor = S.glow;
@@ -5779,7 +5846,6 @@ function renderCharPreview(){
   g.fillText(S.emoji || '🧙', cx, cy + 2);
   g.restore();
 
-  /* 底部名字条 */
   g.fillStyle = 'rgba(0,0,0,0.35)';
   g.fillRect(0, CH - 22, CW, 22);
   g.fillStyle = S.glow;
@@ -5795,7 +5861,6 @@ function buildCharCustom(){
   if (!box) return;
   box.innerHTML = '';
 
-  /* --- Emoji 形象选择 --- */
   const eRow = document.createElement('div');
   eRow.className = 'cstrow col';
 
@@ -5823,7 +5888,6 @@ function buildCharCustom(){
   eRow.appendChild(eg);
   box.appendChild(eRow);
 
-  /* --- 配色选择 --- */
   for (const o of CHAR_OPTS){
     const row = document.createElement('div');
     row.className = 'cstrow';
@@ -5833,7 +5897,6 @@ function buildCharCustom(){
     lb.textContent = o.label;
     row.appendChild(lb);
 
-    /* --- 说明 --- */
     const hintRow = document.createElement('div');
     hintRow.className = 'cstrow';
     hintRow.innerHTML = '<span style="font-size:11px;color:#5d5d80;">底盘柔光会随所选颜色自动变化</span>';
@@ -5858,7 +5921,6 @@ function buildCharCustom(){
     box.appendChild(row);
   }
 
-  /* --- 恢复默认 --- */
   const row = document.createElement('div');
   row.className = 'cstrow';
   const rb = document.createElement('button');
@@ -5902,16 +5964,13 @@ function renderStatsPanel(pl){
     return;
   }
 
-  /* 穿戴全部装备后的最终属性（含永久增强） */
   const total  = calcStatsFor(pl);
-  /* 仅装备、不含永久增强 —— 用来单独衡量「装备」贡献 */
   const eqOnly = calcStatsFor({ equip: pl.equip || {}, enhance: {}, bag: {} });
   const B = STAT_BASE;
 
   const rows = [];
   const add = (ico, nm, val, diff) => rows.push({ ico, nm, val, diff });
 
-  /* ---------- 加法属性 ---------- */
   add('⚔️', '攻击', fmtSmall(total.atk),   fmtDiff(eqOnly.atk - B.atk));
   add('❤️', '生命', fmtSmall(total.maxHp), fmtDiff(eqOnly.maxHp - B.maxHp));
   add('🛡️', '护甲', fmtSmall(total.armor), fmtDiff(eqOnly.armor - B.armor));
@@ -5922,7 +5981,6 @@ function renderStatsPanel(pl){
       (total.critDmg * 100).toFixed(0) + '%',
       fmtDiff((eqOnly.critDmg - B.critDmg) * 100, '%'));
 
-  /* ---------- 乘法属性（显示倍率） ---------- */
   const mul = (ico, nm, v, b) => {
     const m = b ? v / b : v;
     add(ico, nm, '×' + m.toFixed(2), fmtDiff((m - 1) * 100, '%'));
@@ -5934,12 +5992,10 @@ function renderStatsPanel(pl){
   mul('🔮', '技能', total.skillDmgMul, 1);
   mul('📚', '经验', total.xpMul,       1);
 
-  /* 冷却缩减：越高越好 */
   add('⏱️', '冷却',
       ((1 - total.cdMul) * 100).toFixed(1).replace(/\.0$/, '') + '%',
       fmtDiff((1 - eqOnly.cdMul) * 100, '%'));
 
-  /* ---------- 其他 ---------- */
   add('🩸', '吸血',
       (total.lifesteal * 100).toFixed(1).replace(/\.0$/, '') + '%',
       fmtDiff((eqOnly.lifesteal - B.lifesteal) * 100, '%'));
@@ -5956,13 +6012,12 @@ function renderStatsPanel(pl){
         fmtDiff(eqOnly.projectiles - B.projectiles));
   }
 
-  /* ★ 装备技能强化词缀（来自装备上的技能词缀，与左侧增强面板同源） */
   const sbMap = total.skillBonus || {};
   const sbKeys = Object.keys(sbMap).filter(k => sbMap[k] > 0);
   sbKeys.sort((a, b) => {
     if (a === 'all') return -1;
     if (b === 'all') return 1;
-    return sbMap[b] - sbMap[a];   // 按加成数值降序
+    return sbMap[b] - sbMap[a];
   });
   const skillCnt = sbKeys.length;
   for (const sid of sbKeys){
@@ -5976,7 +6031,6 @@ function renderStatsPanel(pl){
     }
   }
 
-  /* ---------- 标题右侧：已装备件数 + 技能词缀条目数 ---------- */
   if (hd){
     const eqCnt = EQUIP_SLOTS.filter(s => (pl.equip || {})[s]).length;
     let txt = '';
@@ -5985,7 +6039,6 @@ function renderStatsPanel(pl){
     hd.textContent = txt;
   }
 
-  /* ---------- 渲染 ---------- */
     list.innerHTML = rows.map(r => {
     const cls = r.cat ? ' ' + r.cat : '';
     return `<div class="st-row${cls}"><span class="st-ico">${r.ico}</span>`
@@ -6002,36 +6055,37 @@ function renderBag(){
 
   hideItemTip();
 
-  // 获取新的三列容器
   const eqLeft = document.getElementById('eqLeft');
   const eqRight = document.getElementById('eqRight');
   const eqTopM = document.getElementById('eqTopM');
   const eqBot = document.getElementById('eqBot');
 
-  // 清空
   eqLeft.innerHTML = '';
   eqRight.innerHTML = '';
   eqTopM.innerHTML = '';
   eqBot.innerHTML = '';
 
-  // 左侧列（6个）
-  ['mainhand','ring1','medal', 'necklace', 'armor', 'pants'].forEach(sk =>
-    eqLeft.appendChild(buildSlotEl(sk, pl))
-  );
+  const isMobileLayout = window.innerWidth <= 760;
 
-  // 右侧列（6个）
-  ['offhand','ring2','shoulder','twohand', 'gloves','boots'].forEach(sk =>
-    eqRight.appendChild(buildSlotEl(sk, pl))
-  );
+  const leftSlots  = ['mainhand','ring1','medal','necklace','armor','pants'];
+  const rightSlots = ['offhand','ring2','shoulder','twohand','gloves','boots'];
 
-  // 中间上下
-  eqTopM.appendChild(buildSlotEl('helmet', pl));
-  eqBot.appendChild(buildSlotEl('belt',  pl));
+  /* ★ 小屏：头盔 / 腰带并入左右列，中间只保留形象 */
+  if (isMobileLayout){
+    leftSlots.push('helmet');
+    rightSlots.push('belt');
+  }
 
-  // ★ 左侧装备属性总览
+  leftSlots.forEach(sk => eqLeft.appendChild(buildSlotEl(sk, pl)));
+  rightSlots.forEach(sk => eqRight.appendChild(buildSlotEl(sk, pl)));
+
+  if (!isMobileLayout){
+    eqTopM.appendChild(buildSlotEl('helmet', pl));
+    eqBot.appendChild(buildSlotEl('belt',  pl));
+  }
+
   renderStatsPanel(pl);
 
-  // 渲染中间形象
   renderCharPreview();
   buildCharCustom();
 
@@ -6080,6 +6134,16 @@ function renderBag(){
 
     bindItemTip(card, it, false);
 
+    /* ★ 手机上点击卡片（非按钮区）显示属性浮窗 */
+    if (IS_TOUCH){
+      card.addEventListener('click', (ev) => {
+        if (ev.target.closest('.eqbtn')) return;
+        showItemTip(ev, it, false);
+        clearTimeout(card._tipT);
+        card._tipT = setTimeout(hideItemTip, 3200);
+      });
+    }
+
     if (P || bagTempPlayer){
       const btnEq = document.createElement('button');
       btnEq.className = 'btn eqbtn';
@@ -6114,7 +6178,7 @@ function addRandomGear(){
    18. 事件绑定 & 初始化
    ============================================================ */
 document.getElementById('bigBtn').onclick = () => openLevelSelect();
-document.getElementById('continueBtn').onclick = () => continueRun();
+
 document.getElementById('menuBagBtn').onclick = () => openBag();
 document.getElementById('closeBag').onclick = () => closeBag();
 document.getElementById('speedBtn').onclick = () => cycleSpeed();
@@ -6124,7 +6188,6 @@ document.getElementById('autoEquipBtn').onclick = () => {
 };
 document.getElementById('addGearBtn').onclick = () => addRandomGear();
 
-/* ★ 游戏简介开关 */
 document.getElementById('introBtn').onclick = () => {
   document.getElementById('introPanel').classList.remove('hidden');
 };
@@ -6141,21 +6204,30 @@ document.getElementById('customCharBtn').onclick = () => {
 document.getElementById('closeLevelSelect').onclick = () => backToMenu();
 document.getElementById('endlessBtn').onclick = () => startEndlessFromMenu();
 
+/* ★ 手机端按钮 */
+document.getElementById('mPauseBtn').onclick = () => {
+  if (G.state === 'playing') pauseGame();
+  else if (G.state === 'paused') resumeGame();
+};
+document.getElementById('mBagBtn').onclick = () => {
+  if (G.state === 'playing' || G.state === 'clear' || G.state === 'menu') openBag();
+  else if (G.state === 'bag') closeBag();
+};
+
 document.getElementById('resumeBtn').onclick = () => resumeGame();
 document.getElementById('quitBtn').onclick = () => {
   if (P){
-    if (!G.endless) saveRun();
-    else saveGearOnly();
+    saveGearOnly();            // 只保留已获得的装备
+    const d = ensureSave();
+    d.run = null;              // 不再保存未完成的冒险
+    writeSave(d);
   }
   location.reload();
 };
 
 addEventListener('beforeunload', () => {
   if (!P) return;
-  if (G.state === 'playing' || G.state === 'paused' || G.state === 'levelup' || G.state === 'bag'){
-    if (!G.endless) saveRun();
-    else saveGearOnly();
-  }
+  saveGearOnly();
 });
 
 loadCharStyle();
