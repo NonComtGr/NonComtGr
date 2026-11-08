@@ -58,19 +58,20 @@
   .skchip.enh { border-color:#2f6b52; color:#7fe8c0; background:rgba(14,36,28,.88); }
   .skchip.enh:hover { border-color:#57d9a3; background:rgba(18,53,40,.95); }
 
-  /* ---------- ★ 左侧属性增强面板 ---------- */
+      /* ---------- ★ 左侧属性增强面板 ---------- */
   #enhPanel {
     position: fixed; left: 12px; top: 12px; z-index: 11;
-    width: 176px; max-height: 62vh;
+    width: 236px;
+    max-height: 50vh;
     display: flex; flex-direction: column;
-    background: rgba(12,12,24,.62);
+    background: rgba(12,12,24,.72);
     border: 1px solid #26263f; border-radius: 12px;
-    padding: 8px 8px 8px 10px;
+    padding: 10px 9px 10px 11px;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     pointer-events: auto;
     box-shadow: 0 10px 30px rgba(0,0,0,.45);
-    font-size: 12px;
+    font-size: 12.5px;
   }
   #enhPanel.hidden { display: none !important; }
   #enhPanel .eph-hd {
@@ -81,38 +82,80 @@
     border-bottom: 1px solid #23233c;
   }
   #enhPanel .eph-hd b { color: #7fe8c0; font-size: 11px; font-weight: bold; }
-  #enhList {
+
+  /* ★ 统一滚动容器：属性增强 + 抗性 + 无尽强化 */
+  #enhPanel .eph-body {
     flex: 1 1 auto; min-height: 0;
     display: flex; flex-direction: column; gap: 3px;
     overflow-y: auto; overflow-x: hidden;
     scrollbar-width: thin; scrollbar-color: #3a3a5e transparent;
+    padding-right: 4px;
   }
-  #enhList::-webkit-scrollbar { width: 5px; }
-  #enhList::-webkit-scrollbar-thumb { background: #3a3a5e; border-radius: 3px; }
-  #enhList::-webkit-scrollbar-track { background: transparent; }
+  #enhPanel .eph-body::-webkit-scrollbar { width: 5px; }
+  #enhPanel .eph-body::-webkit-scrollbar-thumb { background: #3a3a5e; border-radius: 3px; }
+  #enhPanel .eph-body::-webkit-scrollbar-track { background: transparent; }
+
+  #enhList {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; gap: 3px;
+  }
   .eph-row {
     display: flex; align-items: center; gap: 6px;
-    padding: 3px 5px; border-radius: 7px;
+    padding: 4px 6px; border-radius: 7px;
     background: rgba(22,22,40,.72);
     border: 1px solid transparent;
     transition: .12s; cursor: default;
     flex: 0 0 auto;
   }
   .eph-row:hover { border-color: #7c5cff; background: rgba(44,42,88,.9); }
-  .eph-row .eph-ico { flex: none; width: 15px; text-align: center; font-size: 12px; }
+  .eph-row .eph-ico { flex: none; width: 16px; text-align: center; font-size: 13px; }
   .eph-row .eph-nm {
     flex: 1 1 auto; min-width: 0; color: #b3b3d2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .eph-row .eph-n { flex: none; color: #7fe8c0; font-weight: bold; font-variant-numeric: tabular-nums; }
+  .eph-row .eph-n {
+    flex: none; color: #7fe8c0; font-weight: bold;
+    font-variant-numeric: tabular-nums; font-size: 12.5px;
+  }
   .eph-row.top .eph-n { color: #ffd166; }
-    .eph-empty { color: #5d5d80; font-size: 11.5px; line-height: 1.6; text-align: center; padding: 10px 2px; }
+
+  /* ★ 无加成的基础属性行：整体弱化 */
+  .eph-row.zero { background: rgba(18,18,32,.5); }
+  .eph-row.zero .eph-nm { color: #6c6c90; }
+  .eph-row.zero .eph-n { color: #55557a; }
+  .eph-row.zero:hover { border-color: #4a4a72; background: rgba(32,32,56,.8); }
+
+  .eph-empty { color: #5d5d80; font-size: 11.5px; line-height: 1.6; text-align: center; padding: 10px 2px; }
+
   /* ★ 装备技能强化行（区别于永久增强） */
   .eph-row.skill { background: rgba(44,32,12,.72); }
   .eph-row.skill .eph-n { color: #ffd166; }
   .eph-row.skill:hover { border-color: #ffb700; background: rgba(58,44,14,.9); }
   .eph-row.skill .eph-ico { filter: drop-shadow(0 0 3px rgba(255,183,0,.5)); }
-  @media (max-width: 1180px), (max-height: 520px) {
+
+  /* ★ 抗性 / 无尽强化 分区（跟随 body 滚动，不再单独滚） */
+  #enhPanel .eph-sec {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column;
+    margin-top: 6px; padding-top: 6px;
+    border-top: 1px solid #23233c;
+  }
+  #enhPanel .eph-sec .eph-hd {
+    padding-bottom: 4px; margin-bottom: 4px;
+    border-bottom: none;
+  }
+  #enhPanel .eph-sec-list {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .eph-row.resist { background: rgba(58,18,26,.66); }
+  .eph-row.resist .eph-n { color: #ff8a9a; }
+  .eph-row.resist:hover { border-color:#ff5c7a; background: rgba(80,24,36,.92); }
+  .eph-row.endless { background: rgba(58,42,10,.66); }
+  .eph-row.endless .eph-n { color: #ffd166; }
+  .eph-row.endless:hover { border-color:#ffb700; background: rgba(80,58,14,.92); }
+
+  @media (max-width: 1024px), (max-height: 520px) {
     #enhPanel { display: none !important; }
   }
 
@@ -203,6 +246,16 @@
   .card-diff .diff-row { display: flex; justify-content: space-between; gap: 8px; }
   .card-diff .diff-row b { color: #ffd166; font-weight: bold; font-variant-numeric: tabular-nums; }
 
+  /* ★ 升级卡牌上的「本关怪物抗性」警告 */
+  .card-warn {
+    margin-top: 6px; padding: 4px 7px;
+    font-size: 10.5px; color: #ff8a9a; line-height: 1.5;
+    background: rgba(255,80,110,.10);
+    border: 1px solid rgba(255,80,110,.30);
+    border-radius: 5px;
+    text-align: left;
+  }
+
   /* ---------- 选关 ---------- */
   .levelgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));
     gap:10px; margin-top:6px; }
@@ -214,12 +267,103 @@
   .lvbtn:disabled { opacity:.32; cursor:not-allowed; }
   .lvbtn.done { border-color:#2f8a68; color:#7fe8c0; }
   .lvbtn.next { border-color:#ffb700; color:#ffd166; box-shadow:0 0 16px rgba(255,183,0,.28); }
-  .lvbtn .lvb-lv { display:block; font-size:11px; font-weight:normal; color:#6c6c90; margin-top:4px; }
+    .lvbtn .lvb-lv { display:block; font-size:11px; font-weight:normal; color:#6c6c90; margin-top:4px; }
 
-  /* ---------- 背包 ---------- */
+  /* ★ 选关面板：内容区可滚动，底部按钮栏固定 */
+  #levelselect .panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;              /* 由内部 lvscroll 滚动 */
+  }
+  #levelselect .panel > h2,
+  #levelselect .panel > .sub {
+    flex: 0 0 auto;
+  }
+  #levelselect .lvscroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a5e transparent;
+  }
+  #levelselect .lvscroll::-webkit-scrollbar { width: 6px; }
+  #levelselect .lvscroll::-webkit-scrollbar-thumb { background:#3a3a5e; border-radius:3px; }
+  #levelselect .lvscroll::-webkit-scrollbar-track { background: transparent; }
+
+  /* ★ 底部固定栏：无尽模式按钮 + 返回主菜单 */
+  #levelselect .lv-footer {
+    flex: 0 0 auto;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #23233c;
+  }
+
+    /* ---------- 背包 ---------- */
   .bagwrap { display:flex; flex-direction:column; gap:20px; align-items:center; }
   .bagwrap .bagitems { width:100%; max-width:760px; }
   .secline { font-size:13px; color:#7c7ca0; margin:6px 0 10px; border-bottom:1px solid #23233c; padding-bottom:6px;}
+
+  /* ★ 背包面板：charwrap 固定，物品栏内部滚动，底部关闭栏固定 */
+  #bagpanel .panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #bagpanel .panel > h2,
+  #bagpanel .panel > .sub {
+    flex: 0 0 auto;
+  }
+  #bagpanel .bagwrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* ★ 滚动条不在这里，已下放到物品栏 */
+  }
+  #bagpanel .charwrap {
+    flex: 0 0 auto;
+    
+  }
+
+  /* ★ 物品栏外框（内部独立滚动） */
+  #bagpanel .bagitems {
+    flex: 1 1 auto;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;              /* 由内部 baglist 滚动 */
+    background: #0c0c17;
+    border: 1px solid #26263f;
+    border-radius: 12px;
+    padding: 12px 14px 14px;
+    box-shadow: inset 0 0 26px rgba(0,0,0,.5);
+  }
+  #bagpanel .bagitems .secline {
+    flex: 0 0 auto;
+  }
+
+  /* ★ 仅物品栏出现滚动条 */
+  #bagpanel #baglist {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a5e transparent;
+  }
+  #bagpanel #baglist::-webkit-scrollbar { width: 6px; }
+  #bagpanel #baglist::-webkit-scrollbar-thumb { background:#3a3a5e; border-radius:3px; }
+  #bagpanel #baglist::-webkit-scrollbar-track { background: transparent; }
+
+  /* ★ 底部固定关闭栏 */
+  #bagpanel .bag-footer {
+    flex: 0 0 auto;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #23233c;
+    text-align: center;
+  }
 
   /* 人形装备面板 */
     .charwrap {
@@ -393,15 +537,36 @@
   .emojibtn:hover { border-color:#7c5cff; transform:scale(1.12); }
   .emojibtn.on { border-color:#fff; box-shadow:0 0 10px rgba(255,255,255,.55); background:#2b2b4c; }
 
+    /* ★ 物品栏网格：卡片各自按内容高度，不被同行拉伸 */
   #baglist {
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(116px, 1fr));
-    gap:10px; margin-top:4px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+    align-items: start;            /* 关键：每张卡片独立高度 */
+    grid-auto-rows: max-content;   /* ★ 行高完全由内容撑开，长词条不会再压到下一行 */
+    align-content: start;
   }
+
+  /* ★ 卡片：最小高度 132px，词条多时自动变高 */
   .bagcard {
-    position:relative; display:flex; flex-direction:column; align-items:center;
-    gap:3px; padding:9px 7px 8px; min-height:132px; text-align:center;
-    background:#151527; border:2px solid #26263f; border-radius:11px;
-    transition:.15s;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin: 0;                    /* ★ 间距统一交给 grid gap，去掉 margin-bottom 避免叠加错位 */
+    box-sizing: border-box;
+    position: relative;
+    align-items: center;
+    gap: 3px;
+    padding: 9px 7px 8px;
+    min-height: 132px;            /* 矮卡片保持最小高度 */
+    height: auto;                 /* 高卡片随内容增长 */
+    overflow: hidden;
+    text-align: center;
+    background: #151527;
+    border: 2px solid #26263f;
+    border-radius: 11px;
+    transition: .15s;
   }
   .bagcard:hover { background:#1c1c33; border-color:#7c5cff; transform:translateY(-2px);
     box-shadow:0 8px 22px rgba(124,92,255,.25); }
@@ -410,14 +575,38 @@
   .bagcard.tier-3 { border-color:#7a5a1e; }
   .bagcard.tier-4 { border-color:#6b3a8a; }
   .bagcard.tier-5 { border-color:#8a2f6a; box-shadow:0 0 14px rgba(255,79,216,.18) inset; }
-  .bagcard .ic { font-size:30px; line-height:1.05; filter:drop-shadow(0 0 7px currentColor); }
-  .bagcard .nm { font-size:11.5px; font-weight:bold; line-height:1.3; word-break:break-word; }
-  .bagcard .tn { font-size:10px; color:#6c6c90; }
+  .bagcard .ic { font-size:30px; line-height:1.05; filter:drop-shadow(0 0 7px currentColor); flex:0 0 auto; }
+  .bagcard .nm { font-size:11.5px; font-weight:bold; line-height:1.3; word-break:break-word; flex:0 0 auto; }
+  .bagcard .tn { font-size:10px; color:#6c6c90; flex:0 0 auto; }
   .bagcard .ct { position:absolute; top:3px; right:5px; font-size:11px; font-weight:bold;
     color:#cfcaff; background:rgba(0,0,0,.55); border-radius:6px; padding:0 5px; }
-  .bagcard .aff { width:100%; font-size:9.5px; color:#57d9a3; line-height:1.3; text-align:left; }
+
+  /* ★ 词条区：不限制高度，自动换行，随内容撑高卡片 */
+  .bagcard .aff {
+    width: 100%;
+    flex: 0 0 auto;
+    font-size: 9.5px;
+    color: #57d9a3;
+    line-height: 1.3;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
   .bagcard .aff .sk { color:#ffd166; }
-  .bagcard .eqbtn { margin-top:auto; width:100%; font-size:11px; padding:3px 0; }
+
+  /* ★ 装备按钮：短卡片时被 margin-top:auto 推到卡底；长卡片时自然跟在词条后 */
+  .bagcard .eqbtn {
+    margin-top: auto;
+    flex: 0 0 auto;
+    width: 100%;
+    font-size: 11px;
+    padding: 3px 0;
+  }
+
+
+
+
   .btn { pointer-events:auto; background:#282850; border:1px solid #3d3d68; color:#cfcaff;
     border-radius:7px; padding:4px 11px; font-size:12px; cursor:pointer; transition:.12s;
     font-family:inherit; }
@@ -471,6 +660,18 @@
   <div id="enhPanel" class="hidden">
     <div class="eph-hd"><span>属性增强</span><b id="enhCount"></b></div>
     <div id="enhList"></div>
+
+    <!-- ★ 怪物技能抗性（关卡内固定） -->
+    <div class="eph-sec" id="resistSec" style="display:none;">
+      <div class="eph-hd"><span style="color:#ff8a9a;">怪物技能抗性</span><b id="resistCount" style="color:#ff8a9a;"></b></div>
+      <div class="eph-sec-list" id="resistList"></div>
+    </div>
+
+    <!-- ★ 无尽模式强化 -->
+    <div class="eph-sec" id="endlessSec" style="display:none;">
+      <div class="eph-hd"><span style="color:#ffd166;">无尽强化</span><b id="endlessCount" style="color:#ffd166;"></b></div>
+      <div class="eph-sec-list" id="endlessList"></div>
+    </div>
   </div>
 </div>
 
@@ -508,12 +709,12 @@
       <p><b>WASD / 方向键</b> 或 <b>鼠标左键</b> 移动，角色自动攻击最近的敌人。按 <b>I</b> 打开背包，<b>ESC</b> 暂停（可返回主菜单），<b>Q / E</b> 减速 / 加速，<b>T</b> 循环切换游戏速度（×0.25 ~ ×3）。</p>
       <p>击杀怪物掉落经验球。升级后三选一<b>攻击技能</b>，最多掌握 5 个，每个技能满 <b>6 级</b>进化为终极形态。技能池共 <b>50 种</b>主动技能，属性增强共 <b>50 种</b>永久加成（可无限叠加）。</p>
       <p>每关进行到 <b>2:30</b> 出现第一个 BOSS，<b>5:00</b> 出现第二个 BOSS 并进入 BOSS 战（不限时），击败全部 BOSS 才能通关。</p>
-      <p><b>第 11 关起</b>怪物生命 / 伤害按关卡指数级暴涨，请靠技能与永久增强叠出足够的成长曲线。</p>
+      <p><b>第 11 关起</b>怪物生命 / 伤害按关卡指数级暴涨，且会携带<b style="color:#ff8a9a;">技能抗性</b>（11-20 关 3 个、21-30 关 6 个、31-40 关 9 个……每个抗性降低该技能 20%~40% 伤害），请靠技能与永久增强叠出足够的成长曲线。</p>
       <p>通关当前关卡才能解锁下一关。通关第 100 关后可进入「<b>无尽模式</b>」：怪物每 30 秒强化一次，BOSS 每 2:30 降临一个。</p>
       <p>存档只记录装备与未完成的冒险。</p>
 
       <h3>🎒 装备、合成与技能词缀</h3>
-      <p>装备在每关通关后掉落（<b>10~20 件</b>），并<b>自动合成</b>：3 件相同初级 → 1 件中级 → 高级，依次类推。</p>
+      <p>装备在每关通关后掉落，<b>数量随关卡线性增长</b>（第 1 关 10~20 件，每关递增约 1 件），并<b>自动合成</b>：3 件相同初级 → 1 件中级 → 高级，依次类推。</p>
       <p>每个部位共有 <b>初级 30 种</b>、<b>中级 15 种</b>、<b>高级 5 种</b>装备，越稀有的种类属性越强。</p>
       <p><b>4 级起</b>的装备会附带随机词缀；并且从 4 级开始，每次合成都会额外添加<b>增强某一技能</b>的词缀：<b>4 级 1 条、5 级 2 条，依此类推</b>。高级装备可继承低级的技能词缀，越合越强。</p>
       <p>装备可自由搭配，<b>圣物与主武器 / 副手不再互斥</b>，可同时佩戴且属性全部生效。背包中可一键装备，自动挑选每个部位评分最高的装备。</p>
@@ -533,15 +734,23 @@
   <div class="panel center">
     <h2>选 择 关 卡</h2>
     <p class="sub" id="levelSub">通关当前关卡才能解锁下一关</p>
-    <div id="levelgrid" class="levelgrid"></div>
-    <div id="endlessWrap" class="hidden" style="margin-top:18px;">
-      <button id="endlessBtn"
-        style="pointer-events:auto;cursor:pointer;padding:11px 32px;font-size:15px;font-weight:bold;
-        border-radius:10px;border:none;color:#fff;font-family:inherit;
-        background:linear-gradient(90deg,#0f6b50,#2fae82);">♾ 进 入 无 尽 模 式</button>
+
+    <!-- ★ 可滚动区域 -->
+    <div class="lvscroll">
+      <div id="levelgrid" class="levelgrid"></div>
     </div>
-    <div style="margin-top:16px;">
-      <button class="btn" id="closeLevelSelect" style="padding:9px 26px;font-size:14px;">返 回 主 菜 单</button>
+
+    <!-- ★ 底部固定区域 -->
+    <div class="lv-footer">
+      <div id="endlessWrap" class="hidden">
+        <button id="endlessBtn"
+          style="pointer-events:auto;cursor:pointer;padding:11px 32px;font-size:15px;font-weight:bold;
+          border-radius:10px;border:none;color:#fff;font-family:inherit;
+          background:linear-gradient(90deg,#0f6b50,#2fae82);">♾ 进 入 无 尽 模 式</button>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn" id="closeLevelSelect" style="padding:9px 26px;font-size:14px;">返 回 主 菜 单</button>
+      </div>
     </div>
   </div>
 </div>
@@ -601,7 +810,9 @@
       </div>
 
     </div>
-    <div class="center"><button class="btn" id="closeBag" style="margin-top:14px;padding:9px 26px;font-size:14px;">关闭 (ESC)</button></div>
+        <div class="bag-footer">
+      <button class="btn" id="closeBag" style="padding:9px 26px;font-size:14px;">关闭 (ESC)</button>
+    </div>
   </div>
 </div>
 
@@ -1100,6 +1311,19 @@ function prefixOf(idx){
   return PREFIX_T3[idx - 46] || '未知';
 }
 
+/* ★ 按档位等概率随机取前缀：初级 30 选 1 / 中级 15 选 1 / 高级 5 选 1 */
+function randomPrefixOf(tier){
+  const pool = tier <= 1 ? PREFIX_T1 : tier === 2 ? PREFIX_T2 : PREFIX_T3;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ★ 取部位名词（长剑/战甲/…），供随机前缀拼接名字 */
+function slotNoun(slotBase){
+  const d = SLOT_DEFS.find(s => s.key === slotBase);
+  return d ? d.noun : '装备';
+}
+
+
 /* 同档位内越靠后的种类越强（平滑递增，避免跳变） */
 function statMult(idx){
   if (idx <= 30) return 1.00 + (idx - 1) / 29 * 0.45;   // 1.00 ~ 1.45
@@ -1116,13 +1340,15 @@ function getDef(slotBase, idx){
   const mult = statMult(idx);
   const stats = {};
   for (const [st, v] of Object.entries(d.base)) stats[st] = +(v * mult).toFixed(4);
-  return ITEM_CACHE[k] = {
-    key: k, slotBase, idx, tier,
-    name: prefixOf(idx) + d.noun,
-    stats,
-    tierName: ['', '初级', '中级', '高级'][tier],
-    isInstance: false,
-  };
+  
+return ITEM_CACHE[k] = {
+  key: k, slotBase, idx, tier,
+  /* ★ 由 idx 确定性生成，读档 / 刷新 / 缓存重建都不会变 */
+  name: prefixOf(idx) + d.noun,
+  stats,
+  tierName: ['', '初级', '中级', '高级'][tier],
+  isInstance: false,
+};
 }
 
 const AFFIX_POOL = [
@@ -1173,6 +1399,7 @@ function toRoman(n){
 
 /* ★ 生成带随机词缀的实例装备（用于中级/高级掉落与合成） */
 function makeAffixedItem(slotBase, idx, numAffixes){
+  idx = clamp(idx, 1, IDX_MAX); 
   const base = getDef(slotBase, idx);
   const affixes = [];
   let guard = 0;
@@ -1189,7 +1416,8 @@ function makeAffixedItem(slotBase, idx, numAffixes){
     slotBase, idx,
     srcIdx: idx, 
     tier: base.tier,
-    name: base.name,
+    
+    name: prefixOf(idx) + slotNoun(slotBase),
     stats: { ...base.stats },
     affixes,
     tierName: base.tierName,
@@ -1199,24 +1427,24 @@ function makeAffixedItem(slotBase, idx, numAffixes){
 
 function makeInstance(slotBase, tier, affixes, srcIdx){
   const resolvedIdx = clamp(srcIdx || IDX_MAX, 1, IDX_MAX);
-  // tier ≤ 3 → 掉落的中级/高级：保留原 idx 的属性
-  // tier ≥ 4 → 合成产物：统一用 idx=50 模板
   const statBase = tier <= 3
     ? getDef(slotBase, resolvedIdx)
     : getDef(slotBase, IDX_MAX);
-  const nameBase = getDef(slotBase, resolvedIdx);   // 名字不变
 
   const tierBoost = 1 + Math.max(0, tier - 3) * 0.5;
   const boosted = {};
   for (const k in statBase.stats)
     boosted[k] = +(statBase.stats[k] * tierBoost).toFixed(4);
 
+  /* ★ 由素材最强 idx 确定性生成，配合罗马数字区分合成等级 */
+  const baseName = prefixOf(resolvedIdx) + slotNoun(slotBase);
+
   return {
     key: 'INST_' + (uid++),
     slotBase, idx: IDX_MAX,
     srcIdx: resolvedIdx,
     tier,
-    name: nameBase.name + ' ' + toRoman(tier),
+    name: baseName + ' ' + toRoman(tier),
     stats: boosted,
     affixes: affixes || [],
     tierName: tier + '级',
@@ -1436,7 +1664,7 @@ const EXTRA_SKILLS = [
           for (const e2 of G.enemies){
             if (e2 === e) continue;
             const rr = r + e2.r;
-            if (d2(e2.x, e2.y, e.x, e.y) < rr * rr) skillHit(e2, dmg * 0.6, 'arcane');
+            if (d2(e2.x, e2.y, e.x, e.y) < rr * rr) skillHit(e2, dmg * 0.6, 'arcane', 'arcaneorb');
           }
           G.effects.push({ kind:'ring', x:e.x, y:e.y, r, life:0.35, maxLife:0.35, color:'#ff7ad9' });
         },
@@ -1699,7 +1927,8 @@ const EXTRA_SKILLS = [
         if (!e) continue;
         const tx = e.x + rand(-60, 60), ty = e.y + rand(-60, 60);
         G.effects.push({ kind:'meteor', x:tx, y:ty, r:radius,
-          life:0.7, maxLife:0.7, dmg, type:'arcane', color:'#ff7ad9', done:false });
+          life:0.7, maxLife:0.7, dmg, type:'arcane', color:'#ff7ad9', done:false,
+          skillId:'starfall' });
       }
     } },
 
@@ -2003,9 +2232,9 @@ SKILL_DEFS.push(...EXTRA_SKILLS);
 const SKILL_HELPERS = {
   nearest: (maxD) => nearestEnemy(P.x, P.y, maxD),
   inRadius: (x, y, r) => G.enemies.filter(e => d2(e.x, e.y, x, y) < (r + e.r) * (r + e.r)),
-  hit: (e, dmg, type) => skillHit(e, dmg, type),
-  bullet: (o) => G.bullets.push(o),
-  effect: (o) => G.effects.push(o),
+  hit: (e, dmg, type) => skillHit(e, dmg, type, G.curCastSkill),
+  bullet: (o) => { if (!o.skillId) o.skillId = G.curCastSkill; G.bullets.push(o); },
+  effect: (o) => { if (!o.skillId) o.skillId = G.curCastSkill; G.effects.push(o); },
 };
 
 const MAX_SKILLS = 5;
@@ -2034,6 +2263,33 @@ function rollSkillAffix(tier){
     id: a.id, name: a.name, stat: 'skillDmg', skillId: a.skillId,
     value, text: a.fmt(value), isSkill: true,
   };
+}
+
+/* ============================================================
+   ★ 关卡技能抗性
+   ------------------------------------------------------------
+   11-20 关：随机 3 个技能抗性
+   21-30 关：随机 6 个
+   31-40 关：随机 9 个
+   …… 每 10 关 +3 个
+   每个抗性数值 20%~40%（乘算减伤）
+   ============================================================ */
+function genSkillResist(level){
+  const res = {};
+  const lv = Math.max(1, level || 1);
+  const n = Math.min(SKILL_DEFS.length, Math.floor((lv - 1) / 10) * 3);
+  if (n <= 0) return res;
+
+  const ids = SKILL_DEFS.map(s => s.id);
+  /* Fisher–Yates 洗牌 */
+  for (let i = ids.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+  }
+  for (let i = 0; i < n; i++){
+    res[ids[i]] = +rand(0.20, 0.40).toFixed(3);
+  }
+  return res;
 }
 
 /* ============================================================
@@ -2179,6 +2435,11 @@ const G = {
   endlessBoss: 0,
   bulletSpdMul: 1,
   pendingClear: 0,
+
+  /* ★ 关卡级技能抗性：{ skillId: 0.2~0.4 } */
+  skillResist: {},
+  /* ★ 当前正在 cast 的技能 id（供 skillHit 默认取值） */
+  curCastSkill: null,
 };
 
 let P = null;
@@ -2290,19 +2551,23 @@ function serializeItem(it){
       sb: it.slotBase,
       t:  it.tier,
       si: it.srcIdx || it.idx || IDX_MAX,
+      n:  it.name,                                   // ★ 保存名字
       a:  (it.affixes || []).map(x => ({ ...x })),
     };
   }
-  return { i: 0, sb: it.slotBase, idx: it.idx };
+  return { i: 0, sb: it.slotBase, idx: it.idx, n: it.name };  // ★ 初级也保存名字
 }
 
 function deserializeItem(d){
   if (!d) return null;
   try {
     if (d.i){
-      return makeInstance(d.sb, d.t, (d.a || []).map(x => ({ ...x })), d.si);
+      const it = makeInstance(d.sb, d.t, (d.a || []).map(x => ({ ...x })), d.si);
+      if (d.n) it.name = d.n;                        // ★ 恢复名字
+      return it;
     }
-    return getDef(d.sb, d.idx);
+    const base = getDef(d.sb, d.idx);
+    return { ...base, name: d.n || base.name };      // ★ 返回副本，绝不污染缓存
   } catch (e) { return null; }
 }
 
@@ -2363,6 +2628,7 @@ function saveRun(){
     kills: G.kills,
     timeLeft:  G.timeLeft,     // ★ 新增
     levelTime: G.levelTime,    // ★ 新增（敌人子弹伤害成长计时）
+    skillResist: { ...G.skillResist },  // ★ 关卡技能抗性
     player: {
       level: P.level,
       xp: P.xp,
@@ -2756,6 +3022,7 @@ function resetWorld(){
   G.bulletSpdMul = 1;
   G.levelTime = 0;
   G.pendingClear = 0; 
+  G.curCastSkill = null;
 }
 
 function startLevel(n){
@@ -2766,6 +3033,8 @@ function startLevel(n){
   G.endlessT = 0;
   G.endlessWave = 0;
   G.endlessBoss = 0;
+  /* ★ 生成本关怪物技能抗性 */
+  G.skillResist = genSkillResist(n);
   G.state = 'playing';
   mouseCtl.down = false;
   mouseCtl.active = false;
@@ -2780,6 +3049,8 @@ function startEndless(){
   G.endlessT = 0;
   G.endlessWave = 0;
   G.endlessBoss = 0;
+  /* ★ 无尽模式沿用 100 关的 27 个技能抗性 */
+  G.skillResist = genSkillResist(MAX_LEVEL);
   G.state = 'playing';
   document.getElementById('clearpanel').classList.add('hidden');
   addFloat(P.x, P.y - 70, '♾ 无 尽 模 式 开 始', '#2fae82');
@@ -2924,10 +3195,16 @@ function damageEnemy(e, dmg, type, isCrit){
   }
 }
 
-function skillHit(e, dmg, type){
+/* ★ 技能命中：第四参数为技能 id，用于查询本关怪物抗性 */
+function skillHit(e, dmg, type, skillId){
   if (!e || e.hp <= 0) return;
+  const sid = skillId || G.curCastSkill;
+  let final = dmg;
+  if (sid && G.skillResist && G.skillResist[sid] > 0){
+    final *= (1 - G.skillResist[sid]);
+  }
   const isCrit = Math.random() < P.stats.crit;
-  damageEnemy(e, dmg * (isCrit ? P.stats.critDmg : 1), type, isCrit);
+  damageEnemy(e, final * (isCrit ? P.stats.critDmg : 1), type, isCrit);
 }
 
 function hurtPlayer(dmg, type){
@@ -2955,7 +3232,7 @@ function fireballExplode(b){
 
   for (const e of G.enemies){
     const rr = r + e.r;
-    if (d2(e.x, e.y, b.x, b.y) < rr * rr) skillHit(e, b.dmg, 'fire');
+    if (d2(e.x, e.y, b.x, b.y) < rr * rr) skillHit(e, b.dmg, 'fire', 'fireball');
   }
 
   G.effects.push({ kind:'ring', x:b.x, y:b.y, r, life:0.42, maxLife:0.42, color:'#ff7a33' });
@@ -2966,6 +3243,7 @@ function fireballExplode(b){
       life: 3.2, maxLife: 3.2,
       tickRate: 0.45, tickAcc: 0,
       dmg: b.dmg * 0.18, type:'fire', color:'#ff5c1a',
+      skillId:'fireball',
     });
   }
 
@@ -3002,6 +3280,7 @@ function updateSkills(dt){
         vx: Math.cos(a) * 420, vy: Math.sin(a) * 420,
         r: 8 + l, life: 1.7, kind:'fireball', type:'fire', lvl:l,
         dmg: atk * (1.6 + l * 0.5), hit: new Set(),
+        skillId:'fireball',
       });
     }
   }
@@ -3018,7 +3297,7 @@ function updateSkills(dt){
       const dmg = atk * (1.0 + l * 0.4);
       for (const e of G.enemies){
         if (d2(e.x, e.y, P.x, P.y) < (radius + e.r) * (radius + e.r)){
-          skillHit(e, dmg, 'ice');
+          skillHit(e, dmg, 'ice', 'frostnova');
           e.slowT = ult ? 2.2 : 1.2;
         }
       }
@@ -3051,7 +3330,7 @@ function updateSkills(dt){
       let from = { x: P.x, y: P.y };
 
       for (let j = 0; j < jumps && cur; j++){
-        skillHit(cur, baseDmg * (ult ? 1 : (j === 0 ? 1 : Math.pow(0.85, j))), 'lightning');
+        skillHit(cur, baseDmg * (ult ? 1 : (j === 0 ? 1 : Math.pow(0.85, j))), 'lightning', 'chain');
         G.effects.push({
           kind:'bolt', x1: from.x, y1: from.y, x2: cur.x, y2: cur.y,
           life: 0.22, maxLife: 0.22, color:'#ffe066',
@@ -3080,7 +3359,7 @@ function updateSkills(dt){
     const dmg = atk * (0.25 + l * 0.12) * (ult ? 1.8 : 1);
     for (const e of G.enemies){
       const rr = radius + e.r;
-      if (d2(e.x, e.y, P.x, P.y) < rr * rr) skillHit(e, dmg, 'fire');
+      if (d2(e.x, e.y, P.x, P.y) < rr * rr) skillHit(e, dmg, 'fire', 'aura');
     }
   }
 
@@ -3102,6 +3381,7 @@ function updateSkills(dt){
           kind:'meteor', x: tx, y: ty, r: radius,
           life: 0.72, maxLife: 0.72,
           dmg, type:'fire', color:'#ff8b3d', done: false,
+          skillId:'meteor',
         });
       }
     }
@@ -3122,6 +3402,7 @@ function updateSkills(dt){
         life, maxLife: life,
         tickRate: 0.5, tickAcc: 0,
         dmg: atk * (0.2 + l * 0.08), type:'poison', color:'#8fe04a',
+        skillId:'poison',
       });
     }
   }
@@ -3148,7 +3429,7 @@ function updateSkills(dt){
           if (!e._bhit) e._bhit = {};
           if ((e._bhit[i] || 0) <= G.time){
             e._bhit[i] = G.time + 0.45;
-            skillHit(e, bdmg, 'physical');
+            skillHit(e, bdmg, 'physical', 'blades');
           }
         }
       }
@@ -3173,6 +3454,7 @@ function updateSkills(dt){
           vx: Math.cos(a) * 720, vy: Math.sin(a) * 720,
           r: 5, life: 0.85, kind:'ice', type:'ice',
           dmg, hit: new Set(), slow: ult,
+          skillId:'spread',
         });
       }
     }
@@ -3195,6 +3477,7 @@ function updateSkills(dt){
           vx: Math.cos(a) * 280, vy: Math.sin(a) * 280,
           r: 7, life: 2.4, kind:'homing', type:'arcane',
           dmg, hit: new Set(), lvl: l, target: t,
+          skillId:'homing',
         });
       }
     }
@@ -3217,7 +3500,7 @@ function updateSkills(dt){
 
       for (const e of G.enemies){
         if (distToSeg(e.x, e.y, P.x, P.y, ex, ey) < e.r + width){
-          skillHit(e, dmg, 'arcane');
+          skillHit(e, dmg, 'arcane', 'beam');
         }
       }
       G.effects.push({
@@ -3244,14 +3527,14 @@ function updateSkills(dt){
       for (let i = 0; i < n; i++){
         const e = cands[i];
         if (!e || e.hp <= 0) continue;
-        skillHit(e, dmg, 'lightning');
+        skillHit(e, dmg, 'lightning', 'thunder');
         G.effects.push({
           kind:'thunder', x: e.x, y: e.y, r: 50 + l * 5,
           life: 0.35, maxLife: 0.35, color:'#ffe066',
         });
         for (const e2 of G.enemies){
           if (e2 === e) continue;
-          if (d2(e2.x, e2.y, e.x, e.y) < 70 * 70) skillHit(e2, dmg * 0.4, 'lightning');
+          if (d2(e2.x, e2.y, e.x, e.y) < 70 * 70) skillHit(e2, dmg * 0.4, 'lightning', 'thunder');
         }
       }
     }
@@ -3274,6 +3557,7 @@ function updateSkills(dt){
         dmg: atk * (0.9 + l * 0.5) * (ult ? 1.6 : 1),
         hit: new Set(),
         phase: 'out', travel: 0, maxDist: 300 + l * 20,
+        skillId:'hammer',
       });
     }
   }
@@ -3283,7 +3567,10 @@ function updateSkills(dt){
     if (!s.cast) continue;
     const lv = L(s.id);
     if (lv <= 0 || P.cd[s.id] > 0) continue;
+    /* 为同步调用 skillHit 提供默认技能 id；H.bullet / H.effect 也会自动写入 */
+    G.curCastSkill = s.id;
     const ok = s.cast(lv, ATK(s.id), SKILL_HELPERS);
+    G.curCastSkill = null;
     if (ok !== false) P.cd[s.id] = CD(s.cd(lv));
   }
 }
@@ -3471,6 +3758,12 @@ function showLevelUp(){
       bonusHtml = `<div class="card-bonus">⚡ 装备加成：${parts.join(' · ')}</div>`;
     }
 
+    /* ★ 本关怪物抗性提示 */
+    const resistVal = (G.skillResist && G.skillResist[s.id]) || 0;
+    const resistHtml = resistVal > 0
+      ? `<div class="card-warn">⚠ 本关怪物抗性：${s.name}伤害 -${(resistVal * 100).toFixed(0)}%</div>`
+      : '';
+
     const card = document.createElement('div');
     card.className = 'card' + (isUlt ? ' ult' : '');
     card.innerHTML = `
@@ -3479,6 +3772,7 @@ function showLevelUp(){
       <div class="lv">${isNew ? '新技能' : (isUlt ? '★ 终极形态 ★' : `Lv.${next} / 6`)}</div>
       <div class="ds">${s.desc(next)}</div>
       ${bonusHtml}
+      ${resistHtml}
     `;
     card._apply = () => {
       P.skills[s.id] = next;
@@ -3737,12 +4031,12 @@ function update(dt){
           }
 
           if (b.kind === 'homing'){
-            skillHit(e, b.dmg, 'arcane');
+            skillHit(e, b.dmg, 'arcane', 'homing');
             const er = (b.lvl >= 6 ? 140 : 80);
             for (const e2 of G.enemies){
               if (e2 === e) continue;
               const rr2 = er + e2.r;
-              if (d2(e2.x, e2.y, e.x, e.y) < rr2 * rr2) skillHit(e2, b.dmg * 0.5, 'arcane');
+              if (d2(e2.x, e2.y, e.x, e.y) < rr2 * rr2) skillHit(e2, b.dmg * 0.5, 'arcane', 'homing');
             }
             G.effects.push({ kind:'ring', x:e.x, y:e.y, r:er, life:0.3, maxLife:0.3, color:'#ff7ad9' });
             dead = true;
@@ -3750,8 +4044,12 @@ function update(dt){
           }
 
           const isCrit = Math.random() < P.stats.crit;
-          const dmg = b.dmg * (isCrit ? P.stats.critDmg : 1);
-          damageEnemy(e, dmg, b.type, isCrit);
+          let finalDmg = b.dmg * (isCrit ? P.stats.critDmg : 1);
+          /* ★ 技能子弹受本关怪物技能抗性影响 */
+          if (b.skillId && G.skillResist && G.skillResist[b.skillId] > 0){
+            finalDmg *= (1 - G.skillResist[b.skillId]);
+          }
+          damageEnemy(e, finalDmg, b.type, isCrit);
 
           if (b.slow) e.slowT = Math.max(e.slowT, 1.2);
 
@@ -3882,7 +4180,7 @@ function updateZones(dt){
         fx.tickAcc -= fx.tickRate;
         for (const e of G.enemies){
           const rr = fx.r + e.r;
-          if (d2(e.x, e.y, fx.x, fx.y) < rr * rr) skillHit(e, fx.dmg, fx.type);
+          if (d2(e.x, e.y, fx.x, fx.y) < rr * rr) skillHit(e, fx.dmg, fx.type, fx.skillId);
         }
       }
     }
@@ -3892,7 +4190,7 @@ function updateZones(dt){
         fx.done = true;
         for (const e of G.enemies){
           const rr = fx.r + e.r;
-          if (d2(e.x, e.y, fx.x, fx.y) < rr * rr) skillHit(e, fx.dmg, 'fire');
+          if (d2(e.x, e.y, fx.x, fx.y) < rr * rr) skillHit(e, fx.dmg, 'fire', fx.skillId);
         }
         G.effects.push({ kind:'ring', x:fx.x, y:fx.y, r:fx.r, life:0.45, maxLife:0.45, color:'#ff8b3d' });
         if (G.particles.length < 400){
@@ -3995,12 +4293,26 @@ function rollLevelClearItem(level){
 
   const tier = tierOf(idx);
   if (tier >= 2){
-    // 中级 1 条，高级 2 条
     return makeAffixedItem(d.key, idx, tier - 1);
   }
-  return getDef(d.key, idx);
+  /* ★ 初级：属性仍由 idx 决定；名字用随机前缀副本，key 不变 → 仍可堆叠、仍可合成 */
+  const base = getDef(d.key, idx);
+  return { ...base};
 }
+/* ★ 通关掉落数量：随关卡线性增长
+   第 1 关 10~20 件，之后每关递增（最少 +0.6 件 / 最多 +1.0 件）
+   例：第 1 关 10~20、第 30 关 27~49、第 60 关 45~79、第 100 关 69~119 */
+const LOOT_BASE_MIN = 10;
+const LOOT_BASE_MAX = 20;
+const LOOT_GROW_MIN = 0.6;
+const LOOT_GROW_MAX = 1.0;
 
+function lootCountForLevel(level){
+  const k  = Math.max(0, (level || 1) - 1);
+  const lo = Math.round(LOOT_BASE_MIN + k * LOOT_GROW_MIN);
+  const hi = Math.round(LOOT_BASE_MAX + k * LOOT_GROW_MAX);
+  return randi(lo, Math.max(lo, hi));
+}
 /* ============================================================
    13. 关卡流程
    ============================================================ */
@@ -4010,13 +4322,15 @@ function levelClear(){
   mouseCtl.active = false;
 
   /* ★ 只记录本次掉落的装备（不再展示整个背包） */
+    /* ★ 只记录本次掉落的装备（不再展示整个背包） */
   const dropped = [];
-  const lootCount = randi(10, 20);
+  const lootCount = lootCountForLevel(G.level);   // ★ 随关卡线性增长
   for (let i = 0; i < lootCount; i++){
     const it = rollLevelClearItem(G.level);
     dropped.push(it);
-    addItem(it, 1);            // 入包并自动合成
+    addItemRawTo(P, it, 1);    // ★ 先全部入包
   }
+  autoCombineAll(P);           // ★ 最后统一合成一次（数量多时性能更好）
 
   /* 按种类合并计数，稀有度高的排前面 */
   const grouped = {};
@@ -4089,10 +4403,11 @@ function gameOver(win){
   if (!win && P){
     survived = Math.min(300, Math.floor(G.levelTime || 0));
     const ratio = clamp(survived / 300, 0, 1);
-    lootCount = Math.floor(randi(10, 20) * 0.5 * ratio);
+    lootCount = Math.floor(lootCountForLevel(G.level) * 0.5 * ratio);  // ★ 线性基数
     for (let i = 0; i < lootCount; i++){
-      addItem(rollLevelClearItem(G.level), 1);   // 入包并自动合成
+      addItemRawTo(P, rollLevelClearItem(G.level), 1);
     }
+    autoCombineAll(P);
   }
 
   saveGearOnly();
@@ -4261,6 +4576,13 @@ function continueRun(){
   /* ★ 恢复关卡内计时，而不是从 5:00 重来 */
   if (typeof r.timeLeft === 'number')  G.timeLeft  = clamp(r.timeLeft, 0, 300);
   if (typeof r.levelTime === 'number') G.levelTime = Math.max(0, r.levelTime);
+
+  /* ★ 恢复关卡技能抗性（存档中不存在则重新生成） */
+  if (r.skillResist && typeof r.skillResist === 'object'){
+    G.skillResist = { ...r.skillResist };
+  } else {
+    G.skillResist = genSkillResist(Math.min(MAX_LEVEL, r.level || 1));
+  }
 
   updateHUD();
 }
@@ -4864,8 +5186,12 @@ function bindSkillTips(bar){
         if (!s) return;
         const lv = (P && P.skills[sid]) || 0;
         const lvText = lv >= s.max ? '★ 终极形态' : `Lv.${lv} / ${s.max}`;
+        const resist = (G.skillResist && G.skillResist[sid]) || 0;
+        const resistText = resist > 0
+          ? `<br><span style="color:#ff8a9a;">⚠ 本关怪物抗性：伤害 -${(resist * 100).toFixed(0)}%</span>`
+          : '';
         html = `<div class="tt-name">${s.ico} ${s.name} · ${lvText}</div>`
-             + `<div class="tt-desc">${s.desc(lv)}</div>`;
+             + `<div class="tt-desc">${s.desc(lv)}${resistText}</div>`;
       } else if (eid){
         const e = ENHANCE_DEFS.find(x => x.id === eid);
         if (!e) return;
@@ -5093,6 +5419,73 @@ function fmtPct(v){
 }
 
 let _enhSig = '';
+let _resistSig = '';
+let _endlessSig = '';
+
+/* ============================================================
+   ★ 怪物技能抗性 / 无尽强化 面板
+   ============================================================ */
+function renderResistPanel(){
+  const sec = document.getElementById('resistSec');
+  const listEl = document.getElementById('resistList');
+  const cntEl = document.getElementById('resistCount');
+  const eSec = document.getElementById('endlessSec');
+  const eList = document.getElementById('endlessList');
+  const eCnt = document.getElementById('endlessCount');
+  if (!sec || !listEl) return;
+
+  /* ---------- 技能抗性 ---------- */
+  const res = G.skillResist || {};
+  const keys = Object.keys(res).filter(k => res[k] > 0);
+  keys.sort((a, b) => res[b] - res[a]);
+
+  if (!keys.length){
+    if (sec.style.display !== 'none') sec.style.display = 'none';
+  } else {
+    if (sec.style.display === 'none') sec.style.display = '';
+    if (cntEl) cntEl.textContent = keys.length + ' 项';
+    const sig = keys.map(k => k + ':' + res[k]).join('|');
+    if (sig !== _resistSig){
+      _resistSig = sig;
+      listEl.innerHTML = keys.map(k => {
+        const s = SKILL_DEFS.find(x => x.id === k);
+        return `<div class="eph-row resist">`
+          + `<span class="eph-ico">${s ? s.ico : '❔'}</span>`
+          + `<span class="eph-nm">${s ? s.name : k}</span>`
+          + `<span class="eph-n">-${Math.round(res[k] * 100)}%</span></div>`;
+      }).join('');
+    }
+  }
+
+  /* ---------- 无尽强化 ---------- */
+  if (!eSec || !eList) return;
+  if (!G.endless){
+    if (eSec.style.display !== 'none') eSec.style.display = 'none';
+    return;
+  }
+  if (eSec.style.display === 'none') eSec.style.display = '';
+
+  const w = G.endlessWave || 0;
+  const nextIn = Math.max(0, Math.ceil(30 - (G.endlessT % 30)));
+  const rows = [
+    ['❤️', '怪物生命', '×' + (1 + w * 0.35).toFixed(2)],
+    ['👊', '怪物伤害', '×' + (1 + w * 0.15).toFixed(2)],
+    ['💨', '怪物速度', '×' + (1 + w * 0.05).toFixed(2)],
+    ['💠', '弹道速度', '×' + (1 + w * 0.10).toFixed(2)],
+    ['⏱️', '下次强化', nextIn + 's'],
+  ];
+  if (eCnt) eCnt.textContent = '第 ' + w + ' 波';
+  const esig = w + '|' + nextIn;
+  if (esig !== _endlessSig){
+    _endlessSig = esig;
+    eList.innerHTML = rows.map(r =>
+      `<div class="eph-row endless">`
+      + `<span class="eph-ico">${r[0]}</span>`
+      + `<span class="eph-nm">${r[1]}</span>`
+      + `<span class="eph-n">${r[2]}</span></div>`
+    ).join('');
+  }
+}
 
 function updateEnhPanel(){
   const panel = document.getElementById('enhPanel');
@@ -5108,6 +5501,9 @@ function updateEnhPanel(){
     return;
   }
   panel.classList.remove('hidden');
+
+  /* ★ 抗性 / 无尽强化分区（每帧刷新，带独立签名缓存） */
+  renderResistPanel();
 
   const st = computeEnhOnlyStats();
   const enh = P.enhance || {};
