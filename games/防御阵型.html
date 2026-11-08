@@ -2,14 +2,14 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>防御阵型·觉醒 · 简化复刻</title>
     <style>
         * { box-sizing: border-box; user-select: none; }
         body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0a0f1e; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
         .game-wrapper { background: #1a1f2e; padding: 1.6rem 2.2rem 1.3rem 2.2rem; border-radius: 1.5rem; box-shadow: 0 0 40px rgba(0, 180, 255, 0.15), inset 0 0 0 1px #2e3a55; }
         h1 { margin: 0 0 0.6rem 0; color: #7ec8ff; text-shadow: 0 0 12px #2a6fdb; letter-spacing: 0.3rem; font-weight: 400; font-size: 1.5rem; text-align: center; }
-        canvas { display: block; margin: 0 auto; border-radius: 0.8rem; box-shadow: 0 0 0 2px #2e4a6e, 0 0 30px #000; background: #0b0f17; cursor: pointer; max-width: 100%; height: auto; }
+                canvas { display: block; margin: 0 auto; border-radius: 0.8rem; box-shadow: 0 0 0 2px #2e4a6e, 0 0 30px #000; background: #0b0f17; cursor: pointer; max-width: 100%; }
         .hud { display: flex; justify-content: center; align-items: center; margin-top: 0.8rem; gap: 0.8rem; flex-wrap: wrap; min-height: 2.1rem; }
         .stats { display: none; }
         .stats span { color: #ffd966; font-weight: bold; }
@@ -17,6 +17,7 @@
         button.action:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 #7a5a3a; }
         #sellBtn { background: #4a1a1a; color: #ff8866; box-shadow: inset 0 -2px 0 #7a2a2a; }
         #speedBtn { background: #1a3a4a; color: #7edcff; box-shadow: inset 0 -2px 0 #2a6a7a; }
+        #nextWaveBtn { background: #3a2f14; color: #ffd966; box-shadow: inset 0 -2px 0 #7a6420; }
         #menuBtn { background: #2a2a4a; color: #c8b0ff; box-shadow: inset 0 -2px 0 #4a3a7a; }
         #pauseBtn { background: #1a2a4a; color: #8fc4ff; box-shadow: inset 0 -2px 0 #2a4a7a; }
         #pauseBtn.active { background: #2f5f9a; color: #ffd966; box-shadow: inset 0 -2px 0 #4a7aaa, 0 0 12px #2a6fdb; }
@@ -44,12 +45,158 @@
         #saveBtn { background: #1a3a2a; color: #7dffb0; box-shadow: inset 0 -2px 0 #2a6a4a; }
         #loadBtn { background: #2a2a1a; color: #ffe066; box-shadow: inset 0 -2px 0 #6a5a2a; }
         #loadBtn.disabled { background: #262a30; color: #6a7a88; box-shadow: inset 0 -2px 0 #414850; cursor: not-allowed; }
+        /* ============================================================
+   移动端 / 触摸屏适配
+   ============================================================ */
+html, body {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+}
+canvas { touch-action: none; }
+
+#rotateHint { display: none; }
+
+        @media (pointer: coarse) {
+            html, body {
+                height: 100%;
+                width: 100%;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                -webkit-tap-highlight-color: transparent;
+                overscroll-behavior: none;
+            }
+            body {
+                display: block;
+                background: #05080f;
+            }
+
+            .game-wrapper {
+                width: 100vw;
+                height: 100vh;                 /* 老浏览器回退 */
+                height: 100dvh;                /* 动态视口 */
+                padding: 0;
+                border-radius: 0;
+                box-shadow: none;
+                background: #05080f;
+                display: flex;                 /* ★ 改成 flex column */
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #gameTitle { display: none; }
+
+            /* ★ 关键：包裹层用 flex 吃掉剩余高度，min-height:0 允许它缩小 */
+            .canvas-wrap {
+                flex: 1 1 0;
+                min-height: 0;                 /* ★ 核心修复 */
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+            .canvas-wrap > #gameCanvas {
+                width: auto;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                box-shadow: none;
+                cursor: default;
+                touch-action: none;
+            }
+
+            .save-bar {
+                flex: 0 0 auto;
+                margin: 0;
+                padding: 3px 6px;
+                min-height: 0;
+                gap: 6px;
+                background: #05080f;
+            }
+            .save-bar .save-info { display: none; }
+            .save-bar button.action { height: 26px; font-size: 11px; padding: 0 8px; }
+
+            .hud {
+                flex: 0 0 auto;                /* ★ 不再被挤走 */
+                margin: 0;
+                padding: 4px 6px 6px;
+                gap: 4px;
+                min-height: 0;
+                background: #05080f;
+            }
+            .hud > div { gap: 4px !important; }
+            .hud button.action {
+                height: 30px;
+                font-size: 11px;
+                padding: 0 9px;
+                border-radius: 15px;
+            }
+
+            .info-bar { display: none !important; }
+
+            .tower-tip {
+                font-size: 11px;
+                max-width: 240px;
+                padding: 7px 9px;
+            }
+            .tower-tip .tt-title { font-size: 12px; }
+        }
+        
+
+        @media (pointer: coarse) and (orientation: portrait) {
+            #rotateHint {
+                display: flex;
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                background: #05080f;
+                color: #7ec8ff;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                gap: 14px;
+                font-size: 16px;
+                letter-spacing: 1px;
+                text-align: center;
+                padding: 24px;
+            }
+        }
+
+/* 竖屏时盖一层提示 */
+@media (pointer: coarse) and (orientation: portrait) {
+    #rotateHint {
+        display: flex;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #05080f;
+        color: #7ec8ff;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+        font-size: 16px;
+        letter-spacing: 1px;
+        text-align: center;
+        padding: 24px;
+    }
+}
     </style>
 </head>
 <body>
+    <div id="rotateHint">
+    📱 请横屏使用
+    <span style="font-size:13px;color:#5a7fa8;letter-spacing:0;">
+        横屏后画面更大，操作更方便
+    </span>
+</div>
 <div class="game-wrapper">
     <h1 id="gameTitle" class="hidden">⚡ 防御阵型 · 觉醒 ⚡</h1>
-    <canvas id="gameCanvas" width="1480" height="1000"></canvas>
+                <div class="canvas-wrap">
+                <canvas id="gameCanvas" width="1480" height="1000"></canvas>
+            </div>
         <div class="save-bar">
         <button class="action" id="saveBtn">💾 存档</button>
         <button class="action" id="loadBtn">📂 读档</button>
@@ -66,6 +213,7 @@
             <button class="action" id="sellBtn" style="display:none;">出售 +0</button>
             <button class="action" id="pauseBtn">⏸ 暂停</button>
             <button class="action" id="speedBtn">⏩ 1x</button>
+            <button class="action" id="nextWaveBtn">⏭ 下一波</button>
             <button class="action" id="soundBtn">🔊 音效</button>
             <button class="action" id="menuBtn">关卡选择</button>
             <button class="action" id="resetBtn">重新开始</button>
@@ -88,6 +236,7 @@
         const msgDisplay = document.getElementById('msgDisplay');
         const sellBtn = document.getElementById('sellBtn');
         const speedBtn = document.getElementById('speedBtn');
+        const nextWaveBtn = document.getElementById('nextWaveBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const hud = document.getElementById('hud');
         const infoBar = document.getElementById('infoBar');
@@ -3748,9 +3897,21 @@ function pickSummonType(selfType, waveId) {
             ctx.restore();
         }
 
+                function getTowerMenuScale() {
+            const touch = (navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
+            if (!touch) return 1;
+            const rect = canvas.getBoundingClientRect();
+            const cssW = (rect && rect.width > 0) ? rect.width : canvas.width;
+            const k = canvas.width / cssW;      // 每个 CSS 像素对应多少内部像素
+            // 目标：菜单在屏幕上约 250 × 132 CSS px
+            const s = Math.max(250 * k / TOWER_MENU_W, 132 * k / TOWER_MENU_H);
+            return Math.max(1.2, Math.min(3.5, s));
+        }
+
         function openTowerMenu(col, row) {
             closeBuildMenu();
-            const w = TOWER_MENU_W, h = TOWER_MENU_H;
+            const s = getTowerMenuScale();
+            const w = Math.round(TOWER_MENU_W * s), h = Math.round(TOWER_MENU_H * s);
             const cellX = cellLeft(col), cellY = cellTop(row);
             let x = cellX + CELL + 6;
             if (x + w > canvas.width - 4) x = cellX - w - 6;
@@ -3758,12 +3919,20 @@ function pickSummonType(selfType, waveId) {
             let y = cellY - (h - CELL) / 2;
             if (y < 4) y = 4;
             if (y + h > canvas.height - 4) y = canvas.height - h - 4;
-            towerMenu = { col, row, x, y, w, h, hoverCheck: false, hoverSell: false };
+            towerMenu = { col, row, x, y, w, h, s, hoverCheck: false, hoverSell: false };
             hideTip();
         }
         function closeTowerMenu() { if (!towerMenu) return; towerMenu = null; }
-        function getTowerMenuCheckRect() { return towerMenu ? { x: towerMenu.x + 12, y: towerMenu.y + 34, w: 20, h: 20 } : null; }
-        function getTowerMenuSellRect() { return towerMenu ? { x: towerMenu.x + 12, y: towerMenu.y + 62, w: towerMenu.w - 24, h: 24 } : null; }
+                function getTowerMenuCheckRect() {
+            if (!towerMenu) return null;
+            const s = towerMenu.s || 1;
+            return { x: towerMenu.x + 12 * s, y: towerMenu.y + 34 * s, w: 20 * s, h: 20 * s };
+        }
+        function getTowerMenuSellRect() {
+            if (!towerMenu) return null;
+            const s = towerMenu.s || 1;
+            return { x: towerMenu.x + 12 * s, y: towerMenu.y + 62 * s, w: (TOWER_MENU_W - 24) * s, h: 24 * s };
+        }
 
         function drawTowerMenu() {
             if (!towerMenu) return;
@@ -3772,21 +3941,33 @@ function pickSummonType(selfType, waveId) {
             if (!t) { towerMenu = null; return; }
             const d = TOWER_TYPES[t.type];
             const lvColor = LEVEL_COLORS[Math.min(Math.max(t.level, 1), MAX_LEVEL) - 1];
+            const s = m.s || 1;
+
+            // 选中格子高亮
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 217, 102, 0.9)';
             ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
             ctx.strokeRect(cellLeft(m.col) + 3, cellTop(m.row) + 3, CELL - 6, CELL - 6);
             ctx.setLineDash([]); ctx.restore();
+
+            // 菜单背景
             ctx.save();
             ctx.shadowColor = 'rgba(60, 140, 220, 0.45)'; ctx.shadowBlur = 20;
             ctx.fillStyle = 'rgba(10, 17, 30, 0.97)';
-            roundRect(ctx, m.x, m.y, m.w, m.h, 10); ctx.fill();
+            roundRect(ctx, m.x, m.y, m.w, m.h, 10 * s); ctx.fill();
             ctx.shadowBlur = 0; ctx.strokeStyle = '#3a6a9a'; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.restore();
+
+            // 内容按设计坐标 190×96 绘制，整体缩放 s
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.scale(s, s);
+
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 13px "Microsoft YaHei"'; ctx.fillStyle = lvColor;
-            ctx.fillText(`${d.icon} ${d.name} Lv.${t.level}`, m.x + 12, m.y + 20);
-            const cr = getTowerMenuCheckRect();
+            ctx.fillText(`${d.icon} ${d.name} Lv.${t.level}`, 12, 20);
+
+            const cr = { x: 12, y: 34, w: 20, h: 20 };
             ctx.fillStyle = t.autoUpgrade ? 'rgba(42, 95, 138, 0.9)' : '#1a2536';
             roundRect(ctx, cr.x, cr.y, cr.w, cr.h, 4); ctx.fill();
             ctx.strokeStyle = (m.hoverCheck || t.autoUpgrade) ? '#7ec8ff' : '#3a5a7e';
@@ -3801,17 +3982,19 @@ function pickSummonType(selfType, waveId) {
             ctx.font = 'bold 12px "Microsoft YaHei"';
             ctx.fillStyle = t.autoUpgrade ? '#ffffff' : '#c0dcff';
             ctx.fillText('自动升级', cr.x + 28, cr.y + cr.h / 2 + 1);
+
             ctx.textAlign = 'right';
             ctx.font = '11px "Microsoft YaHei"';
-            if (t.level >= MAX_LEVEL) { 
-                ctx.fillStyle = '#5a7fa8'; ctx.fillText('已满级', m.x + m.w - 12, cr.y + cr.h / 2 + 1); 
+            if (t.level >= MAX_LEVEL) {
+                ctx.fillStyle = '#5a7fa8';
+                ctx.fillText('已满级', TOWER_MENU_W - 12, cr.y + cr.h / 2 + 1);
             } else {
                 const up = getUpgradeCostEffective(t.type, t.level);
                 ctx.fillStyle = money >= up ? '#ffd966' : '#ff6666';
-                ctx.fillText(`${up}💰`, m.x + m.w - 12, cr.y + cr.h / 2 + 1);
+                ctx.fillText(`${up}💰`, TOWER_MENU_W - 12, cr.y + cr.h / 2 + 1);
             }
-            
-            const sr = getTowerMenuSellRect();
+
+            const sr = { x: 12, y: 62, w: TOWER_MENU_W - 24, h: 24 };
             const price = getSellValue(t);
             ctx.fillStyle = m.hoverSell ? '#7a2a2a' : '#3a1414';
             roundRect(ctx, sr.x, sr.y, sr.w, sr.h, 8); ctx.fill();
@@ -3819,6 +4002,8 @@ function pickSummonType(selfType, waveId) {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 12px "Microsoft YaHei"'; ctx.fillStyle = '#ff8866';
             ctx.fillText(`出售 +${price}`, sr.x + sr.w / 2, sr.y + sr.h / 2 + 1);
+
+            ctx.restore();
         }
 
         function updateAutoUpgrade() {
@@ -9693,6 +9878,26 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             pauseBtn.classList.toggle('active', paused);
             msgDisplay.textContent = paused ? '⏸ 已暂停 · 可继续建塔/升级' : '继续战斗';
         }
+        function callNextWave() {
+    if (screen !== 'game' || gameOver || draftPanel) return;
+    if (!waveCountdownStarted) {
+        msgDisplay.textContent = '⚠ 先建造一座防御塔，倒计时才会开始';
+        SFX.error();
+        return;
+    }
+    if (waveIndex >= totalWaves) {
+        msgDisplay.textContent = '⚠ 已经没有更多波次了';
+        SFX.error();
+        return;
+    }
+    if (gameClock >= nextWaveAt) return;   // 这一波已经在刷新了
+    nextWaveAt = gameClock;                // 把下一波的到来时间拉到当前时刻
+    SFX.click();
+    const totalLabel = (currentModeKey === 'endless') ? '∞' : totalWaves;
+    msgDisplay.textContent = `⚡ 提前召唤！第 ${Math.min(waveIndex + 1, totalWaves)}/${totalLabel} 波即将来袭`;
+}
+
+nextWaveBtn.addEventListener('click', callNextWave);
 
         sellBtn.addEventListener('click', () => { SFX.click(); if (!selectedTower) return; sellTower(selectedTower); });
         pauseBtn.addEventListener('click', togglePause);
@@ -9784,8 +9989,164 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 updateSoundBtn(on);
                 if (on) SFX.click();
             }
+            if (e.key === 'n' || e.key === 'N') {
+                callNextWave();
+            }
         });
+        // ============================================================
+        // 触摸屏操作适配：点击 / 长按右键 / 拖动平移 / 双指缩放
+        // ============================================================
+        const IS_TOUCH_DEVICE = (navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
 
+        (function setupTouchControls() {
+            if (!IS_TOUCH_DEVICE) return;
+
+            const TAP_TOLERANCE   = 12;    // CSS px：移动超过这个距离即视为拖动
+            const LONG_PRESS_MS   = 480;   // 长按多久等价于右键
+            const HOVER_THROTTLE  = 70;    // hover 派发节流（ms）
+
+            let state = 'idle';            // idle | tap | pan | scroll | pinch
+            let startCX = 0, startCY = 0;
+            let lastCX = 0, lastCY = 0;
+            let longPressTimer = 0;
+            let pinchStartDist = 0;
+            let pinchStartZoom = 1;
+            let lastHoverAt = 0;
+
+            function toCanvas(clientX, clientY) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: (clientX - rect.left) * (canvas.width / Math.max(1, rect.width)),
+                    y: (clientY - rect.top) * (canvas.height / Math.max(1, rect.height))
+                };
+            }
+            function canvasScale() {
+                const rect = canvas.getBoundingClientRect();
+                return canvas.width / Math.max(1, rect.width);
+            }
+            function emit(type, clientX, clientY, extra) {
+                canvas.dispatchEvent(new MouseEvent(type, Object.assign({
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: clientX, clientY: clientY,
+                    button: 0, buttons: 1
+                }, extra || {})));
+            }
+            function emitHover(clientX, clientY, force) {
+                const now = performance.now();
+                if (!force && now - lastHoverAt < HOVER_THROTTLE) return;
+                lastHoverAt = now;
+                const p = toCanvas(clientX, clientY);
+                mouse.x = p.x; mouse.y = p.y; mouse.inside = true;
+                emit('mousemove', clientX, clientY);
+            }
+            function clearLongPress() {
+                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = 0; }
+            }
+            function isScrollableScreen() {
+                return screen === 'levels' || screen === 'bestiary' ||
+                       screen === 'towerdex' || screen === 'intro';
+            }
+
+            canvas.addEventListener('touchstart', function (e) {
+                // 双指 → 捏合缩放
+                if (e.touches.length >= 2) {
+                    clearLongPress();
+                    state = 'pinch';
+                    const a = e.touches[0], b = e.touches[1];
+                    pinchStartDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+                    pinchStartZoom = zoom;
+                    e.preventDefault();
+                    return;
+                }
+                if (e.touches.length !== 1) return;
+
+                const t = e.touches[0];
+                state = 'tap';
+                startCX = t.clientX; startCY = t.clientY;
+                lastCX  = t.clientX; lastCY  = t.clientY;
+                emitHover(t.clientX, t.clientY, true);
+
+                // 长按 → 右键（打开塔菜单 / 取消建造）
+                clearLongPress();
+                const lx = t.clientX, ly = t.clientY;
+                longPressTimer = setTimeout(function () {
+                    longPressTimer = 0;
+                    if (state !== 'tap') return;
+                    state = 'idle';
+                    emit('contextmenu', lx, ly, { button: 2, buttons: 2 });
+                    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
+                }, LONG_PRESS_MS);
+
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', function (e) {
+                // 双指缩放
+                if (e.touches.length >= 2 && state === 'pinch') {
+                    const a = e.touches[0], b = e.touches[1];
+                    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1;
+                    const mid = toCanvas((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+                    if (screen === 'game') {
+                        setGameZoom(pinchStartZoom * (d / pinchStartDist), mid.x, mid.y);
+                    }
+                    e.preventDefault();
+                    return;
+                }
+                if (e.touches.length !== 1) return;
+
+                const t = e.touches[0];
+
+                if (state === 'tap') {
+                    const moved = Math.hypot(t.clientX - startCX, t.clientY - startCY);
+                    if (moved > TAP_TOLERANCE) {
+                        clearLongPress();
+                        if (screen === 'game')            state = 'pan';
+                        else if (isScrollableScreen())    state = 'scroll';
+                        else                              state = 'idle';
+                        lastCX = t.clientX; lastCY = t.clientY;
+                    } else {
+                        emitHover(t.clientX, t.clientY, false);
+                    }
+                }
+
+                if (state === 'pan') {
+                    const k = canvasScale();
+                    panMap((t.clientX - lastCX) * k, (t.clientY - lastCY) * k);
+                    lastCX = t.clientX; lastCY = t.clientY;
+                } else if (state === 'scroll') {
+                    const k = canvasScale();
+                    scrollY = Math.max(0, Math.min(maxScroll, scrollY + (lastCY - t.clientY) * k));
+                    lastCX = t.clientX; lastCY = t.clientY;
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', function (e) {
+                clearLongPress();
+
+                if (state === 'pinch') {
+                    if (e.touches.length === 0) state = 'idle';
+                    return;
+                }
+                if (e.touches.length > 0) return;   // 还有手指没抬起
+
+                // 短按 → 合成一次完整的鼠标点击
+                if (state === 'tap' && e.changedTouches.length) {
+                    const t = e.changedTouches[0];
+                    emitHover(t.clientX, t.clientY, true);
+                    emit('mousedown', t.clientX, t.clientY);
+                    emit('mouseup',   t.clientX, t.clientY);
+                    emit('click',     t.clientX, t.clientY);
+                }
+                state = 'idle';
+                e.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('touchcancel', function () {
+                clearLongPress();
+                state = 'idle';
+            });
+        })();
         initEndlessUnlock();
         refreshSaveInfo();
         setScreen('menu');
