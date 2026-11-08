@@ -2554,7 +2554,7 @@ const G = {
   bosses: [],
   bossSpawned: 0,
   bossPhase: false,
-  shake: 0,
+  
   pendingLevelUps: 0,
   speed: 1,
   endless: false,
@@ -3343,7 +3343,7 @@ function hurtPlayer(dmg, type){
   const reduce = arm / (arm + 60);
   const taken = Math.max(1, dmg * (1 - reduce));
   P.hp -= taken;
-  G.shake = 7;
+  
   addFloat(P.x, P.y - 28, '-' + Math.round(taken), '#ff6b6b');
 
   if (P.hp <= 0){
@@ -3941,7 +3941,7 @@ function update(dt){
       G.endlessWave = w;
       G.bulletSpdMul = 1 + w * 0.10;
       addFloat(P.x, P.y - 70, '⚠ 深渊强化 ×' + w, '#ff8b3d');
-      G.shake = 10;
+      
     }
 
     if (G.endlessT >= (G.endlessBoss + 1) * 150){
@@ -4269,7 +4269,7 @@ function update(dt){
   G.cam.x += (P.x - W / 2 - G.cam.x) * Math.min(1, dt * 9);
   G.cam.y += (P.y - H / 2 - G.cam.y) * Math.min(1, dt * 9);
 
-  G.shake = Math.max(0, G.shake - dt * 34);
+  
   updateHUD();
 
   if (G.pendingClear > 0){
@@ -4351,7 +4351,7 @@ function killEnemy(e, idx){
     const bi = G.bosses.indexOf(e);
     if (bi >= 0) G.bosses.splice(bi, 1);
 
-    G.shake = 22;
+    
     for (let i = 0; i < 70; i++){
       G.particles.push({
         x: e.x, y: e.y,
@@ -4821,7 +4821,7 @@ function render(){
 
   if (!P) return;
 
-  const sh = G.shake;
+  
   const camX = G.cam.x + (sh ? rand(-sh, sh) : 0);
   const camY = G.cam.y + (sh ? rand(-sh, sh) : 0);
 
