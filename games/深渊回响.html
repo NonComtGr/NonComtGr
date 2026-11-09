@@ -738,9 +738,11 @@
   #levelselect .lv-footer { margin-top: 10px; padding-top: 8px; }
 }
 
-/* 背包：小屏改为两列装备 + 竖排形象 */
+/* ============================================================
+   ★ 移动端背包：完全对齐电脑版三列布局（左 / 中 / 右）
+   ============================================================ */
 @media (max-width: 760px) {
-  /* ---------- 面板：全屏铺满，内部独立滚动 ---------- */
+  /* ---------- 面板：全屏铺满，主体滚动，底部固定 ---------- */
   #bagpanel .panel {
     width: 100%;
     max-width: 100%;
@@ -758,24 +760,24 @@
   #bagpanel .panel > h2 {
     flex: 0 0 auto;
     margin: 0;
-    padding: 14px 16px 4px;
-    font-size: 17px;
+    padding: 12px 14px 3px;
+    font-size: 16px;
   }
   #bagpanel .panel > .sub {
     flex: 0 0 auto;
     margin: 0;
-    padding: 0 16px 10px;
-    font-size: 10.5px;
+    padding: 0 14px 8px;
+    font-size: 10px;
     line-height: 1.45;
     border-bottom: 1px solid #1e1e34;
   }
 
-  /* ---------- 可滚动主体（角色区 + 物品栏） ---------- */
+  /* ---------- 滚动主体 ---------- */
   #bagpanel .bagwrap {
     flex: 1 1 auto;
     min-height: 0;
     gap: 10px;
-    padding: 10px 12px 12px;
+    padding: 8px 10px 10px;
     align-items: stretch;
     overflow-y: auto;
     overflow-x: hidden;
@@ -786,51 +788,84 @@
   }
   #bagpanel .bagwrap::-webkit-scrollbar { width: 4px; }
   #bagpanel .bagwrap::-webkit-scrollbar-thumb { background: #3a3a5e; border-radius: 2px; }
-  #bagpanel .bagwrap::-webkit-scrollbar-track { background: transparent; }
 
-  /* ---------- 角色区：形象居中 + 左右两列装备 ---------- */
+  /* ---------- 人形装备区：与电脑相同三列 ---------- */
   #bagpanel .charwrap {
     width: 100%;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 6px;
+    justify-content: stretch;
+    align-items: start;
     margin-bottom: 0;
   }
   #bagpanel .statpanel { display: none !important; }
+
+  /* 中间列：恢复纵向布局，头盔在上、腰带在下 */
   #bagpanel .charMidCol {
-    grid-column: 1 / -1;
-    grid-row: 1;
+    grid-column: auto;
+    grid-row: auto;
     height: auto;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 14px;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 6px;
   }
   #bagpanel .charMidCol #eqTopM,
-  #bagpanel .charMidCol #eqBot { display: none !important; }
-  #bagpanel .charview { width: 108px; height: 122px; flex: none; }
-  #bagpanel .custom-btn {
-    width: auto;
-    margin: 0;
-    padding: 9px 16px;
-    font-size: 12px;
-    flex: none;
+  #bagpanel .charMidCol #eqBot {
+    display: block !important;
+    width: 100%;
   }
-  #bagpanel #eqLeft  { grid-column: 1; grid-row: 2; }
-  #bagpanel #eqRight { grid-column: 2; grid-row: 2; }
-  #bagpanel .charCustom { grid-column: 1 / -1; grid-row: 3; }
 
-  /* ---------- 装备格 ---------- */
-  #bagpanel .eqcol { gap: 5px; }
+  /* 形象预览：随列宽等比缩放 */
+  #bagpanel .charview {
+    width: 100% !important;
+    height: auto !important;
+  }
+  #bagpanel #charPreview {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+  }
+
+  /* 自定义形象按钮：收紧 */
+  #bagpanel .custom-btn {
+    width: 100%;
+    margin: 0;
+    padding: 6px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- 装备格：宽度跟随列宽，高度缩小 ---------- */
+  #bagpanel .eqcol { gap: 5px; width: 100%; }
   #bagpanel .eqslot2 {
-    height: 42px;
-    padding: 4px 7px;
+    width: 100%;
+    height: 44px;
+    padding: 4px 6px;
     border-radius: 7px;
   }
-  #bagpanel .eqslot2 .sl { font-size: 9.5px; line-height: 1.1; margin-bottom: 1px; }
-  #bagpanel .eqslot2 .it { font-size: 10.5px; line-height: 1.15; }
+  #bagpanel .eqslot2 .sl {
+    font-size: 9.5px;
+    line-height: 1.1;
+    margin-bottom: 1px;
+  }
+  #bagpanel .eqslot2 .it {
+    font-size: 10.5px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  /* ---------- 形象自定义面板 ---------- */
-  #bagpanel .charCustom { padding: 10px; border-radius: 9px; }
+  /* 自定义面板占满整行 */
+  #bagpanel .charCustom {
+    grid-column: 1 / -1;
+    padding: 10px;
+    border-radius: 9px;
+  }
   #bagpanel .cstlabel { font-size: 11px; }
   #bagpanel .emojibtn { width: 28px; height: 28px; font-size: 16px; border-radius: 6px; }
   #bagpanel .swatch { width: 20px; height: 20px; border-radius: 5px; }
@@ -855,13 +890,11 @@
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 7px;
     margin-top: 0;
-    min-height: 0;
     padding-right: 0;
+    min-height: 0;
     overflow-y: visible;
-    overflow-x: hidden;
   }
 
-  /* ---------- 装备卡片 ---------- */
   .bagcard { min-height: 100px; padding: 7px 6px; border-radius: 9px; gap: 2px; }
   .bagcard .ic { font-size: 23px; }
   .bagcard .nm { font-size: 10.5px; }
@@ -870,11 +903,11 @@
   .bagcard .eqbtn { font-size: 10px; padding: 3px 0; }
   .bagcard .ct { font-size: 10px; padding: 0 4px; top: 2px; right: 3px; }
 
-  /* ---------- 底部固定栏（含安全区） ---------- */
+  /* ---------- 底部固定关闭栏 ---------- */
   #bagpanel .bag-footer {
     flex: 0 0 auto;
     margin: 0;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid #23233c;
     background: #101020;
     text-align: center;
@@ -888,17 +921,22 @@
 }
 
 /* ============================================================
-   ★ 极窄屏（≤380px）背包再压缩一档
+   ★ 极窄屏（≤380px）：三列再压一档
    ============================================================ */
 @media (max-width: 380px) {
-  #bagpanel .panel > h2 { padding: 12px 12px 3px; font-size: 15px; }
-  #bagpanel .panel > .sub { padding: 0 12px 8px; font-size: 9.5px; }
-  #bagpanel .bagwrap { padding: 8px 8px 10px; }
-  #bagpanel .charview { width: 92px; height: 106px; }
-  #bagpanel .custom-btn { padding: 8px 12px; font-size: 11px; }
-  #bagpanel .eqslot2 { height: 38px; padding: 3px 6px; }
+  #bagpanel .panel > h2 { padding: 10px 12px 3px; font-size: 15px; }
+  #bagpanel .panel > .sub { padding: 0 12px 7px; font-size: 9.5px; }
+  #bagpanel .bagwrap { padding: 7px 8px 9px; }
+
+  #bagpanel .charwrap {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 5px;
+  }
+  #bagpanel .eqslot2 { height: 40px; padding: 3px 5px; }
   #bagpanel .eqslot2 .sl { font-size: 9px; }
-  #bagpanel .eqslot2 .it { font-size: 10px; }
+  #bagpanel .eqslot2 .it { font-size: 9.5px; }
+  #bagpanel .custom-btn { padding: 5px 3px; font-size: 10px; }
+
   #baglist { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 6px; }
   .bagcard { min-height: 94px; padding: 6px 5px; }
   .bagcard .ic { font-size: 21px; }
@@ -906,7 +944,6 @@
   .bagcard .aff { font-size: 8px; }
   .bagcard .eqbtn { font-size: 9.5px; }
 }
-
 </style>
 </head>
 <body>
@@ -6775,6 +6812,13 @@ function renderBag(){
 
   const leftSlots  = ['mainhand','ring1','medal','necklace','armor','pants'];
   const rightSlots = ['offhand','ring2','shoulder','twohand','gloves','boots'];
+
+  leftSlots.forEach(sk => eqLeft.appendChild(buildSlotEl(sk, pl)));
+  rightSlots.forEach(sk => eqRight.appendChild(buildSlotEl(sk, pl)));
+
+  /* 中间列：头盔在上、腰带在下（所有屏幕一致） */
+  eqTopM.appendChild(buildSlotEl('helmet', pl));
+  eqBot.appendChild(buildSlotEl('belt',  pl));
 
   /* ★ 小屏：头盔 / 腰带并入左右列，中间只保留形象 */
   if (isMobileLayout){
