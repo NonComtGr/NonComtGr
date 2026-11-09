@@ -6798,44 +6798,28 @@ function renderBag(){
 
   hideItemTip();
 
-  const eqLeft = document.getElementById('eqLeft');
+  const eqLeft  = document.getElementById('eqLeft');
   const eqRight = document.getElementById('eqRight');
-  const eqTopM = document.getElementById('eqTopM');
-  const eqBot = document.getElementById('eqBot');
+  const eqTopM  = document.getElementById('eqTopM');
+  const eqBot   = document.getElementById('eqBot');
 
-  eqLeft.innerHTML = '';
+  eqLeft.innerHTML  = '';
   eqRight.innerHTML = '';
-  eqTopM.innerHTML = '';
-  eqBot.innerHTML = '';
+  eqTopM.innerHTML  = '';
+  eqBot.innerHTML   = '';
 
-  const isMobileLayout = window.innerWidth <= 760;
-
+  /* 左右两列（所有屏幕一致） */
   const leftSlots  = ['mainhand','ring1','medal','necklace','armor','pants'];
   const rightSlots = ['offhand','ring2','shoulder','twohand','gloves','boots'];
 
-  leftSlots.forEach(sk => eqLeft.appendChild(buildSlotEl(sk, pl)));
+  leftSlots.forEach(sk  => eqLeft.appendChild(buildSlotEl(sk, pl)));
   rightSlots.forEach(sk => eqRight.appendChild(buildSlotEl(sk, pl)));
 
   /* 中间列：头盔在上、腰带在下（所有屏幕一致） */
   eqTopM.appendChild(buildSlotEl('helmet', pl));
-  eqBot.appendChild(buildSlotEl('belt',  pl));
-
-  /* ★ 小屏：头盔 / 腰带并入左右列，中间只保留形象 */
-  if (isMobileLayout){
-    leftSlots.push('helmet');
-    rightSlots.push('belt');
-  }
-
-  leftSlots.forEach(sk => eqLeft.appendChild(buildSlotEl(sk, pl)));
-  rightSlots.forEach(sk => eqRight.appendChild(buildSlotEl(sk, pl)));
-
-  if (!isMobileLayout){
-    eqTopM.appendChild(buildSlotEl('helmet', pl));
-    eqBot.appendChild(buildSlotEl('belt',  pl));
-  }
+  eqBot.appendChild(buildSlotEl('belt',   pl));
 
   renderStatsPanel(pl);
-
   renderCharPreview();
   buildCharCustom();
 
@@ -6884,7 +6868,6 @@ function renderBag(){
 
     bindItemTip(card, it, false);
 
-    /* ★ 手机上点击卡片（非按钮区）显示属性浮窗 */
     if (IS_TOUCH){
       card.addEventListener('click', (ev) => {
         if (ev.target.closest('.eqbtn')) return;
