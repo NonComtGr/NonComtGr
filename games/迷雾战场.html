@@ -390,7 +390,7 @@ const CONFIG = {
   WALL_COUNT: 650,
   VEHICLE_COUNT: 20,
   MINIMAP: {
-    enabled: true, size: 190, margin: 18, opacity: 0.92,
+    enabled: true, size: 260, margin: 18, opacity: 0.92,
     showEnemies: true, showItems: false, showWalls: true,
     showZone: true, showGrid: true,
   }
@@ -413,6 +413,7 @@ const settings = {
   autoPickup: {
     weapon: true, ammo: true, bandage: true, medkit: true,
     drink: true, grenade: true, backpack: true, armor: true, helmet: true,
+    scatter: true,
   }
 };
 
@@ -479,6 +480,11 @@ const GRENADE_RADIUS = 130;
 const GRENADE_DMG_MAX = 100;
 const GRENADE_DMG_MIN = 15;
 
+/* 手雷飞行参数（可穿墙） */
+const GRENADE_SPEED   = 1000;   // 初速
+const GRENADE_DRAG    = 2.0;    // 空气阻力
+const GRENADE_FUSE    = 0.70;   // 引信时间
+
 const DRINK_BOOST_TIME = 8;      // 饮料加速持续时间
 const HEAL_AMOUNT = { bandage: 25, drink: 15 };
 
@@ -498,6 +504,10 @@ const ZONE_PHASES = [
   {wait:15, shrink:10, ratio:0.55, dmg:16},
   {wait:12, shrink: 8, ratio:0.50, dmg:25},
 ];
+
+/* 散弹：一次射击发射的子弹数 */
+const SCATTER_PELLETS = 3;
+const SCATTER_SPREAD  = 0.085;  // 相邻弹丸角度间隔
 
 /* ============================================================
    图标
@@ -546,6 +556,12 @@ const ICONS = {
     c.beginPath();
     c.moveTo(8, 14); c.lineTo(16, 14);
     c.moveTo(12, 10); c.lineTo(12, 18); c.stroke();
+  },
+  scatter(c){
+    rr(c, 9, 12, 6, 10, 1.5); c.stroke();
+    c.beginPath(); c.arc(12, 7.5, 2.1, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(6.2, 3.8, 1.7, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(17.8, 3.8, 1.7, 0, TAU); c.stroke();
   },
   backpack(c){
     rr(c, 5, 7, 14, 14, 3); c.stroke();
@@ -726,10 +742,11 @@ function makeEntity(x, y, isPlayer){
     id: nextEntityId++,
     x, y, r:14, hp:100, maxHp:100, angle:0,
     isPlayer, human:false, alive:true,
-    weapon:null, ammo:0,
+    weapon:null, ammo:0, scatter:false,
     bandage:0, medkit:0, drink:0, grenade:0,
     backpack:0, armor:0, helmet:0,
     fireCd:0, useCd:0, throwCd:0, speedBoost:0, hurtFlash:0,
+    pickupCd:0,
     speed: isPlayer ? 232 : 206,
     inCar: null,
     input: {dx:0, dy:0, aim:0, fire:false},
@@ -919,6 +936,9 @@ function generateItems(){
   for(let i=0;i<scaledCount( 80);i++){ const s=findSpot(70); addItem('medkit',  s.x, s.y); }
   for(let i=0;i<scaledCount(120);i++){ const s=findSpot(70); addItem('drink',   s.x, s.y); }
   for(let i=0;i<scaledCount(120);i++){ const s=findSpot(80); addItem('grenade', s.x, s.y); }
+
+  /* 散弹弹丸：不占背包格子的特殊道具 */
+  for(let i=0;i<scaledCount(40);i++){ const s=findSpot(90); addItem('scatter', s.x, s.y); }
 
   for(let i=0;i<scaledCount(80);i++){ const s=findSpot(90); addItem('backpack', s.x, s.y, {level:1}); }
   for(let i=0;i<scaledCount(50);i++){ const s=findSpot(90); addItem('backpack', s.x, s.y, {level:2}); }
@@ -2010,20 +2030,36 @@ function tryShoot(ent, angle, spreadMul){
   if(ent.fireCd > 0 || !ent.weapon || ent.ammo <= 0) return false;
   const w = WEAPONS[ent.weapon];
   if(!w) return false;
+
+  const pellets = ent.scatter ? SCATTER_PELLETS : 1;
+  if(ent.ammo < pellets) return false;   // 子弹不足 3 发时无法开火
+
   ent.fireCd = w.rate;
-  ent.ammo--;
+  ent.ammo -= pellets;
 
   const spread = w.spread * (spreadMul || 1);
-  const a  = angle + (Math.random() - 0.5) * spread;
-  const bx = ent.x + Math.cos(a) * (ent.r + 8);
-  const by = ent.y + Math.sin(a) * (ent.r + 8);
 
-  bullets.push({
-    x:bx, y:by,
-    vx: Math.cos(a) * w.speed,
-    vy: Math.sin(a) * w.speed,
-    dmg: w.dmg, owner: ent, life: 1.6, color: w.color
-  });
+  for(let p = 0; p < pellets; p++){
+    let off;
+    if(pellets === 1){
+      off = (Math.random() - 0.5) * spread;
+    } else {
+      /* 3 颗弹丸：中间一颗 + 左右各一颗 */
+      off = (p - (pellets - 1) / 2) * SCATTER_SPREAD
+          + (Math.random() - 0.5) * spread * 0.5;
+    }
+    const a  = angle + off;
+    const bx = ent.x + Math.cos(a) * (ent.r + 8);
+    const by = ent.y + Math.sin(a) * (ent.r + 8);
+
+    bullets.push({
+      x:bx, y:by,
+      vx: Math.cos(a) * w.speed,
+      vy: Math.sin(a) * w.speed,
+      dmg: w.dmg, owner: ent, life: 1.6,
+      color: ent.scatter ? '#ffb060' : w.color
+    });
+  }
   return true;
 }
 
@@ -2059,6 +2095,7 @@ function killEntity(e, killer){
   if(e.medkit  > 0) addItem('medkit',  e.x + rand(-24,24), e.y + rand(-24,24));
   if(e.drink   > 0) addItem('drink',   e.x + rand(-24,24), e.y + rand(-24,24));
   if(e.grenade > 0) addItem('grenade', e.x + rand(-24,24), e.y + rand(-24,24));
+  if(e.scatter)     addItem('scatter', e.x + rand(-26,26), e.y + rand(-26,26));
   if(e.backpack > 0) addItem('backpack', e.x + rand(-26,26), e.y + rand(-26,26), {level:e.backpack});
   if(e.armor    > 0) addItem('armor',    e.x + rand(-26,26), e.y + rand(-26,26), {level:e.armor});
   if(e.helmet   > 0) addItem('helmet',   e.x + rand(-26,26), e.y + rand(-26,26), {level:e.helmet});
@@ -2067,17 +2104,32 @@ function killEntity(e, killer){
 /* ============================================================
    手雷
 ============================================================ */
-function throwGrenade(ent){
+function throwGrenade(ent, tx, ty){
   if(ent.throwCd > 0 || ent.grenade <= 0) return false;
-  ent.grenade--;
   ent.throwCd = 0.9;
-  const a = ent.angle;
+  ent.grenade--;
+
+  let angle, speed;
+  if(tx !== undefined && ty !== undefined){
+    /* 朝目标点投掷：根据空气阻力反推初速，使手雷在引信结束时落在目标点附近 */
+    const dx = tx - ent.x, dy = ty - ent.y;
+    const dist = Math.hypot(dx, dy);
+    angle = dist > 1 ? Math.atan2(dy, dx) : ent.angle;
+    const launch = Math.max(0, dist - 22);           // 减去出生点偏移
+    const k = GRENADE_DRAG;
+    const decay = (1 - Math.exp(-k * GRENADE_FUSE)) / k;
+    speed = clamp(launch / decay, 220, 3000);
+  } else {
+    angle = ent.angle;
+    speed = GRENADE_SPEED;
+  }
+
   grenades.push({
-    x: ent.x + Math.cos(a) * 22,
-    y: ent.y + Math.sin(a) * 22,
-    vx: Math.cos(a) * 600,
-    vy: Math.sin(a) * 600,
-    timer: 1.15, owner: ent, r: 6
+    x: ent.x + Math.cos(angle) * 22,
+    y: ent.y + Math.sin(angle) * 22,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    timer: GRENADE_FUSE, owner: ent, r: 6
   });
   return true;
 }
@@ -2088,7 +2140,7 @@ function explodeGrenade(g){
     if(!e.alive) continue;
     const d = Math.hypot(e.x-g.x, e.y-g.y);
     if(d > GRENADE_RADIUS) continue;
-    if(!hasLOS(g.x, g.y, e.x, e.y)) continue;
+    /* 手雷可穿墙，爆炸伤害不受墙体遮挡 */
     const dmg = GRENADE_DMG_MIN + (GRENADE_DMG_MAX-GRENADE_DMG_MIN) * (1 - d/GRENADE_RADIUS);
     damage(e, dmg, g.owner);
   }
@@ -2098,18 +2150,15 @@ function updateGrenades(dt){
   for(let i=grenades.length-1; i>=0; i--){
     const g = grenades[i];
     g.timer -= dt;
-    const px = g.x, py = g.y;
     g.x += g.vx * dt;
     g.y += g.vy * dt;
-    g.vx *= Math.max(0, 1 - 3.0*dt);
-    g.vy *= Math.max(0, 1 - 3.0*dt);
+    g.vx *= Math.max(0, 1 - GRENADE_DRAG*dt);
+    g.vy *= Math.max(0, 1 - GRENADE_DRAG*dt);
+    /* 只做世界边界限制，可自由穿过墙体 */
     if(g.x < 6){ g.x = 6; g.vx = 0; }
     if(g.y < 6){ g.y = 6; g.vy = 0; }
     if(g.x > WORLD_SIZE-6){ g.x = WORLD_SIZE-6; g.vx = 0; }
     if(g.y > WORLD_SIZE-6){ g.y = WORLD_SIZE-6; g.vy = 0; }
-    if(inWall(g.x, g.y, 0) || !isInMap(g.x, g.y)){
-      g.x = px; g.y = py; g.vx = 0; g.vy = 0;
-    }
     if(g.timer <= 0){
       explodeGrenade(g);
       grenades.splice(i, 1);
@@ -2135,6 +2184,7 @@ function pickupItem(ent, it){
       }
       ent.weapon = it.wkey;
       markRemoved(it);
+      ent.pickupCd = 1.0;
       return true;
     }
     case 'ammo': {
@@ -2160,6 +2210,13 @@ function pickupItem(ent, it){
     case 'medkit': {
       if(!ensureSpace(ent, ITEM_WEIGHT.medkit)) return false;
       ent.medkit++;
+      markRemoved(it);
+      return true;
+    }
+    case 'scatter': {
+      /* 散弹弹丸：不占背包格 */
+      if(ent.scatter) return false;
+      ent.scatter = true;
       markRemoved(it);
       return true;
     }
@@ -2235,6 +2292,7 @@ function shouldAutoPickup(ent, it){
     case 'weapon':
       if(!ent.weapon) return true;
       return WEAPONS[it.wkey].dmg > WEAPONS[ent.weapon].dmg;
+    case 'scatter':  return !ent.scatter;
     case 'backpack': return it.level > ent.backpack;
     case 'armor':    return it.level > ent.armor;
     case 'helmet':   return it.level > ent.helmet;
@@ -2243,6 +2301,7 @@ function shouldAutoPickup(ent, it){
 }
 
 function autoPickupTick(ent){
+  if(ent.pickupCd > 0) return; 
   if(ent === player && autoPickupSuppress > 0) return;
   for(let i=0; i<items.length; i++){
     const it = items[i];
@@ -2304,30 +2363,42 @@ function dropItemFromEntity(ent, kind){
       const drop = Math.min(ent.ammo, AMMO_PER_UNIT);
       ent.ammo -= drop;
       addItem('ammo', ent.x + rand(-20,20), ent.y + rand(-20,20), {amount: drop});
+      ent.pickupCd = 1.0;
       return true;
     }
     case 'bandage': {
       if(ent.bandage <= 0) return false;
       ent.bandage--;
       addItem('bandage', ent.x + rand(-20,20), ent.y + rand(-20,20));
+      ent.pickupCd = 1.0;
       return true;
     }
     case 'medkit': {
       if(ent.medkit <= 0) return false;
       ent.medkit--;
       addItem('medkit', ent.x + rand(-20,20), ent.y + rand(-20,20));
+      ent.pickupCd = 1.0;
       return true;
     }
     case 'drink': {
       if(ent.drink <= 0) return false;
       ent.drink--;
       addItem('drink', ent.x + rand(-20,20), ent.y + rand(-20,20));
+      ent.pickupCd = 1.0;
       return true;
     }
     case 'grenade': {
       if(ent.grenade <= 0) return false;
       ent.grenade--;
       addItem('grenade', ent.x + rand(-20,20), ent.y + rand(-20,20));
+      ent.pickupCd = 1.0;
+      return true;
+    }
+    case 'scatter': {
+      if(!ent.scatter) return false;
+      ent.scatter = false;
+      addItem('scatter', ent.x + rand(-20,20), ent.y + rand(-20,20));
+      ent.pickupCd = 1.0;
       return true;
     }
   }
@@ -2527,6 +2598,8 @@ function itemScore(ai, it){
     else s = 0.05;
   } else if(it.type === 'ammo'){
     s = ai.ammo < 60 ? 3.0 : (ai.ammo < 140 ? 1.0 : 0.1);
+  } else if(it.type === 'scatter'){
+    s = ai.scatter ? 0.02 : 1.4;
   } else if(it.type === 'armor'){
     s = it.level > ai.armor ? 3.0 : 0.02;
   } else if(it.type === 'helmet'){
@@ -2629,8 +2702,9 @@ function updateAI(ai, dt){
 
     if(ai.grenade > 0 && ai.throwCd <= 0 &&
        enemyD > 150 && enemyD < 420 && Math.random() < 0.006){
-      ai.angle = ang + rand(-0.08, 0.08);
-      throwGrenade(ai);
+      throwGrenade(ai,
+        enemy.x + rand(-50, 50),
+        enemy.y + rand(-50, 50));
     }
 
     if(enemyD < 780 && los) tryShoot(ai, ai.angle, P.spreadMul);
@@ -2941,7 +3015,7 @@ function hostApplyAction(entry, k, data){
   } else if(k === 'bandage') useBandage(ent);
   else if(k === 'medkit')   useMedkit(ent);
   else if(k === 'drink')    useDrink(ent);
-  else if(k === 'grenade')  throwGrenade(ent);
+  else if(k === 'grenade')  throwGrenade(ent, data && data.x, data && data.y);
   else if(k === 'vehicle'){
     if(ent.inCar) exitVehicle(ent);
     else {
@@ -3216,6 +3290,7 @@ function applySnapshot(s){
     player.dmgTaken = m[12];
     player.rank = m[14] || player.rank;
     if(m.length > 15) player.speedBoost = m[15] || 0;
+    if(m.length > 16) player.scatter = !!m[16];
 
     if(!m[13] && player.alive){
       player.alive = false;
@@ -3362,7 +3437,8 @@ function buildSnapshot(p, removedDelta, newItems){
       p.backpack, p.armor, p.helmet,
       p.kills, Math.round(p.dmgDealt), Math.round(p.dmgTaken),
       p.alive ? 1 : 0, p.rank || 0,
-      +p.speedBoost.toFixed(2)
+      +p.speedBoost.toFixed(2),
+      p.scatter ? 1 : 0
     ]
   };
 }
@@ -3429,6 +3505,7 @@ function update(dt){
     if(e.throwCd    > 0) e.throwCd    -= dt;
     if(e.speedBoost > 0) e.speedBoost -= dt;
     if(e.hurtFlash  > 0) e.hurtFlash  -= dt;
+    if(e.pickupCd   > 0) e.pickupCd   -= dt;
   }
 
   updateBullets(dt);
@@ -3560,6 +3637,7 @@ function itemIconName(it){
     case 'medkit':   return 'medkit';
     case 'drink':    return 'drink';
     case 'grenade':  return 'grenade';
+    case 'scatter':  return 'scatter';
     case 'backpack': return 'backpack';
     case 'armor':    return 'armor';
     case 'helmet':   return 'helmet';
@@ -3575,6 +3653,7 @@ function itemColor(it){
     case 'medkit':   return '#4ade80';
     case 'drink':    return '#38bdf8';
     case 'grenade':  return '#a3e635';
+    case 'scatter':  return '#ff9a4a';
     case 'backpack': return it.level === 1 ? '#b58b5a' : it.level === 2 ? '#8f6ad4' : '#e0a72a';
     case 'armor':    return it.level === 1 ? '#8fa8b8' : it.level === 2 ? '#7fa8d8' : '#5f8fd8';
     case 'helmet':   return it.level === 1 ? '#9a9a9a' : it.level === 2 ? '#88a8c0' : '#6a8fc0';
@@ -3628,6 +3707,12 @@ function drawItems(){
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
       const wn = WEAPONS[it.wkey] ? WEAPONS[it.wkey].name : '';
       ctx.fillText(wn, it.x, it.y + 24);
+    }
+
+    if(it.type === 'scatter'){
+      ctx.font = 'bold 10px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,170,110,0.9)';
+      ctx.fillText('散弹', it.x, it.y + 24);
     }
   }
 }
@@ -3734,6 +3819,14 @@ function drawEntities(){
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r + 8, 0, TAU);
       ctx.strokeStyle = 'rgba(56,189,248,0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    if(e.scatter){
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r + 8, -0.6, 0.6);
+      ctx.strokeStyle = 'rgba(255,154,74,0.85)';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -3987,6 +4080,91 @@ function drawHUD(){
   ctx.textAlign = 'center';
   ctx.fillText(Math.ceil(player.hp) + ' / 100', bx + bw/2, by + bh/2 + 1);
 
+
+    /* ---- 武器 + 背包 / 护甲 / 头盔 / 减伤：血条上方居中 ---- */
+  {
+    const capUsed = usedCap(player);
+    const capMax  = BACKPACKS[player.backpack].cap;
+    const red     = Math.round(damageReduction(player) * 100);
+    const BOLD    = 'bold 15px system-ui, sans-serif';
+    const SMALL   = '13px system-ui, sans-serif';
+
+    const parts = [];
+    if(player.weapon && WEAPONS[player.weapon]){
+      const w = WEAPONS[player.weapon];
+      parts.push({ text: w.name + ' · 子弹 ' + player.ammo,
+                   color: w.color, font: BOLD });
+    } else {
+      parts.push({ text: '空手', color: '#777', font: BOLD });
+    }
+    parts.push(
+      { text: '背包 ' + BACKPACKS[player.backpack].name + ' ' + capUsed + '/' + capMax,
+        color: capUsed >= capMax ? '#ff8080' : '#9fd4ff', font: SMALL },
+      { text: '护甲 ' + (player.armor  ? player.armor  + '级' : '无'),
+        color: player.armor  ? '#8fb8e0' : '#666', font: SMALL },
+      { text: '头盔 ' + (player.helmet ? player.helmet + '级' : '无'),
+        color: player.helmet ? '#8fb8e0' : '#666', font: SMALL },
+      { text: '减伤 ' + red + '%',
+        color: red > 0 ? '#7fe0a8' : '#666', font: SMALL }
+    );
+
+    /* 先按默认间距量一遍；太宽就收紧间距，防止窄屏溢出 */
+    let gap = 22;
+    const measure = (g)=>{
+      let t = 0;
+      for(const p of parts){
+        ctx.font = p.font;
+        t += ctx.measureText(p.text).width;
+      }
+      return t + g * (parts.length - 1);
+    };
+    let totalW = measure(gap);
+    if(totalW > W - 60){
+      gap = 10;
+      totalW = measure(gap);
+    }
+
+    let cx = W/2 - totalW/2;
+    const eqY = by - 72;
+    ctx.textAlign = 'left';
+    for(const p of parts){
+      ctx.font = p.font;
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, cx, eqY);
+      cx += ctx.measureText(p.text).width + gap;
+    }
+  }
+  /* ---- 消耗品信息：显示在血条正上方，居中 ---- */
+  const iy = by - 46;
+  ctx.font = '14px system-ui, sans-serif';
+  const entries = [
+    { icon:'bandage', color:'#f0f0f0',
+      text:'x' + player.bandage + ' [' + kp(K.bandage) + ']' },
+    { icon:'medkit',  color:'#4ade80',
+      text:'x' + player.medkit  + ' [' + kp(K.medkit)  + ']' },
+    { icon:'drink',   color:'#38bdf8',
+      text:'x' + player.drink   + ' [' + kp(K.drink)   + ']' },
+    { icon:'grenade', color:'#a3e635',
+      text:'x' + player.grenade + ' [' + kp(K.grenade) + '/右键]' },
+  ];
+  if(player.scatter){
+    entries.push({ icon:'scatter', color:'#ff9a4a', text:'散弹' });
+  }
+
+  const gap = 26;
+  const widths = entries.map(e => 22 + ctx.measureText(e.text).width);
+  let totalW = widths.reduce((a,b)=>a+b, 0) + gap * (entries.length - 1);
+  let cursor = W/2 - totalW/2;
+
+  for(let i = 0; i < entries.length; i++){
+    const e = entries[i];
+    drawIcon(ctx, e.icon, cursor + 10, iy, 18, e.color, 2);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = e.color;
+    ctx.fillText(e.text, cursor + 22, iy);
+    cursor += widths[i] + gap;
+  }
+
   /* ---- 饮料（加速）计时条：位于血条正上方 ---- */
   if(player.speedBoost > 0){
     const barH = 7;
@@ -4006,64 +4184,9 @@ function drawHUD(){
     ctx.fillText('加速 ' + player.speedBoost.toFixed(1) + 's', bx - 12, barY + barH/2);
   }
 
-  ctx.textAlign = 'right';
-  const rx = W - 26, ry = H - 92;
-  if(player.weapon && WEAPONS[player.weapon]){
-    const w = WEAPONS[player.weapon];
-    ctx.font = 'bold 18px system-ui, sans-serif';
-    ctx.fillStyle = w.color;
-    ctx.fillText(w.name, rx, ry);
-    ctx.font = 'bold 15px system-ui, sans-serif';
-    ctx.fillStyle = '#ffd34d';
-    ctx.fillText('子弹 ' + player.ammo, rx, ry + 26);
-  } else {
-    ctx.font = 'bold 16px system-ui, sans-serif';
-    ctx.fillStyle = '#777';
-    ctx.fillText('空手', rx, ry);
-  }
 
-  ctx.textAlign = 'right';
-  ctx.font = '13px system-ui, sans-serif';
-  const ey = ry - 34;
 
-  const capUsed = usedCap(player);
-  const capMax  = BACKPACKS[player.backpack].cap;
-
-  ctx.fillStyle = capUsed >= capMax ? '#ff8080' : '#9fd4ff';
-  ctx.fillText('背包 ' + BACKPACKS[player.backpack].name +
-               '  ' + capUsed + '/' + capMax, rx, ey);
-
-  ctx.fillStyle = player.armor  ? '#8fb8e0' : '#555';
-  ctx.fillText('护甲 ' + (player.armor  ? player.armor + '级' : '无'), rx - 130, ey);
-  ctx.fillStyle = player.helmet ? '#8fb8e0' : '#555';
-  ctx.fillText('头盔 ' + (player.helmet ? player.helmet + '级' : '无'), rx - 230, ey);
-
-  const red = Math.round(damageReduction(player) * 100);
-  ctx.fillStyle = red > 0 ? '#7fe0a8' : '#555';
-  ctx.fillText('减伤 ' + red + '%', rx - 330, ey);
-
-  const mmTop = CONFIG.MINIMAP.enabled ? (H - CONFIG.MINIMAP.margin - CONFIG.MINIMAP.size) : H;
-  const iy = mmTop - 30;
-  ctx.textAlign = 'left';
-  ctx.font = '14px system-ui, sans-serif';
-
-  const ix = CONFIG.MINIMAP.enabled ? CONFIG.MINIMAP.margin : 26;
-
-  drawIcon(ctx, 'bandage', ix + 10, iy, 18, '#f0f0f0', 2);
-  ctx.fillStyle = '#f0f0f0';
-  ctx.fillText('x' + player.bandage + ' [' + kp(K.bandage) + ']', ix + 24, iy);
-
-  drawIcon(ctx, 'medkit', ix + 130, iy, 18, '#4ade80', 2);
-  ctx.fillStyle = '#4ade80';
-  ctx.fillText('x' + player.medkit + ' [' + kp(K.medkit) + ']', ix + 144, iy);
-
-  drawIcon(ctx, 'drink', ix + 250, iy, 18, '#38bdf8', 2);
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText('x' + player.drink + ' [' + kp(K.drink) + ']', ix + 264, iy);
-
-  drawIcon(ctx, 'grenade', ix + 370, iy, 18, '#a3e635', 2);
-  ctx.fillStyle = '#a3e635';
-  ctx.fillText('x' + player.grenade + ' [' + kp(K.grenade) + '/右键]', ix + 384, iy);
+  
 
   ctx.textAlign = 'right';
   ctx.font = 'bold 20px system-ui, sans-serif';
@@ -4136,6 +4259,7 @@ function drawHUD(){
     else if(near.type === 'medkit')   name = '医疗包';
     else if(near.type === 'drink')    name = '饮料';
     else if(near.type === 'grenade')  name = '手雷';
+    else if(near.type === 'scatter')  name = '散弹弹丸';
     else if(near.type === 'backpack') name = near.level + '级背包';
     else if(near.type === 'armor')    name = near.level + '级护甲';
     else if(near.type === 'helmet')   name = near.level + '级头盔';
@@ -4358,6 +4482,7 @@ const AUTO_ITEMS = [
   {id:'medkit',   name:'医疗包'},
   {id:'drink',    name:'饮料'},
   {id:'grenade',  name:'手雷'},
+  {id:'scatter',  name:'散弹弹丸'},
   {id:'backpack', name:'背包'},
   {id:'armor',    name:'护甲'},
   {id:'helmet',   name:'头盔'},
@@ -4474,6 +4599,7 @@ function bpItemLabel(it){
     case 'medkit':   return '医疗包';
     case 'drink':    return '饮料';
     case 'grenade':  return '手雷';
+    case 'scatter':  return '散弹弹丸';
     case 'backpack': return (it.level || 1) + '级背包';
     case 'armor':    return (it.level || 1) + '级护甲';
     case 'helmet':   return (it.level || 1) + '级头盔';
@@ -4489,6 +4615,7 @@ function bpItemIcon(it){
     case 'medkit':   return 'medkit';
     case 'drink':    return 'drink';
     case 'grenade':  return 'grenade';
+    case 'scatter':  return 'scatter';
     case 'backpack': return 'backpack';
     case 'armor':    return 'armor';
     case 'helmet':   return 'helmet';
@@ -4504,6 +4631,7 @@ function bpItemColor(it){
     case 'medkit':   return '#4ade80';
     case 'drink':    return '#38bdf8';
     case 'grenade':  return '#a3e635';
+    case 'scatter':  return '#ff9a4a';
     case 'backpack':
       return (it.level || 1) === 1 ? '#b58b5a' : (it.level === 2 ? '#8f6ad4' : '#e0a72a');
     case 'armor':
@@ -4632,6 +4760,9 @@ function renderBackpackUI(){
       {lbl:'头盔', val: p.helmet > 0 ? p.helmet + '级' : '无',
        icon: p.helmet > 0 ? 'helmet' : null,
        color:'#9a9a9a'},
+      {lbl:'散弹', val: p.scatter ? '已激活' : '无',
+       icon: p.scatter ? 'scatter' : null,
+       color:'#ff9a4a'},
     ];
     for(const d of eqs){
       const div = document.createElement('div');
@@ -4862,8 +4993,11 @@ cvs.addEventListener('mousedown', e=>{
   if(bpUI.open) return;
   if(e.button === 0) mouse.down = true;
   if(e.button === 2 && gameState === 'playing' && player && player.alive){
-    if(net.mode === 'client') sendNetAction('grenade');
-    else throwGrenade(player);
+    const rect = cvs.getBoundingClientRect();
+    const wx = (e.clientX - rect.left) + cam.x;
+    const wy = (e.clientY - rect.top)  + cam.y;
+    if(net.mode === 'client') sendNetAction('grenade', {x: wx, y: wy});
+    else throwGrenade(player, wx, wy);
   }
 });
 window.addEventListener('mouseup', e=>{ if(e.button === 0) mouse.down = false; });
@@ -4937,7 +5071,13 @@ window.addEventListener('keydown', e=>{
     if(k === K.bandage) sendNetAction('bandage');
     if(k === K.medkit)  sendNetAction('medkit');
     if(k === K.drink)   sendNetAction('drink');
-    if(k === K.grenade) sendNetAction('grenade');
+    if(k === K.grenade){
+      if(net.mode === 'client'){
+        sendNetAction('grenade', {x: mouse.x + cam.x, y: mouse.y + cam.y});
+      } else {
+        throwGrenade(player, mouse.x + cam.x, mouse.y + cam.y);
+      }
+    }
     if(k === K.vehicle) sendNetAction('vehicle');
   } else {
     if(k === K.pickup && !player.inCar){
