@@ -30,8 +30,14 @@ canvas{
   touch-action:manipulation;cursor:pointer;
 }
 #side{
-  flex:0 1 310px;min-width:0;max-width:100%;
+  flex:0 1 440px;min-width:0;max-width:100%;
   display:flex;flex-direction:column;gap:14px;
+}
+#sideTop{
+  display:flex;gap:12px;align-items:flex-start;
+}
+#sideTop > .panel{
+  flex:1 1 0;min-width:0;
 }
   .panel{background:#212840;border:1px solid #3a4360;border-radius:12px;padding:14px 16px}
   .panel h3{margin:0 0 10px;font-size:15px;letter-spacing:2px;color:#8e98bd;font-weight:600}
@@ -99,10 +105,10 @@ canvas{
   #hudExtraStats .ex-v{color:#a9b4d8;font-variant-numeric:tabular-nums;text-align:right}
   #hudExtraStats .ex-cap{color:#7c86ad;font-size:11px}
 
-  /* ===== 勇士增强图标网格（6 个一行） ===== */
+    /* ===== 勇士增强 / 怪物增强图标网格（5 个一行） ===== */
   .card-grid{
     display:none;
-    grid-template-columns:repeat(6,1fr);
+    grid-template-columns:repeat(5,1fr);
     gap:4px;
     padding:4px 0 8px;
     border-bottom:1px dashed #2e3752;
@@ -616,7 +622,7 @@ canvas{
   #leftCol{ order: 1; width: 100%; max-width: 100%; flex: none; }
   #side   { order: 2; width: 100%; max-width: 100%; flex: none; }
 }
-  @media (max-width: 520px){
+@media (max-width: 520px){
   body{padding:8px}
   #game{gap:12px}
   .menu-row{flex-wrap:wrap}
@@ -626,6 +632,8 @@ canvas{
   #equipPanel{flex:1 1 100%}
   .pad{flex:1 1 100%}
   .pad-grid{--pb:clamp(44px, 15vw, 64px)}
+  #sideTop{flex-direction:column}
+  #sideTop > .panel{flex:0 0 auto;width:100%}
 }
 </style>
 </head>
@@ -690,56 +698,78 @@ canvas{
 <!-- ================= 游戏 ================= -->
 <div id="game">
   <!-- 左侧：状态 + 工具 -->
-  <div id="side">
-    <div class="panel">
-      <h3>状 态</h3>
-      <div class="stat fl"><span>层数</span><b id="hudFloor">1 / 200</b></div>
-      <div class="stat card"><span>✨ 勇士增强</span><b id="hudCards">0</b></div>
-      <div id="hudCardGrid" class="card-grid"></div>
-      <div class="stat mbuff"><span>🧬 怪物增强</span><b id="hudMonsterBuff">0</b></div>
-      <div id="hudMonsterBuffGrid" class="card-grid"></div>
-      <div class="stat time"><span>⏱️ 时间</span><b id="hudTime">00:00</b></div>
-      <div class="stat dif"><span>💀 怪物难度</span><b id="hudDiff">2.5×</b></div>
-      <div class="stat hp"><span>生命</span><b id="hudHp">3000 / 3000</b></div>
-      <div class="exp-row">
-        <div class="exp-bar">
-          <div class="exp-fill" id="hudExpFill" style="width:0%"></div>
-          <span class="exp-label" id="hudExpLabel">Lv.1　0 / 100</span>
+    <div id="side">
+    <div id="sideTop">
+      <!-- 工具栏在左（含 AI 助手） -->
+      <div class="panel" id="toolPanel">
+        <h3>工 具</h3>
+        <button id="shopBtn" class="tool-btn" disabled>🏪 商店（本层无）</button>
+        <button id="bookBtn" class="tool-btn">📖 怪物手册 <span class="key-hint" id="hintBook">F</span></button>
+        <button id="teleBtn" class="tool-btn">🚪 楼层传送 <span class="key-hint" id="hintTele">G</span></button>
+        <button id="equipBtn" class="tool-btn">⚒️ 背包与合成 <span class="key-hint" id="hintEquip">R</span></button>
+        <button id="keybindBtn" class="tool-btn">⌨️ 快捷键设置</button>
+        <button id="autoEquipBtn" class="tool-btn">🎒 自动装备：开</button>
+        <button id="autoPickupBtn" class="tool-btn">🧲 自动拾取：开</button>
+        <button id="autoKillBtn" class="tool-btn">⚔️ 击杀 0 伤怪物</button>
+        <div class="kill-slider-wrap">
+          <div class="kill-slider-head">
+            <span>零伤阈值（自动清扫）</span>
+            <b id="autoKillThresholdVal">0.0‰</b>
+          </div>
+          <input type="range" id="autoKillThreshold" min="0" max="1" step="0.1" value="0">
+        </div>
+
+        <div style="border-top:1px dashed #2e3752;margin:10px 0 8px"></div>
+
+        <!-- ★ AI 助手 -->
+        <button id="aiToggleBtn" class="tool-btn"><span id="aiLabel">🤖 AI 助手：关</span> <span class="key-hint" id="hintAI">X</span></button>
+        <div class="kill-slider-wrap">
+          <div class="kill-slider-head">
+            <span>操作间隔</span>
+            <b id="aiIntervalVal">300ms</b>
+          </div>
+          <input type="range" id="aiInterval" min="50" max="1000" step="50" value="300">
+        </div>
+        <div style="font-size:12px;color:#7c86ad;line-height:1.75;margin-top:8px">
+          自动战斗 / 拾取 / 开门 / 上下楼 / 购物；<br>
+          自动挑选更优装备以降低战损，商店优先购买装备。
         </div>
       </div>
-      <div class="stat atk"><span>攻击</span><b id="hudAtk">20</b></div>
-      <div class="stat def"><span>防御</span><b id="hudDef">20</b></div>
-      <div id="hudExtraStats"></div>
-      <div class="stat gold"><span>💰 金币</span><b id="hudGold">0</b></div>
-      <div class="stat ky"><span>🗝️ 黄钥匙</span><b id="hudYk">0</b></div>
-      <div class="stat kb"><span><i class="ti ti-key" style="color:#4d9aff"></i> 蓝钥匙</span><b id="hudBk">0</b></div>
-      <div class="stat kr"><span><i class="ti ti-key" style="color:#ff4d5e;-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill"></i> 红钥匙</span><b id="hudRk">0</b></div>
-    </div>
-    <div class="panel">
-      <h3>工 具</h3>
-      <button id="shopBtn" class="tool-btn" disabled>🏪 商店（本层无）</button>
-      <button id="bookBtn" class="tool-btn">📖 怪物手册 <span class="key-hint" id="hintBook">F</span></button>
-      <button id="teleBtn" class="tool-btn">🚪 楼层传送 <span class="key-hint" id="hintTele">G</span></button>
-      <button id="equipBtn" class="tool-btn">⚒️ 背包与合成 <span class="key-hint" id="hintEquip">R</span></button>
-      <button id="keybindBtn" class="tool-btn">⌨️ 快捷键设置</button>
-      <button id="autoEquipBtn" class="tool-btn">🎒 自动装备：开</button>
-      <button id="autoPickupBtn" class="tool-btn">🧲 自动拾取：开</button>
-      <button id="autoKillBtn" class="tool-btn">⚔️ 击杀 0 伤怪物</button>
-      <div class="kill-slider-wrap">
-        <div class="kill-slider-head">
-          <span>零伤阈值（自动清扫）</span>
-          <b id="autoKillThresholdVal">0.0‰</b>
+
+      <!-- 状态栏在右 -->
+      <div class="panel">
+        <h3>状 态</h3>
+        <div class="stat fl"><span>层数</span><b id="hudFloor">1 / 200</b></div>
+        <div class="stat card"><span>✨ 勇士增强</span><b id="hudCards">0</b></div>
+        <div id="hudCardGrid" class="card-grid"></div>
+        <div class="stat mbuff"><span>🧬 怪物增强</span><b id="hudMonsterBuff">0</b></div>
+        <div id="hudMonsterBuffGrid" class="card-grid"></div>
+        <div class="stat time"><span>⏱️ 时间</span><b id="hudTime">00:00</b></div>
+        <div class="stat dif"><span>💀 怪物难度</span><b id="hudDiff">2.5×</b></div>
+        <div class="stat hp"><span>生命</span><b id="hudHp">3000 / 3000</b></div>
+        <div class="exp-row">
+          <div class="exp-bar">
+            <div class="exp-fill" id="hudExpFill" style="width:0%"></div>
+            <span class="exp-label" id="hudExpLabel">Lv.1　0 / 100</span>
+          </div>
         </div>
-        <input type="range" id="autoKillThreshold" min="0" max="1" step="0.1" value="0">
+        <div class="stat atk"><span>攻击</span><b id="hudAtk">20</b></div>
+        <div class="stat def"><span>防御</span><b id="hudDef">20</b></div>
+        <div id="hudExtraStats"></div>
+        <div class="stat gold"><span>💰 金币</span><b id="hudGold">0</b></div>
+        <div class="stat ky"><span>🗝️ 黄钥匙</span><b id="hudYk">0</b></div>
+        <div class="stat kb"><span><i class="ti ti-key" style="color:#4d9aff"></i> 蓝钥匙</span><b id="hudBk">0</b></div>
+        <div class="stat kr"><span><i class="ti ti-key" style="color:#ff4d5e;-webkit-text-stroke:1.6px currentColor;paint-order:stroke fill"></i> 红钥匙</span><b id="hudRk">0</b></div>
       </div>
     </div>
+
     <div class="panel tips">
       ← ↑ → ↓ / WASD 移动<br>
       撞怪战斗 · 踩物拾取 · 撞门开锁<br>
       点击空地自动寻路 · 点击怪物直奔开战<br>
       有钥匙时点击可达门 = 直接开门<br>
       绿色箭头=上楼 · 蓝色箭头=下楼<br>
-      F=怪物手册 · G=楼层传送 · R=背包<br>
+      F=怪物手册 · G=楼层传送 · R=背包 · X=AI 助手<br>
       拖动可交换 · 点击已装备卸下 · 点击空位打开背包
     </div>
   </div>
@@ -813,7 +843,7 @@ canvas{
       </div>
       <div id="keybindList"></div>
       <div style="margin-top:14px;font-size:12px;color:#7c86ad;line-height:1.75">
-        · 默认 <b style="color:#8affc0">F</b> = 怪物手册 · <b style="color:#8affc0">G</b> = 楼层传送 · <b style="color:#8affc0">R</b> = 背包与合成；<br>
+        · 默认 <b style="color:#8affc0">F</b> = 怪物手册 · <b style="color:#8affc0">G</b> = 楼层传送 · <b style="color:#8affc0">R</b> = 背包与合成 · <b style="color:#8affc0">X</b> = AI 助手；<br>
         · 若把快捷键绑到 A / S 等移动键，会覆盖对应的移动方向；<br>
         · 请避免使用浏览器保留键（如 F5、Ctrl 组合等）。
       </div>
@@ -3634,8 +3664,8 @@ function refreshEquipUI(){
 
 /* ======================= 快捷键 ======================= */
 const KEYBIND_STORAGE = 'mota_keybinds_v3';
-const KEYBINDS = { book: 'KeyF', teleport: 'KeyG', equip: 'KeyR' };
-const KEYBIND_ORDER = ['book', 'teleport', 'equip'];
+const KEYBINDS = { book: 'KeyF', teleport: 'KeyG', equip: 'KeyR', ai: 'KeyX' };
+const KEYBIND_ORDER = ['book', 'teleport', 'equip', 'ai'];
 let capturingAction = null;
 
 function loadKeybinds(){
@@ -3657,7 +3687,8 @@ function saveKeybinds(){
 const KEYBIND_ACTIONS = [
   { id:'book',     name:'📖 怪物手册',   hintId:'hintBook' },
   { id:'teleport', name:'🚪 楼层传送',   hintId:'hintTele' },
-  { id:'equip',    name:'⚒️ 背包与合成', hintId:'hintEquip' }
+  { id:'equip',    name:'⚒️ 背包与合成', hintId:'hintEquip' },
+  { id:'ai',       name:'🤖 AI 助手',    hintId:'hintAI' }
 ];
 
 function keyLabel(code){
@@ -5203,6 +5234,7 @@ window.enterEndless = function(){
 };
 
 window.restart = function(){
+  aiStop();
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('game').style.display = 'none';
   document.getElementById('menu').classList.add('show');
@@ -5438,6 +5470,7 @@ document.getElementById('equipGrid').addEventListener('click', function(e){
    ★ 开始游戏 / 重置
    ================================================================== */
 function startGame(settings){
+  aiStop();
   S.settings = settings;
   if (!S.settings.mult) S.settings.mult = 2;
 
@@ -5618,6 +5651,11 @@ window.addEventListener('keydown', e => {
   for (const action in KEYBINDS){
     if (e.code === KEYBINDS[action]){
       e.preventDefault();
+      if (action === 'ai'){
+        if (AI.running) aiStop();
+        else            aiStart();
+        return;
+      }
       const targetId = MODAL_OF[action];
       for (const otherId of Object.values(MODAL_OF)){
         if (otherId === targetId) continue;
@@ -5825,6 +5863,7 @@ function restore(data){
     console.warn('[save] 版本不兼容', data.__v, '≠', SAVE_VERSION);
     return false;
   }
+  aiStop();
 
   /* 1. 地图尺寸 */
   GW   = data.GW || 13;
@@ -6038,6 +6077,921 @@ document.addEventListener('visibilitychange', () => {
     location.reload();
   });
 })();
+
+/* ==================================================================
+   ★ AI 助手
+   ================================================================== */
+const AI_STORE_KEY = 'mota_ai_interval_v1';
+const AI = {
+  running: false, interval: 300, timer: null,
+  _lastEmptyTeleport: -1,     // 上次空楼层传送目标，防死循环
+  _emptyTeleportCount: 0      // 空楼层传送次数，超过阈值就停
+};
+
+function aiLoadSettings(){
+  try {
+    const v = parseInt(localStorage.getItem(AI_STORE_KEY), 10);
+    if (Number.isFinite(v) && v >= 50 && v <= 1000) AI.interval = v;
+  } catch(e){}
+}
+function aiSaveSettings(){
+  try { localStorage.setItem(AI_STORE_KEY, String(AI.interval)); } catch(e){}
+}
+
+function updateAIBtn(){
+  const label = document.getElementById('aiLabel');
+  if (!label) return;
+  label.innerHTML = '🤖 AI 助手：' + (AI.running
+    ? '<span style="color:#8affc0">开</span>'
+    : '<span style="color:#ff7b7b">关</span>');
+  updateKeyHints();
+}
+function updateAIIntervalLabel(){
+  const el = document.getElementById('aiIntervalVal');
+  if (el) el.textContent = AI.interval + 'ms';
+}
+
+function aiStart(){
+  if (AI.running) return;
+  if (!S.floors || !S.floors.length){ toast('请先开始游戏'); return; }
+  if (S.over || S.win){ toast('游戏已结束'); return; }
+  AI._lastEmptyTeleport = -1;   
+  AI._emptyTeleportCount = 0;   
+  AI.running = true;
+  updateAIBtn();
+  toast('🤖 AI 助手已启动');
+  aiLoop();
+}
+
+function aiStop(){
+  if (!AI.running && !AI.timer) return;
+  AI.running = false;
+  if (AI.timer){ clearTimeout(AI.timer); AI.timer = null; }
+  updateAIBtn();
+}
+
+function aiLoop(){
+  if (!AI.running) return;
+  if (AI.timer){ clearTimeout(AI.timer); AI.timer = null; }
+  try { aiStep(); }
+  catch(e){ console.error('[AI]', e); }
+  if (!AI.running) return;
+  AI.timer = setTimeout(aiLoop, Math.max(50, AI.interval));
+}
+
+function aiStep(){
+  if (S.over || S.win){ aiStop(); return; }
+  if (!S.floors || !S.floors[S.floorIdx]) return;
+
+  const overlay = document.getElementById('overlay');
+  if (overlay && overlay.classList.contains('show')){ aiStop(); return; }
+
+  /* 勇士增强卡：AI 自动选择 */
+  const cardModal = document.getElementById('cardModal');
+  if (cardModal && cardModal.classList.contains('show')){
+    aiPickCard();
+    return;
+  }
+
+  /* 其他弹窗打开时暂停 */
+  if (document.querySelector('.modal.show')) return;
+
+  /* 商店：优先购买装备 */
+  aiShopBuy();
+
+  /* 探索 + 决策 */
+  aiDecide();
+}
+
+/* ---- 勇士增强卡：类别归类 ---- */
+function aiClassifyCard(card){
+  if (!card) return null;
+  const s = card.stats || {};
+  const p = card.pct   || {};
+  const e = card.eco   || {};
+
+  // 1) 攻击：攻击力 / 破甲 / 暴击率
+  if (p.atk || s.atk || s.pen || s.critChance) return 'atk';
+  // 2) 防御：防御力 / 百分比减伤 / 固定减伤
+  if (p.def || s.def || s.dmgRed || s.flatRed) return 'def';
+  // 3) 金币：金币加成（药水/宝石/掉落也归入经济类）
+  if (e.goldPct || e.potionPct || e.gemPct || e.dropPct) return 'gold';
+  // 4) 经验
+  if (e.expPct) return 'exp';
+  // 5) 免疫 / 抗性
+  const immKeys = [
+    'antiCombo','antiPierce','antiThorns','dotRes',
+    'antiFirst','antiCurse','antiStun','antiBomb',
+    'antiArmor','antiDodge','antiShield','antiRegen',
+    'antiReborn','keyGuard'
+  ];
+  for (const k of immKeys) if (s[k]) return 'immune';
+  // 6) 血量：生命上限 / 战后回血
+  if (p.hp || card.hpFlat || e.healPct) return 'hp';
+  return null;
+}
+
+/* 类别优先级（数值越小越优先） */
+const AI_CARD_ORDER = ['atk', 'def', 'gold', 'exp', 'immune', 'hp'];
+
+/* 同类别内的"强度"评分：数值越高越强，只用于同类之间比较 */
+function aiCardStrength(card){
+  let v = 0;
+  const p = card.pct   || {};
+  const s = card.stats || {};
+  const e = card.eco   || {};
+
+  if (p.atk)        v += p.atk * 100;
+  if (p.def)        v += p.def * 100;
+  if (p.hp)         v += p.hp  * 60;
+  if (card.hpFlat)  v += card.hpFlat * 0.1;
+
+  if (s.atk)        v += s.atk * 50;
+  if (s.def)        v += s.def * 50;
+  if (s.pen)        v += s.pen * 60;
+  if (s.critChance) v += s.critChance * 40;
+  if (s.dmgRed)     v += s.dmgRed * 30;
+  if (s.flatRed)    v += s.flatRed * 300;
+
+  if (e.goldPct)    v += e.goldPct * 10;
+  if (e.expPct)     v += e.expPct  * 10;
+  if (e.potionPct)  v += e.potionPct * 8;
+  if (e.gemPct)     v += e.gemPct * 8;
+  if (e.dropPct)    v += e.dropPct * 8;
+  if (e.healPct)    v += e.healPct * 30;
+
+  // 抗性类（叠层数值）
+  ['antiCombo','antiPierce','antiThorns','dotRes'].forEach(k => {
+    if (s[k]) v += s[k] * 20;
+  });
+
+  // 唯一免疫类（免先攻/免控/免减益/护钥…）：给固定高分，保证同类中优先
+  ['antiFirst','antiCurse','antiStun','antiBomb',
+   'antiArmor','antiDodge','antiShield','antiRegen',
+   'antiReborn','keyGuard'].forEach(k => {
+    if (s[k]) v += 500;
+  });
+
+  return v;
+}
+
+/* ---- AI 自动选卡：按「攻击 → 防御 → 金币 → 经验 → 免疫 → 血量」优先 ---- */
+function aiPickCard(){
+  if (!pendingCards || !pendingCards.length){
+    const m = document.getElementById('cardModal');
+    if (m) m.classList.remove('show');
+    return;
+  }
+
+  let bestIdx = 0;
+  let bestRank = -Infinity;      // 类别优先级得分（越大越优先）
+  let bestStr  = -Infinity;      // 同类内强度得分
+
+  for (let i = 0; i < pendingCards.length; i++){
+    const c = pendingCards[i];
+    const cat = aiClassifyCard(c);
+    const order = cat ? AI_CARD_ORDER.indexOf(cat) : 999;
+    // ★ 数值越小越优先 → 转成"越大越优先"
+    const rank = (order === 999) ? -1 : (AI_CARD_ORDER.length - order);
+    const str  = aiCardStrength(c);
+
+    if (rank > bestRank || (rank === bestRank && str > bestStr)){
+      bestRank = rank;
+      bestStr  = str;
+      bestIdx  = i;
+    }
+  }
+
+  const els = document.querySelectorAll('#cardOfferList .card-item');
+  if (els[bestIdx]) els[bestIdx].click();
+}
+
+function aiShopBuy(){
+  const fl = S.floors[S.floorIdx];
+  if (!fl || !fl.shopStock) return false;
+
+  let bought = 0;
+  const stock = fl.shopStock;
+
+  /* 1. 装备优先 */
+  for (let i = 0; i < stock.length; i++){
+    const it = stock[i];
+    if (it.sold || it.kind !== 'equip') continue;
+    if (S.gold < it.price) continue;
+    buyShopItem(i);
+    bought++;
+  }
+  /* 2. 攻击 / 防御宝石 */
+  for (let i = 0; i < stock.length; i++){
+    const it = stock[i];
+    if (it.sold) continue;
+    if (it.kind !== 'atk' && it.kind !== 'def') continue;
+    if (S.gold < it.price) continue;
+    buyShopItem(i);
+    bought++;
+  }
+  /* 3. 药水 / 钥匙 */
+  for (let i = 0; i < stock.length; i++){
+    const it = stock[i];
+    if (it.sold) continue;
+    if (S.gold < it.price) continue;
+    buyShopItem(i);
+    bought++;
+  }
+  return bought > 0;
+}
+
+/* ---- 探索：BFS 找出可达物品 / 怪物 / 门 ---- */
+function aiExplore(){
+  const W = GW, H = GH;
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+  const dist = new Map();
+  const prev = new Map();
+  const items = [], monsters = [], doors = [];
+
+  const startF = S.floorIdx;
+  const startKey = startF + ':' + S.hero.x + ',' + S.hero.y;
+
+  dist.set(startKey, 0);
+  const queue = [startKey];
+
+  for (let qi = 0; qi < queue.length; qi++){
+    const cur = queue[qi];
+    const sp = cur.indexOf(':');
+    const f  = +cur.slice(0, sp);
+    const xy = cur.slice(sp + 1);
+    const [xStr, yStr] = xy.split(',');
+    const cx = +xStr, cy = +yStr;
+    const cd = dist.get(cur);
+
+    const fl = S.floors[f];
+    if (!fl || !fl.grid) continue;
+
+    // ★ 新增：当前格本身是楼梯口时，也要建立跨层边
+    //   （否则 AI 站在楼梯上时 BFS 无法再往下一层 / 上一层扩展）
+    const curIsExit  = !!(fl.exit  && cx === fl.exit.x  && cy === fl.exit.y);
+    const curIsEntry = !!(f > 0 && fl.entry && cx === fl.entry.x && cy === fl.entry.y);
+
+    if (curIsExit){
+      if (f === S.floorIdx && S.floors[f + 1] === undefined){
+        S.floors[f + 1] = generateFloor(f + 1);
+      }
+      if (S.floors[f + 1] && S.floors[f + 1].entry){
+        const nf = f + 1;
+        const e  = S.floors[nf].entry;
+        const ek = nf + ':' + e.x + ',' + e.y;
+        if (!dist.has(ek)){
+          dist.set(ek, cd + 1);
+          prev.set(ek, cur);
+          queue.push(ek);
+        }
+      }
+    }
+    if (curIsEntry){
+      const nf = f - 1;
+      if (nf >= 0 && S.floors[nf] && S.floors[nf].exit){
+        const e  = S.floors[nf].exit;
+        const ek = nf + ':' + e.x + ',' + e.y;
+        if (!dist.has(ek)){
+          dist.set(ek, cd + 1);
+          prev.set(ek, cur);
+          queue.push(ek);
+        }
+      }
+    }
+
+    for (const [dx, dy] of DIRS){
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const nk = f + ':' + nx + ',' + ny;
+      if (dist.has(nk)) continue;
+      const cell = fl.grid[ny][nx];
+      if (cell === '#') continue;
+
+      const localKey = nx + ',' + ny;
+      const isExit  = !!(fl.exit  && nx === fl.exit.x  && ny === fl.exit.y);
+      const isEntry = !!(f > 0 && fl.entry && nx === fl.entry.x && ny === fl.entry.y);
+
+      dist.set(nk, cd + 1);
+      prev.set(nk, cur);
+
+      if (cell === 'Y' || cell === 'B' || cell === 'R'){
+        doors.push({ key: nk, f, x: nx, y: ny });
+        continue;
+      }
+      if (fl.monsters[localKey] !== undefined){
+        monsters.push({ key: nk, f, x: nx, y: ny, localKey });
+        continue;
+      }
+      if (fl.items[localKey] !== undefined){
+        items.push({ key: nk, f, x: nx, y: ny, localKey });
+      }
+
+      // 邻居是楼梯口：建立跨层边（原逻辑保留）
+      if (isExit){
+        if (f === S.floorIdx && S.floors[f + 1] === undefined){
+          S.floors[f + 1] = generateFloor(f + 1);
+        }
+        if (S.floors[f + 1] && S.floors[f + 1].entry){
+          const nf = f + 1;
+          const e  = S.floors[nf].entry;
+          const ek = nf + ':' + e.x + ',' + e.y;
+          if (!dist.has(ek)){
+            dist.set(ek, cd + 1);
+            prev.set(ek, nk);
+            queue.push(ek);
+          }
+        }
+      }
+      if (isEntry){
+        const nf = f - 1;
+        if (nf >= 0 && S.floors[nf] && S.floors[nf].exit){
+          const e  = S.floors[nf].exit;
+          const ek = nf + ':' + e.x + ',' + e.y;
+          if (!dist.has(ek)){
+            dist.set(ek, cd + 1);
+            prev.set(ek, nk);
+            queue.push(ek);
+          }
+        }
+      }
+
+      // ★ 允许穿过楼梯口继续同层扩展（这样楼梯后的格子不会被当成"不可达"）
+      queue.push(nk);
+    }
+  }
+
+  return { dist, prev, items, monsters, doors, startKey };
+}
+
+/* ============================================================
+   ★ AI 扩展：通用楼层探索 / 门必要性判断 / 跨楼层选择
+   ============================================================ */
+
+/* 通用楼层探索：可对任意楼层、任意起点做 BFS */
+function aiExploreFloor(idx, startX, startY){
+  const fl = S.floors[idx];
+  if (!fl || !fl.grid) return null;
+  const W = GW, H = GH;
+  const startKey = startX + ',' + startY;
+  const dist = new Map();
+  const prev = new Map();
+  const items = [], monsters = [], doors = [];
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+
+  dist.set(startKey, 0);
+  const queue = [startKey];
+
+  for (let qi = 0; qi < queue.length; qi++){
+    const cur = queue[qi];
+    const p = cur.split(',');
+    const cx = +p[0], cy = +p[1];
+    const cd = dist.get(cur);
+
+    for (let d = 0; d < 4; d++){
+      const nx = cx + DIRS[d][0];
+      const ny = cy + DIRS[d][1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const k = nx + ',' + ny;
+      if (dist.has(k)) continue;
+      const cell = fl.grid[ny][nx];
+      if (cell === '#') continue;
+
+      const isExit  = !!(fl.exit  && nx === fl.exit.x  && ny === fl.exit.y);
+      const isEntry = !!(idx > 0 && fl.entry && nx === fl.entry.x && ny === fl.entry.y);
+
+      dist.set(k, cd + 1);
+      prev.set(k, cur);
+
+      if (cell === 'Y' || cell === 'B' || cell === 'R'){ doors.push(k); continue; }
+      if (fl.monsters[k] !== undefined){ monsters.push(k); continue; }
+      if (fl.items[k] !== undefined) items.push(k);
+
+      
+      queue.push(k);
+    }
+  }
+  return { dist, prev, items, monsters, doors, startKey, idx };
+}
+
+/* 判断某扇门后面是否有值得的目标（物品 / 可杀怪物 / 出口） */
+/* 判断某扇门后是否有「真正值得消耗一把钥匙」的目标：
+   ① 有可拾取物品
+   ② 有当前能击杀的怪物（打不过的不算）
+   ③ 能到达出口，且出口目前不可达（否则开门毫无意义）
+   门后若只是通向另一扇门 / 死胡同 / 打不过的怪，一律返回 false。 */
+function aiDoorHasTarget(doorKey, fl, ex){
+  const sp = doorKey.indexOf(':');
+  const f  = +doorKey.slice(0, sp);
+  const xy = doorKey.slice(sp + 1);
+  const [dxStr, dyStr] = xy.split(',');
+  const dx = +dxStr, dy = +dyStr;
+
+  const W = GW, H = GH;
+  const seen = new Set([xy]);
+  const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+  const queue = [];
+
+  const exitKeyF = fl.exit ? (f + ':' + fl.exit.x + ',' + fl.exit.y) : null;
+  const exitReachableAlready = !!(ex && exitKeyF && ex.dist.has(exitKeyF));
+
+  for (const [ox, oy] of DIRS){
+    const nx = dx + ox, ny = dy + oy;
+    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+    if (fl.grid[ny][nx] === '#') continue;
+    const k = nx + ',' + ny;
+    if (seen.has(k)) continue;
+    seen.add(k); queue.push(k);
+  }
+
+  for (let qi = 0; qi < queue.length; qi++){
+    const k = queue[qi];
+    const [xStr, yStr] = k.split(',');
+    const cx = +xStr, cy = +yStr;
+    const cell = fl.grid[cy][cx];
+
+    if (cell === 'Y' || cell === 'B' || cell === 'R') continue;
+
+    if (fl.items[k] !== undefined) return true;
+
+    if (fl.monsters[k] !== undefined){
+      const midx = fl.monsters[k];
+      const m = getMonster(midx, fl.monsterTraits && fl.monsterTraits[k], fl.multiplier);
+      if (m){
+        const cf = calcFight(m);
+        if (cf.ok && cf.back < S.player.hp * 0.2) return true;
+      }
+    }
+
+    if (fl.exit && cx === fl.exit.x && cy === fl.exit.y && !exitReachableAlready){
+      return true;
+    }
+
+    for (const [ox, oy] of DIRS){
+      const nx = cx + ox, ny = cy + oy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (fl.grid[ny][nx] === '#') continue;
+      const nk = nx + ',' + ny;
+      if (seen.has(nk)) continue;
+      seen.add(nk); queue.push(nk);
+    }
+  }
+  return false;
+}
+
+/* 按黄→蓝→红优先级，挑一个「门后确有内容」的最近门；没有就返回 null */
+function aiTryOpenUsefulDoor(ex){
+  const fl = S.floors[S.floorIdx];
+  const order = ['Y','B','R'];
+  const keyMap = {Y:'ykey', B:'bkey', R:'rkey'};
+
+  for (const color of order){
+    if (!(S.keys[keyMap[color]] > 0)) continue;
+    const doors = ex.doors
+      .filter(d => d.f === S.floorIdx && fl.grid[d.y][d.x] === color)
+      .sort((a, b) => (ex.dist.get(a.key) || 999) - (ex.dist.get(b.key) || 999));
+    for (const d of doors){
+      if (aiDoorHasTarget(d.key, fl, ex)) return d.key;
+    }
+  }
+  return null;
+}
+
+/* 找其他已访问楼层中还有可清理目标的楼层（有物品 / 有可杀怪） */
+function aiFindFloorToClear(){
+  const candidates = [];
+  for (const idx of visitedFloors){
+    if (idx === S.floorIdx) continue;
+    const fl = S.floors[idx];
+    if (!fl || !fl.grid || !fl.entry) continue;
+    const ex = aiExploreFloor(idx, fl.entry.x, fl.entry.y);
+    if (!ex) continue;
+
+    const hasItem = ex.items.length > 0;
+    let hasKillable = false;
+    if (!hasItem){
+      for (const k of ex.monsters){
+        const midx = fl.monsters[k];
+        if (midx === undefined) continue;
+        const m = getMonster(midx, fl.monsterTraits && fl.monsterTraits[k], fl.multiplier);
+        if (!m) continue;
+        const f = calcFight(m);
+        if (f.ok && f.back < S.player.hp * 0.2){ hasKillable = true; break; }
+      }
+    }
+    if (hasItem || hasKillable) candidates.push({ idx, score: idx });
+  }
+  if (!candidates.length) return null;
+  // 楼层号越大越优先（离当前层最近）
+  candidates.sort((a,b) => b.score - a.score);
+  return candidates[0].idx;
+}
+
+/* 找已访问楼层中第一个"没有怪物和道具"的层（兜底传送点） */
+function aiFindEmptyFloor(){
+  const candidates = [];
+  for (const idx of visitedFloors){
+    if (idx === S.floorIdx) continue;
+    const fl = S.floors[idx];
+    if (!fl) continue;
+    const mCnt = fl.monsters ? Object.keys(fl.monsters).length : 0;
+    const iCnt = fl.items ? Object.keys(fl.items).length : 0;
+    if (mCnt === 0 && iCnt === 0) candidates.push(idx);
+  }
+  if (!candidates.length) return null;
+  // 楼层号越大越优先（最接近当前层）
+  candidates.sort((a,b) => b - a);
+  return candidates[0];
+}
+
+function aiPathTo(key, prev, startKey){
+  const path = [];
+  let c = key;
+  let guard = 0;
+  while (c !== undefined && guard++ < 5000){
+    path.push(c);
+    if (c === startKey) break;
+    c = prev.get(c);
+  }
+  path.reverse();
+  return path;
+}
+
+function aiWalkTo(targetKey, ex){
+  const path = aiPathTo(targetKey, ex.prev, ex.startKey);
+  if (!path || path.length < 2) return false;
+
+  const curKey = S.floorIdx + ':' + S.hero.x + ',' + S.hero.y;
+
+  // 在 path 中定位当前位置
+  let idx = -1;
+  for (let i = 0; i < path.length; i++){
+    if (path[i] === curKey){ idx = i; break; }
+  }
+  if (idx < 0 || idx >= path.length - 1) return false;
+
+  const nextKey = path[idx + 1];
+  const sp = nextKey.indexOf(':');
+  const nf = +nextKey.slice(0, sp);
+  const xy = nextKey.slice(sp + 1);
+  const [nxStr, nyStr] = xy.split(',');
+  const nx = +nxStr, ny = +nyStr;
+
+  if (nf === S.floorIdx){
+    // ---- 同层：正常走一步 ----
+    const dx = nx - S.hero.x;
+    const dy = ny - S.hero.y;
+    if (dx === 0 && dy === 0) return false;
+
+    const fl = S.floors[S.floorIdx];
+    const isStairCell =
+         (fl.exit  && nx === fl.exit.x  && ny === fl.exit.y) ||
+         (fl.entry && nx === fl.entry.x && ny === fl.entry.y);
+
+    // ★ 只有「这一格就是路径终点」时才允许触发上下楼；
+    //   仅仅是路过楼梯口（终点在更远处）一律禁止，避免 AI 被传送到别的楼层。
+    const isTargetStep = (idx + 1 === path.length - 1);
+
+    if (isStairCell && isTargetStep){
+      tryMove(dx, dy);                     // 终点是楼梯 → 触发上楼 / 下楼
+    } else {
+      tryMove(dx, dy, { noStairs: true }); // 路过楼梯 → 只是走一格
+    }
+    return true;
+  }
+
+  // ---- 跨层：当前位置就是楼梯口，直接上下楼 ----
+  if (nf > S.floorIdx){ goUp();   return true; }
+  if (nf < S.floorIdx){ goDown(); return true; }
+  return false;
+}
+
+/* ---- 装备池 ---- */
+function aiBuildPool(){
+  const counts = {};
+  for (let i = 0; i < 6; i++){
+    const id = S.slots[i];
+    if (id) counts[id] = (counts[id] || 0) + 1;
+  }
+  for (const id in S.inv){
+    if (S.inv[id] > 0) counts[id] = (counts[id] || 0) + S.inv[id];
+  }
+  return { counts, ids: Object.keys(counts) };
+}
+
+function aiGeneralScore(E){
+  let s = 0;
+  s += (E.atk || 0) * 100;
+  s += (E.def || 0) * 100;
+  s += (E.hp  || 0) * 0.4;
+  s += (E.pen || 0) * 130;
+  s += (E.critChance || 0) * 35;
+  s += (E.dmgRed || 0) * 55;
+  s += (E.flatRed || 0) * 90;
+  s += (E.dotRes || 0) * 18;
+  s += (E.antiCombo || 0) * 12;
+  s += (E.antiPierce || 0) * 12;
+  s += (E.antiThorns || 0) * 12;
+  if (E.antiArmor)  s += 600;
+  if (E.antiDodge)  s += 600;
+  if (E.antiShield) s += 600;
+  if (E.antiRegen)  s += 600;
+  if (E.antiReborn) s += 600;
+  if (E.antiFirst)  s += 900;
+  if (E.antiCurse)  s += 900;
+  if (E.antiStun)   s += 900;
+  if (E.antiBomb)   s += 500;
+  if (E.keyGuard)   s += 300;
+  return s;
+}
+
+function aiHpAfterLoadout(slots){
+  const curBonus = S.hpBonus || 0;
+  let newBonus = 0;
+  for (const id of slots){
+    if (!id) continue;
+    const e = getEquipDef(id);
+    if (e && e.stats && e.stats.hp) newBonus += e.stats.hp;
+  }
+  const maxHp = S.player.maxHp - curBonus + newBonus;
+  let hp = S.player.hp;
+  const diff = newBonus - curBonus;
+  if (diff > 0) hp = hp + diff;
+  else if (hp > maxHp) hp = maxHp;
+  return { hp, maxHp };
+}
+
+function aiOptimizeSlots(monster, pool, monsterList){
+  const curSlots = S.slots.slice();
+  const ids = pool.ids;
+
+  function evalSlots(slots){
+    const saved = S.slots;
+    S.slots = slots;
+    let v;
+    try {
+      const hpInfo = aiHpAfterLoadout(slots);
+
+      if (monster){
+        // ---- 单怪物：最小化这一只的战损 ----
+        const f = calcFight(monster);
+        if (!f.ok) v = -1e15;
+        else if (f.back >= hpInfo.hp) v = -1e12 - f.back;
+        else v = -f.back * 10000 + hpInfo.hp;
+      } else if (monsterList && monsterList.length){
+        // ---- 综合：基于「总最终伤害」 ----
+        let totalBack = 0;
+        let killableCnt = 0;
+        for (const m of monsterList){
+          const f = calcFight(m);
+          if (!f.ok){
+            totalBack += hpInfo.hp;              // 打不过：按满血损失计
+          } else if (f.back >= hpInfo.hp){
+            totalBack += hpInfo.hp;              // 会死：按满血损失计
+          } else {
+            totalBack += f.back;                 // 实际损失
+            if (f.back < hpInfo.hp * 0.9) killableCnt++;
+          }
+        }
+        // 优先：能安全击杀的数量多；其次：总战损小；再次：血量厚
+        v = killableCnt * 1e10 - totalBack * 10000 + hpInfo.hp;
+      } else {
+        // ---- 兜底：本层没有可达怪物（空层/全被门挡）才用攻防加权 ----
+        v = aiGeneralScore(getTotalBonus());
+      }
+    } catch(e){
+      v = -1e15;
+    } finally {
+      S.slots = saved;
+    }
+    return v;
+  }
+
+  function usedCount(slots, id){
+    let n = 0;
+    for (const x of slots) if (x === id) n++;
+    return n;
+  }
+
+  let best = curSlots.slice();
+  let bestV = evalSlots(best);
+
+  let improved = true, iter = 0;
+  while (improved && iter < 20){
+    improved = false;
+    iter++;
+    for (let i = 0; i < 6; i++){
+      for (let k = 0; k < ids.length; k++){
+        const cid = ids[k];
+        if (best[i] === cid) continue;
+        if (usedCount(best, cid) >= (pool.counts[cid] || 0)) continue;
+        const trial = best.slice();
+        trial[i] = cid;
+        const v = evalSlots(trial);
+        if (v > bestV + 1e-6){
+          bestV = v;
+          best = trial;
+          improved = true;
+        }
+      }
+    }
+  }
+  return { slots: best, value: bestV };
+}
+
+function aiApplySlots(newSlots){
+  const all = {};
+  for (let i = 0; i < 6; i++){
+    const id = S.slots[i];
+    if (id) all[id] = (all[id] || 0) + 1;
+  }
+  for (const id in S.inv){
+    if (S.inv[id] > 0) all[id] = (all[id] || 0) + S.inv[id];
+  }
+  const slotsOut = newSlots.slice();
+  for (let i = 0; i < 6; i++){
+    const id = slotsOut[i];
+    if (!id) continue;
+    if ((all[id] || 0) > 0) all[id]--;
+    else slotsOut[i] = null;
+  }
+  const newInv = {};
+  for (const id in all){
+    if (all[id] > 0) newInv[id] = all[id];
+  }
+  S.inv = newInv;
+  S.slots = slotsOut;
+  recalcHpFromEquip();
+  renderEquipSlots();
+  updateHUD();
+}
+
+function aiApplyBestSlots(res){
+  const newSlots = res.slots;
+  let same = true;
+  for (let i = 0; i < 6; i++){
+    if ((S.slots[i] || null) !== (newSlots[i] || null)){ same = false; break; }
+  }
+  if (same) return false;
+  aiApplySlots(newSlots);
+  return true;
+}
+
+function aiAutoEquipGeneral(ex){
+  const pool = aiBuildPool();
+  if (!pool.ids.length) return false;
+
+  // ★ 收集当前层所有可达怪物（用于“总最终伤害”评估）
+  const monsterList = [];
+  if (ex){
+    const fl = S.floors[S.floorIdx];
+    for (const mo of ex.monsters){
+      if (mo.f !== S.floorIdx) continue;
+      if (!fl) continue;
+      const m = getMonster(fl.monsters[mo.localKey],
+                           fl.monsterTraits && fl.monsterTraits[mo.localKey],
+                           fl.multiplier);
+      if (m) monsterList.push(m);
+    }
+  }
+
+  const res = aiOptimizeSlots(null, pool, monsterList);
+  return aiApplyBestSlots(res);
+}
+
+function aiDecide(){
+  const fl = S.floors[S.floorIdx];
+
+  // 1. 先探索（换装评估需要可达怪物列表）
+  const ex = aiExplore();
+
+  // 2. 综合换装：基于可达怪物的总最终伤害最小化
+  aiAutoEquipGeneral(ex);
+  const distOf = k => (ex.dist.get(k) || 999);
+
+  // 1. 当前层物品
+  const curItems = ex.items.filter(it => it.f === S.floorIdx);
+  if (curItems.length){
+    curItems.sort((a, b) => distOf(a.key) - distOf(b.key));
+    aiWalkTo(curItems[0].key, ex);
+    return;
+  }
+
+  // 2. 当前层可杀怪
+  const hpSafe = Math.max(1, Math.floor(S.player.hp * 0.2));
+  const curMon = [];
+  for (const mo of ex.monsters){
+    if (mo.f !== S.floorIdx) continue;
+    const m = getMonster(fl.monsters[mo.localKey],
+                         fl.monsterTraits && fl.monsterTraits[mo.localKey],
+                         fl.multiplier);
+    if (!m) continue;
+    let cf = calcFight(m);
+    if (!cf.ok || cf.back >= hpSafe) continue;
+    if (cf.back > S.player.hp * 0.08){
+      const pool = aiBuildPool();
+      const res  = aiOptimizeSlots(m, pool);
+      aiApplyBestSlots(res);
+      cf = calcFight(m);
+    }
+    if (!cf.ok || cf.back >= S.player.hp) continue;
+    curMon.push({ key: mo.key, d: distOf(mo.key) });
+  }
+  curMon.sort((a, b) => a.d - b.d);
+  if (curMon.length){
+    aiWalkTo(curMon[0].key, ex);
+    return;
+  }
+
+  // 3. 当前层必要门
+  const doorKey = aiTryOpenUsefulDoor(ex);
+  if (doorKey){
+    aiWalkTo(doorKey, ex);
+    return;
+  }
+
+  // 4. 其他层物品（跨层寻路）
+  const otherItems = ex.items.filter(it => it.f !== S.floorIdx);
+  if (otherItems.length){
+    otherItems.sort((a, b) => distOf(a.key) - distOf(b.key));
+    aiWalkTo(otherItems[0].key, ex);
+    return;
+  }
+
+  // 5. 其他层可杀怪
+  const otherMon = [];
+  for (const mo of ex.monsters){
+    if (mo.f === S.floorIdx) continue;
+    const mf = S.floors[mo.f];
+    if (!mf) continue;
+    const m = getMonster(mf.monsters[mo.localKey],
+                         mf.monsterTraits && mf.monsterTraits[mo.localKey],
+                         mf.multiplier);
+    if (!m) continue;
+    const cf = calcFight(m);
+    if (!cf.ok || cf.back >= hpSafe) continue;
+    otherMon.push({ key: mo.key, d: distOf(mo.key) });
+  }
+  otherMon.sort((a, b) => a.d - b.d);
+  if (otherMon.length){
+    aiWalkTo(otherMon[0].key, ex);
+    return;
+  }
+
+  // 6. 上楼（出口可达）
+  const exitKey = S.floorIdx + ':' + fl.exit.x + ',' + fl.exit.y;
+  if (ex.dist.has(exitKey)){
+    aiWalkTo(exitKey, ex);
+    return;
+  }
+
+  // 7. teleport 兜底
+  const clearIdx = aiFindFloorToClear();
+  if (clearIdx !== null){
+    teleportTo(clearIdx);
+    return;
+  }
+  if (AI._emptyTeleportCount < 3){
+    const emptyIdx = aiFindEmptyFloor();
+    if (emptyIdx !== null && emptyIdx !== AI._lastEmptyTeleport){
+      AI._lastEmptyTeleport = emptyIdx;
+      AI._emptyTeleportCount++;
+      teleportTo(emptyIdx);
+      return;
+    }
+  }
+
+  aiStop();
+  toast('🤖 AI 停止：本层及所有已探索楼层均无可执行目标');
+}
+
+/* ---- AI 面板绑定 ---- */
+(function bindAI(){
+  aiLoadSettings();
+
+  const btn   = document.getElementById('aiToggleBtn');
+  const range = document.getElementById('aiInterval');
+
+  if (range){
+    range.value = String(AI.interval);
+    range.addEventListener('input', () => {
+      const v = parseInt(range.value, 10);
+      if (Number.isFinite(v)) AI.interval = Math.max(50, Math.min(1000, v));
+      aiSaveSettings();
+      updateAIIntervalLabel();
+    });
+  }
+  updateAIIntervalLabel();
+
+  if (btn){
+    btn.addEventListener('click', () => {
+      if (AI.running) aiStop();
+      else aiStart();
+    });
+  }
+  updateAIBtn();
+})();
+
 /* 包一层 tryMove：所有移动后自动存档 */
 const _origTryMove = tryMove;
 tryMove = function(dx, dy, opts){
