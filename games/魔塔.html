@@ -684,8 +684,9 @@ canvas{
 
     <p class="tips">
       1–200 层：每 10 层对应一个怪物编号区间（第 1–10 层使用编号 1–10 的怪物，依此类推）。<br>
+      100、300、500……层出现 BOSS 1；200、400、600……层出现 BOSS 2，守关地图为中央竖直通道。<br>
       201 层起进入无尽模式，怪物编号区间循环使用；每 100 层所有怪物额外获得一种属性。<br>
-      每通过 200 层，怪物血量/攻防 ×4000；血瓶与攻防宝石数值 ×2。<br>
+      每通过 200 层，怪物生命倍率 ×4000、攻防循环倍率 ×20；攻防在层内按每层 1% 复合成长，相邻怪物组最高攻防最多提升 30%。精英 / BOSS 不再额外乘攻防倍率；血瓶与攻防宝石数值 ×2。<br>
       「怪物难度」直接放大怪物的生命、攻击、防御；「装备爆率」影响击杀掉落的概率。<br>
       每层有 10% 概率出现「勇士增强」，可从 3 张中选 1 张永久强化勇者。<br>
       每层有 12% 概率出现「怪物增强」，自动为本层怪物附加一种变异效果。<br>
@@ -728,7 +729,7 @@ canvas{
             <span>操作间隔</span>
             <b id="aiIntervalVal">300ms</b>
           </div>
-          <input type="range" id="aiInterval" min="50" max="1000" step="50" value="300">
+          <input type="range" id="aiInterval" min="10" max="1000" step="10" value="300">
         </div>
         <div style="font-size:12px;color:#7c86ad;line-height:1.75;margin-top:8px">
           自动战斗 / 拾取 / 开门 / 上下楼 / 购物；<br>
@@ -951,7 +952,8 @@ canvas{
         <p>击败怪物可获得 <b style="color:#8affc0">经验（EXP）</b> 与 <b style="color:#ffd75c">金币</b>：</p>
         <ul>
           <li>经验条位于<b>状态面板的生命与攻击之间</b>，显示当前等级与升级进度。</li>
-          <li>每升一级，<b>基础攻击、基础防御、当前生命与生命上限各提升 5%</b>（可无限叠加）。</li>
+          <li>每升一级，<b>基础攻击、基础防御、当前生命与生命上限各提升 4.72%</b>（可无限叠加）。</li>
+          <li>成长率按默认设置校准；若大致清理每层怪物，第 500 层攻防预计接近 1 亿，实际数值会受地图大小、事件密度、怪物难度及经验加成影响。</li>
           <li>升级所需经验随等级提高而增加；怪物越强，掉落的经验与金币越多。</li>
           <li>金币可在<b>商店</b>购买宝石、药水、钥匙与装备。</li>
         </ul>
@@ -972,7 +974,7 @@ canvas{
         <ul>
           <li>每层有 <b>12%</b> 概率出现「怪物增强」，随机自动选择一种变异效果，作用于本层所有怪物。</li>
           <li>怪物增强共 <b>50 种</b>，涵盖攻击、防御、生命、奖励、混合与特殊类别。</li>
-          <li>部分增强会同时提升击杀奖励（金币 / 经验 / 掉落率），高风险高回报。</li>
+          <li>部分增强会同时提升击杀奖励（金币 / 经验 / 掉落率），高风险高回报；永久累计的怪物攻击 / 防御倍率上限为 2 倍。</li>
           <li>当前层的怪物增强会显示在状态面板的「勇士增强」与「时间」之间。</li>
         </ul>
       </div>
@@ -1050,6 +1052,8 @@ canvas{
           <li><b>减益 / 控制类</b>：诅咒、弱化、迟缓、眩晕、定身、腐蚀、恐惧、冰霜……</li>
           <li><b>特殊类</b>：偷窃、成长、进化、死亡爆炸、分裂、圣盾、狂血、审判、处刑、自爆、暗影、王权、虚无、压倒……</li>
         </ul>
+        <p>第 <b>100、300、500……层</b>固定出现 BOSS 1；第 <b>200、400、600……层</b>固定出现 BOSS 2。BOSS 属性会随开局选择的怪物难度及无尽层数倍率变化。守关层地图固定为中央一条竖直通道：下楼梯在最下方、BOSS 在中央、上楼梯在最上方，且不生成其他怪物、物品或商店。<b>99、199、299……层的上楼梯与下一层 BOSS 地图的下楼梯坐标完全对齐。</b></p>
+
         <p>按 <span class="guide-kbd">F</span> 打开<b>怪物手册</b>，可查看本层所有怪物的生命 / 攻击 / 防御 / 经验 / 金币、属性标签（悬停可看说明）以及预计损失 HP。</p>
       </div>
 
@@ -1059,7 +1063,7 @@ canvas{
           <li>前 <b>200 层</b>为固定爬塔；抵达第 200 层上楼楼梯即通关。</li>
           <li>进入无尽模式后，<b>怪物编号区间循环使用</b>（第 201 层起从第 1 组怪物重新开始）。</li>
           <li>每 <b>100 层</b>，所有怪物额外获得一种属性（属性可叠加）。</li>
-          <li>每通过 <b>200 层</b>，怪物生命 / 攻击 / 防御 ×4000；血瓶与攻防宝石数值 ×2。</li>
+          <li>每通过 <b>200 层</b>，怪物生命倍率 ×4000、攻防循环倍率 ×20；攻防在层内按每层 1% 复合成长，相邻怪物组最高攻防最多提升 30%。精英 / BOSS 不再额外乘攻防倍率。血瓶与攻防宝石数值 ×2。</li>
           <li>无尽模式中，怪物掉落装备数量固定为 <b>2 件</b>（每 200 层 +1 件），初级/中级/高级概率均等。</li>
         </ul>
       </div>
@@ -1071,7 +1075,7 @@ canvas{
           <li><b>物品占比</b>：事件中物品所占比例，越高物品越多、怪物越少。</li>
           <li><b>怪物难度</b>：直接放大怪物的生命、攻击、防御（0.5× – 4×，默认 2.5×）。</li>
           <li><b>装备爆率</b>：影响击杀怪物掉落装备的概率（10% – 200%），无尽模式不受此影响。</li>
-          <li><b>怪物成长</b>：每通过 200 层，怪物血量/攻防额外 ×4000；血瓶与攻防宝石数值 ×2（无尽模式商店中攻防宝石额外获得层数加成）。</li>
+          <li><b>怪物成长</b>：每通过 200 层，怪物生命倍率 ×4000、攻防循环倍率 ×20；攻防在层内按每层 1% 复合成长（无尽模式商店中攻防宝石额外获得层数加成）。</li>
         </ul>
         <p>以上设置仅在<b>开始新游戏</b>时生效，游戏中不可修改。</p>
       </div>
@@ -1197,6 +1201,15 @@ function buildCardTipHtml(card, mode){
   let rows = '';
 
   if (mode === 'owned' && owned > 0){
+    if (card.heroTrait){
+    const tr = TRAITS[card.heroTrait];
+    rows = '<div class="eq-tip-stat">'
+         +   '<span class="eq-tip-k">勇士获得</span>'
+         +   '<span class="eq-tip-v" style="color:#8affc0">「'
+         +   (tr ? tr.n : card.heroTrait) + '」</span>'
+         + '</div>'
+         + (tr ? '<div class="eq-tip-sub">' + tr.d + '</div>' : '');
+  } else {
     /* ---- 已拥有：显示实际生效的累积加成 ---- */
     const g = (S.cardGains && S.cardGains[card.id]) || null;
 
@@ -1227,7 +1240,7 @@ function buildCardTipHtml(card, mode){
         }
       }
     }
-
+  }
     /* 经济类：按已拥有次数累积 */
     if (card.eco){
       const ecoNames = {
@@ -1248,6 +1261,15 @@ function buildCardTipHtml(card, mode){
     if (!rows) rows = '<div class="eq-tip-k">' + card.desc + '</div>';
   } else {
     /* ---- 选卡面板：显示「如果选这张，按当前层数能得到多少」 ---- */
+    if (card.heroTrait){
+      const tr = TRAITS[card.heroTrait];
+      rows = '<div class="eq-tip-stat">'
+           +   '<span class="eq-tip-k">勇士获得</span>'
+           +   '<span class="eq-tip-v" style="color:#8affc0">「'
+           +   (tr ? tr.n : card.heroTrait) + '」</span>'
+           + '</div>'
+           + (tr && tr.d ? '<div class="eq-tip-sub">' + tr.d + '</div>' : '');
+    } else {
     const add = (k, name, color) => {
       const info = STAT_INFO[k];
       if (!info) return;
@@ -1307,7 +1329,7 @@ function buildCardTipHtml(card, mode){
 
     if (!rows) rows = '<div class="eq-tip-k">' + card.desc + '</div>';
   }
-
+  }
   return '<div class="eq-tip-head">'
        +   '<span class="eq-tip-emoji">' + card.emoji + '</span>'
        +   '<div style="min-width:0">'
@@ -1322,6 +1344,10 @@ function buildCardTipHtml(card, mode){
 
 /* ★ 勇士增强描述：按当前层数换算成实际数值，不显示「× 层数」 */
 function buildCardDesc(card){
+  if (card.heroTrait){
+    const tr = TRAITS[card.heroTrait];
+    return '勇士获得「' + (tr ? tr.n : card.heroTrait) + '」';
+  }
   const P = S.player;
   const L = S.floorIdx + 1;
   const scale = card.scaled ? L : 1;
@@ -1485,8 +1511,9 @@ document.addEventListener('touchstart', hideEquipTip, { passive: true });
    怪物表：共 200 个（125 普通 / 50 精英 / 25 BOSS）
    ================================================================== */
 const MONSTER_DEFS = [];
-const ELITE_MULT = 66; //精英属性乘数
-const BOSS_MULT  = 166; //boss属性乘数
+// 只保留精英 / BOSS 的生命倍率；攻击与防御直接使用表内数值，不再乘 36 / 66。
+const ELITE_HP_MULT = 36;
+const BOSS_HP_MULT  = 66;
 
 (function buildMonsters(){
   const base = [
@@ -1689,9 +1716,9 @@ const BOSS_MULT  = 166; //boss属性乘数
   elites.forEach(([name, emoji, hp, atk, def]) => {
     MONSTER_DEFS.push({
       name, emoji,
-      hp : hp  * ELITE_MULT,
-      atk: atk * ELITE_MULT,
-      def: def * ELITE_MULT,
+      hp : hp  * ELITE_HP_MULT,
+      atk: atk,
+      def: def,
       kind: 'elite'
     });
   });
@@ -1726,12 +1753,36 @@ const BOSS_MULT  = 166; //boss属性乘数
   bosses.forEach(([name, emoji, hp, atk, def]) => {
     MONSTER_DEFS.push({
       name, emoji,
-      hp : hp  * BOSS_MULT,
-      atk: atk * BOSS_MULT,
-      def: def * BOSS_MULT,
+      hp : hp  * BOSS_HP_MULT,
+      atk: atk,
+      def: def,
       kind: 'boss'
     });
   });
+})();
+
+// 平滑相邻 10 只怪物组成的编号组：组内保持原有相对差异，组与组之间的最高攻防最多上升 30%。
+// 这样既压低精英 / BOSS 的突发攻防，也避免普通怪物阶段切换时出现大幅伤害跳变。
+(function smoothMonsterCombatGroups(){
+  const GROUP_SIZE = 10;
+  const MAX_GROUP_RISE = 1.30;
+  for (const stat of ['atk', 'def']){
+    let previousMax = Math.max(...MONSTER_DEFS.slice(0, GROUP_SIZE).map(m => m[stat] || 0));
+    for (let group = 1; group < 20; group++){
+      const start = group * GROUP_SIZE;
+      const end = start + GROUP_SIZE;
+      const current = MONSTER_DEFS.slice(start, end);
+      const currentMax = Math.max(...current.map(m => m[stat] || 0));
+      const limit = previousMax * MAX_GROUP_RISE;
+      if (currentMax > limit){
+        const factor = limit / currentMax;
+        for (let i = start; i < end; i++){
+          MONSTER_DEFS[i][stat] = Math.max(0, Math.floor(MONSTER_DEFS[i][stat] * factor));
+        }
+      }
+      previousMax = Math.max(...MONSTER_DEFS.slice(start, end).map(m => m[stat] || 0));
+    }
+  }
 })();
 
 /* ==================================================================
@@ -1868,6 +1919,21 @@ function assignTraits(){
   });
 }
 assignTraits();
+
+// 百层守关 BOSS：独立于普通怪物编号池，不会被随机刷到。
+// 其属性仍由 getMonster() 统一乘上初始设置中的「怪物难度」及对应楼层倍率。
+const MILESTONE_BOSS_1_IDX = MONSTER_DEFS.length;
+MONSTER_DEFS.push({
+  name:'百层守关者·赤焰巨龙', emoji:'🐲',
+  hp:160000, atk:300, def:110, kind:'boss',
+  traits:{ firstStrike:true, armor:true, enrage:true, burn:true }
+});
+const MILESTONE_BOSS_2_IDX = MONSTER_DEFS.length;
+MONSTER_DEFS.push({
+  name:'双百守关者·混沌龙皇', emoji:'🐉',
+  hp:120000000, atk:1200, def:450, kind:'boss',
+  traits:{ firstStrike:true, pierce:true, reduce:true, regen:true, king:true }
+});
 
 /* ======================= 物品 / 门 ======================= */
 const ITEMS = {
@@ -2501,9 +2567,24 @@ function floorMultiplier(L){
   return Math.pow(mult, power);
 }
 
+// 生命倍率沿用原设定，避免本次攻防调整连带改变怪物耐久与经验基数。
 function monsterMultiplier(L){
   const power = Math.floor((L - 1) / 200);
   return Math.pow(4000, power);
+}
+
+// 攻防每 200 层循环一次；编号组之间的最高攻防增幅限制为 30%。
+// 20 倍循环倍率配合每层 1% 复合成长，使 200→201、400→401 的攻防衔接平缓。
+const MONSTER_COMBAT_CYCLE_MULT = 20;
+const MONSTER_COMBAT_FLOOR_MULT = 1.01;
+
+function monsterCombatMultiplier(L){
+  const power = Math.floor((L - 1) / 200);
+  return Math.pow(MONSTER_COMBAT_CYCLE_MULT, power);
+}
+
+function monsterCombatFloorScale(L){
+  return Math.pow(MONSTER_COMBAT_FLOOR_MULT, Math.max(0, L - 1));
 }
 
 function pickExtraTraits(baseTraits, n){
@@ -2786,27 +2867,104 @@ function removeUnreachableContent(floor){
   return removed;
 }
 
+function isMilestoneBossFloor(L){
+  return L >= 100 && L % 100 === 0;
+}
+
+// 百层 BOSS 地图入口固定在最下方中央；前一层的上楼梯使用同一坐标。
+function milestoneBossEntryPosition(){
+  return {x:Math.floor(GW / 2), y:GH - 2};
+}
+
+function isMilestoneBossApproachFloor(L){
+  return L >= 99 && L % 100 === 99;
+}
+
+// 迁移旧存档时，把通往百层 BOSS 的上楼梯移到与 BOSS 层下楼梯完全相同的位置。
+function alignFloorExitToNextBoss(floor){
+  if (!floor || !floor.grid) return false;
+  const pos = milestoneBossEntryPosition();
+  carveToPath(floor.grid, pos.x, pos.y);
+  floor.exit = {x:pos.x, y:pos.y};
+  const key = pos.x + ',' + pos.y;
+  if (floor.monsters) delete floor.monsters[key];
+  if (floor.monsterTraits) delete floor.monsterTraits[key];
+  if (floor.items) delete floor.items[key];
+  return true;
+}
+
+function milestoneBossIndexForFloor(L){
+  // 100、300、500……使用 BOSS 1；200、400、600……使用 BOSS 2。
+  return (Math.floor(L / 100) % 2 === 1)
+    ? MILESTONE_BOSS_1_IDX
+    : MILESTONE_BOSS_2_IDX;
+}
+
+function makeMilestoneBossMap(){
+  // 一格宽的竖直通道：底部下楼、顶部上楼，BOSS 固定在通道正中。
+  const entry = milestoneBossEntryPosition();
+  const x = entry.x;
+  const topY = 1;
+  const bottomY = entry.y;
+  const bossY = Math.floor((topY + bottomY) / 2);
+  const g = Array.from({length:GH}, () => Array(GW).fill('#'));
+  for (let y = topY; y <= bottomY; y++) g[y][x] = '.';
+  return {
+    grid:g,
+    entry:{x, y:bottomY},
+    exit:{x, y:topY},
+    boss:{x, y:bossY}
+  };
+}
+
 function generateFloor(i){
   const L = i + 1;
-  let g = genMazeTerrain();
+  const bossFloor = isMilestoneBossFloor(L);
+  let g, entry, exit, populated;
 
-  let entry;
-  const prev = i > 0 ? S.floors[i - 1] : null;
-  if (prev && prev.exit){
-    carveToPath(g, prev.exit.x, prev.exit.y);
-    entry = { x: prev.exit.x, y: prev.exit.y };
+  if (bossFloor){
+    const special = makeMilestoneBossMap();
+    g = special.grid;
+    entry = special.entry;
+    exit = special.exit;
+    const idx = milestoneBossIndexForFloor(L);
+    const key = special.boss.x + ',' + special.boss.y;
+    const baseTraits = MONSTER_DEFS[idx].traits || {};
+    const extraCount = extraTraitCountForLevel(L);
+    const traits = extraCount > 0
+      ? pickExtraTraits(baseTraits, extraCount)
+      : Object.assign({}, baseTraits);
+    populated = {
+      monsters:{[key]:idx},
+      items:{},
+      monsterTraits:{[key]:traits}
+    };
   } else {
-    entry = pickRandomPath(g);
+    g = genMazeTerrain();
+    const prev = i > 0 ? S.floors[i - 1] : null;
+    if (prev && prev.exit){
+      carveToPath(g, prev.exit.x, prev.exit.y);
+      entry = { x: prev.exit.x, y: prev.exit.y };
+    } else {
+      entry = pickRandomPath(g);
+    }
+
+    if (isMilestoneBossApproachFloor(L)){
+      // 99、199、299……层的上楼梯，与下一层 BOSS 地图的下楼梯坐标完全一致。
+      exit = milestoneBossEntryPosition();
+      carveToPath(g, exit.x, exit.y);
+    } else {
+      exit = pickRandomExit(g, entry, 4);
+      if (exit.x === entry.x && exit.y === entry.y) exit = pickFarthest(g, entry);
+    }
+    // 在放置怪物和物品前传入固定 exit，确保楼梯格不会被占用。
+    populated = populateFloorEx(g, entry, exit, L);
   }
 
-  let exit = pickRandomExit(g, entry, 4);
-  if (exit.x === entry.x && exit.y === entry.y) exit = pickFarthest(g, entry);
-
-  const populated = populateFloorEx(g, entry, exit, L);
-
-  const hasShop = Math.random() < 0.20;
-  const hasCardOffer = (L >= 2) && (Math.random() < 0.10);
-  const hasMonsterBuff = Math.random() < 0.12;
+  // BOSS 专属楼层不生成商店、卡牌事件或随机怪物变异，保持固定单体守关战。
+  const hasShop = !bossFloor && Math.random() < 0.20;
+  const hasCardOffer = !bossFloor && (L >= 2) && (Math.random() < 0.10);
+  const hasMonsterBuff = !bossFloor && Math.random() < 0.12;
   let gainedBuff = null;
   if (hasMonsterBuff){
     const buff = MONSTER_BUFFS[randInt(0, MONSTER_BUFFS.length - 1)];
@@ -2828,12 +2986,15 @@ function generateFloor(i){
     shopStock: hasShop ? makeShopStock(L) : null,
     hasCardOffer,
     cardTaken: false,
-    gainedBuff
+    gainedBuff,
+    isBossFloor: bossFloor
   };
 
-  weakenMonstersOnPathEx(floor);
-  fillDeadEndsEx(floor, L);
-  removeUnreachableContent(floor);   /* ★ 修复孤立格 */
+  if (!bossFloor){
+    weakenMonstersOnPathEx(floor);
+    fillDeadEndsEx(floor, L);
+    removeUnreachableContent(floor);   /* ★ 修复孤立格 */
+  }
   return floor;
 }
 
@@ -2982,6 +3143,10 @@ function getMonsterBuffAggregated(){
     if (m.addTraits) for (const t of m.addTraits) agg.addTraits.push(t);
   }
   agg.addTraits = Array.from(new Set(agg.addTraits));
+
+  // 怪物增强仍可叠加，但永久累计的攻防倍率最多达到 2 倍，避免深层指数膨胀。
+  agg.atkMul = Math.min(2, agg.atkMul);
+  agg.defMul = Math.min(2, agg.defMul);
   return agg;
 }
 /* ==================================================================
@@ -2989,68 +3154,81 @@ function getMonsterBuffAggregated(){
    ================================================================== */
 const CARD_DEFS = [
   /* ---------- 攻击（10） ---------- */
-  {id:'c_atk1',  name:'锋锐',     emoji:'⚔️', desc:'攻击力 +0.8%',                 pct:{atk:0.8}},
-  {id:'c_atk2',  name:'巨力',     emoji:'💪', desc:'攻击力 +1.5 × 层数',            stats:{atk:1.5}, scaled:true},
-  {id:'c_atk3',  name:'破甲',     emoji:'🪨', desc:'无视防御 +1 × 层数',            stats:{pen:1}, scaled:true},
-  {id:'c_atk4',  name:'鹰眼',     emoji:'🎯', desc:'暴击率 +1% × 层数',             stats:{critChance:1}, scaled:true},
-  {id:'c_atk5',  name:'狂怒',     emoji:'💥', desc:'暴击率 +2.5% × 层数',           stats:{critChance:2.5}, scaled:true},
-  {id:'c_atk6',  name:'斩魂',     emoji:'🗡️', desc:'攻击力 +1.5%',                 pct:{atk:1.5}},
-  {id:'c_atk7',  name:'碎骨',     emoji:'🦴', desc:'无视防御 +2.5 × 层数',          stats:{pen:2.5}, scaled:true},
-  {id:'c_atk8',  name:'毁灭',     emoji:'☄️', desc:'攻击力 +3%',                   pct:{atk:3}},
-  {id:'c_atk9',  name:'精准',     emoji:'🔭', desc:'暴击率 +4% × 层数',             stats:{critChance:4}, scaled:true},
-  {id:'c_atk10', name:'屠戮',     emoji:'💀', desc:'攻击力 +2%，暴击率 +1.5% × 层数', pct:{atk:2}, stats:{critChance:1.5}, scaled:true},
+  {id:'c_atk1',  name:'连击',     emoji:'⚡',  desc:'勇士获得「连击」：每回合攻击 2 次',            heroTrait:'combo',     unique:true},
+  {id:'c_atk2',  name:'巨力',     emoji:'💪', desc:'攻击力 +1.5 × 层数',                    stats:{atk:1.5}, scaled:true},
+  {id:'c_atk3',  name:'破甲',     emoji:'🪨', desc:'无视防御 +1 × 层数',                    stats:{pen:1}, scaled:true},
+  {id:'c_atk4',  name:'鹰眼',     emoji:'🎯', desc:'暴击率 +1% × 层数',                     stats:{critChance:1}, scaled:true},
+  {id:'c_atk5',  name:'狂怒',     emoji:'💥', desc:'暴击率 +2.5% × 层数',                   stats:{critChance:2.5}, scaled:true},
+  {id:'c_atk6',  name:'三连击',   emoji:'🌩️', desc:'勇士获得「三连击」：每回合攻击 3 次',          heroTrait:'tripleHit', unique:true},
+  {id:'c_atk7',  name:'碎骨',     emoji:'🦴', desc:'无视防御 +2.5 × 层数',                  stats:{pen:2.5}, scaled:true},
+  {id:'c_atk8',  name:'暴击',     emoji:'💥', desc:'勇士获得「暴击」：25% 几率造成 2 倍伤害',      heroTrait:'crit',      unique:true},
+  {id:'c_atk9',  name:'精准',     emoji:'🔭', desc:'暴击率 +4% × 层数',                     stats:{critChance:4}, scaled:true},
+  {id:'c_atk10', name:'破防',     emoji:'🔨', desc:'勇士获得「破防」：无视怪物 20 点防御',         heroTrait:'pierce',    unique:true},
 
   /* ---------- 防御（10） ---------- */
-  {id:'c_def1',  name:'铁壁',     emoji:'🛡️', desc:'防御力 +4.0%',                 pct:{def:4.0}},
-  {id:'c_def2',  name:'坚甲',     emoji:'🪖', desc:'防御力 +1.5 × 层数',            stats:{def:1.5}, scaled:true},
-  {id:'c_def3',  name:'磐石',     emoji:'🪨', desc:'防御力 +3 × 层数',              stats:{def:3}, scaled:true},
-  {id:'c_def4',  name:'韧皮',     emoji:'🥋', desc:'受伤减免 +0.5% × 层数',         stats:{dmgRed:0.5}, scaled:true},
-  {id:'c_def5',  name:'铁壁之心', emoji:'❤️‍🔥', desc:'受伤减免 +1.2% × 层数',       stats:{dmgRed:1.2}, scaled:true},
-  {id:'c_def6',  name:'护心',     emoji:'🔰', desc:'固定减伤 +0.05 × 层数',          stats:{flatRed:0.05}, scaled:true},
-  {id:'c_def7',  name:'金刚',     emoji:'💎', desc:'固定减伤 +0.12 × 层数',          stats:{flatRed:0.12}, scaled:true},
-  {id:'c_def8',  name:'壁垒',     emoji:'🏰', desc:'防御力 +7.5%',                 pct:{def:7.5}},
-  {id:'c_def9',  name:'不动如山', emoji:'⛰️', desc:'防御力 +12.5%',                 pct:{def:12.5}},
-  {id:'c_def10', name:'圣盾',     emoji:'✨', desc:'防御力 +2%，受伤减免 +1% × 层数', pct:{def:2}, stats:{dmgRed:1}, scaled:true},
+  {id:'c_def1',  name:'护甲',     emoji:'🛡️', desc:'勇士获得「护甲」：每次受击 -20 伤害',          heroTrait:'armor',     unique:true},
+  {id:'c_def2',  name:'坚甲',     emoji:'🪖', desc:'防御力 +1.5 × 层数',                    stats:{def:1.5}, scaled:true},
+  {id:'c_def3',  name:'磐石',     emoji:'🪨', desc:'防御力 +3 × 层数',                      stats:{def:3}, scaled:true},
+  {id:'c_def4',  name:'韧皮',     emoji:'🥋', desc:'受伤减免 +0.5% × 层数',                 stats:{dmgRed:0.5}, scaled:true},
+  {id:'c_def5',  name:'铁壁之心', emoji:'❤️‍🔥', desc:'受伤减免 +1.2% × 层数',               stats:{dmgRed:1.2}, scaled:true},
+  {id:'c_def6',  name:'闪避',     emoji:'💨', desc:'勇士获得「闪避」：20% 几率完全闪避',          heroTrait:'dodge',     unique:true},
+  {id:'c_def7',  name:'虚化',     emoji:'👁️', desc:'勇士获得「虚化」：每 4 回合闪避 1 回合',       heroTrait:'phase',     unique:true},
+  {id:'c_def8',  name:'减伤',     emoji:'🧱', desc:'勇士获得「减伤」：受到伤害 -25%',             heroTrait:'reduce',    unique:true},
+  {id:'c_def9',  name:'格挡',     emoji:'🚧', desc:'勇士获得「格挡」：30% 几率格挡一半伤害',       heroTrait:'block',     unique:true},
+  {id:'c_def10', name:'血壳',     emoji:'🩸', desc:'勇士获得「血壳」：首回合减伤 60%',            heroTrait:'bloodShell', unique:true},
 
   /* ---------- 生命（5） ---------- */
-  {id:'c_hp1',   name:'生命',     emoji:'❤️', desc:'生命上限 +1%',                 pct:{hp:1}},
-  {id:'c_hp2',   name:'强健',     emoji:'💪', desc:'生命上限 +30 × 层数',           hpFlat:30, scaled:true},
-  {id:'c_hp3',   name:'巨人体质', emoji:'🗿', desc:'生命上限 +80 × 层数',           hpFlat:80, scaled:true},
-  {id:'c_hp4',   name:'不死之身', emoji:'👻', desc:'生命上限 +200 × 层数',          hpFlat:200, scaled:true},
-  {id:'c_hp5',   name:'血牛',     emoji:'🩸', desc:'生命上限 +1.5%',               pct:{hp:1.5}},
+  {id:'c_hp1',   name:'再生',     emoji:'💚', desc:'勇士获得「再生」：每回合回复 100 HP',         heroTrait:'regen',     unique:true},
+  {id:'c_hp2',   name:'强健',     emoji:'💪', desc:'生命上限 +30 × 层数',                   hpFlat:30, scaled:true},
+  {id:'c_hp3',   name:'巨人体质', emoji:'🗿', desc:'生命上限 +80 × 层数',                   hpFlat:80, scaled:true},
+  {id:'c_hp4',   name:'不死之身', emoji:'👻', desc:'生命上限 +200 × 层数',                  hpFlat:200, scaled:true},
+  {id:'c_hp5',   name:'护盾',     emoji:'🔵', desc:'勇士获得「护盾」：战斗开始获得 500 点护盾',     heroTrait:'shield',    unique:true},
 
-  /* ---------- 抗性（15） ---------- */
-  {id:'c_res1',  name:'连击抗性', emoji:'⚡', desc:'连击减伤 +0.2% × 层数',           stats:{antiCombo:0.2}, scaled:true},
-  {id:'c_res2',  name:'穿透抗性', emoji:'🛡️', desc:'穿透抗性 +0.25% × 层数',         stats:{antiPierce:0.25}, scaled:true},
-  {id:'c_res3',  name:'反伤减免', emoji:'🌵', desc:'反伤减免 +0.25% × 层数',         stats:{antiThorns:0.25}, scaled:true},
-  {id:'c_res4',  name:'毒抗',     emoji:'🧪', desc:'持续伤害抗性 +0.25% × 层数',     stats:{dotRes:0.25}, scaled:true},
-  {id:'c_res5',  name:'先攻预判', emoji:'👁️', desc:'免疫先攻',                     stats:{antiFirst:0.1},  unique:true},
-  {id:'c_res6',  name:'坚韧',     emoji:'💠', desc:'免疫减益（诅咒/弱化/腐蚀/恐惧）', stats:{antiCurse:0.1},  unique:true},
-  {id:'c_res7',  name:'定身抗性', emoji:'⛓️', desc:'免疫控制（定身/眩晕/冰霜）',   stats:{antiStun:0.1},   unique:true},
-  {id:'c_res8',  name:'爆炸防护', emoji:'💣', desc:'爆炸减免（死亡爆炸/自爆）',     stats:{antiBomb:0.1},   unique:true},   
-  {id:'c_res9',  name:'破甲之眼', emoji:'🪨', desc:'无视护甲',                     stats:{antiArmor:0.1},  unique:true},
-  {id:'c_res10', name:'真视',     emoji:'👁️‍🗨️', desc:'无视闪避',                  stats:{antiDodge:0.1},  unique:true},
-  {id:'c_res11', name:'破盾',     emoji:'💠', desc:'无视护盾',                     stats:{antiShield:0.1}, unique:true},
-  {id:'c_res12', name:'抑制',     emoji:'⭕', desc:'抑制再生',                     stats:{antiRegen:0.1},  unique:true},
-  {id:'c_res13', name:'镇魂',     emoji:'🕯️', desc:'禁止复活与分裂',               stats:{antiReborn:0.1}, unique:true},
-  {id:'c_res14', name:'钥匙守护', emoji:'🔑', desc:'守护钥匙（免疫偷窃）',          stats:{keyGuard:0.1},   unique:true},
-  {id:'c_res15', name:'全能抗性', emoji:'🌈', desc:'连击/穿透/反伤抗性各 +1.5% × 层数', stats:{antiCombo:1.5, antiPierce:1.5, antiThorns:1.5}, scaled:true},
+  /* ---------- 抗性 / 特殊（15） ---------- */
+  {id:'c_res1',  name:'突袭',     emoji:'🗡️', desc:'勇士获得「先攻」：抢先出手，怪物少打 1 轮',     heroTrait:'firstStrike', unique:true},
+  {id:'c_res2',  name:'吸血',     emoji:'🩸', desc:'勇士获得「吸血」：造成伤害的 30% 回复自身',     heroTrait:'lifesteal',  unique:true},
+  {id:'c_res3',  name:'汲取',     emoji:'🕳️', desc:'勇士获得「汲取」：每次攻击额外吸取 40 HP',      heroTrait:'drain',      unique:true},
+  {id:'c_res4',  name:'真伤',     emoji:'✴️', desc:'勇士获得「真伤」：每次额外 30 点真实伤害',      heroTrait:'trueDmg',    unique:true},
+  {id:'c_res5',  name:'先攻预判', emoji:'👁️', desc:'免疫先攻',                              stats:{antiFirst:0.1},  unique:true},
+  {id:'c_res6',  name:'坚韧',     emoji:'💠', desc:'免疫减益（诅咒/弱化/腐蚀/恐惧）',            stats:{antiCurse:0.1},  unique:true},
+  {id:'c_res7',  name:'定身抗性', emoji:'⛓️', desc:'免疫控制（定身/眩晕/冰霜）',                stats:{antiStun:0.1},   unique:true},
+  {id:'c_res8',  name:'爆炸防护', emoji:'💣', desc:'爆炸减免（死亡爆炸/自爆）',                  stats:{antiBomb:0.1},   unique:true},
+  {id:'c_res9',  name:'破甲之眼', emoji:'🪨', desc:'无视护甲',                                stats:{antiArmor:0.1},  unique:true},
+  {id:'c_res10', name:'真视',     emoji:'👁️‍🗨️', desc:'无视闪避',                              stats:{antiDodge:0.1},  unique:true},
+  {id:'c_res11', name:'破盾',     emoji:'💠', desc:'无视护盾',                                stats:{antiShield:0.1}, unique:true},
+  {id:'c_res12', name:'抑制',     emoji:'⭕', desc:'抑制再生',                                stats:{antiRegen:0.1},  unique:true},
+  {id:'c_res13', name:'镇魂',     emoji:'🕯️', desc:'禁止复活与分裂',                          stats:{antiReborn:0.1}, unique:true},
+  {id:'c_res14', name:'钥匙守护', emoji:'🔑', desc:'守护钥匙（免疫偷窃）',                     stats:{keyGuard:0.1},   unique:true},
+  {id:'c_res15', name:'眩晕',     emoji:'🌀', desc:'勇士获得「眩晕」：15% 几率令怪物失去 1 回合',   heroTrait:'stun',       unique:true},
 
-  /* ---------- 经济 / 功能（10） ---------- */
-  {id:'c_eco1',  name:'贪婪',     emoji:'💰', desc:'金币获取 +3%',                 eco:{goldPct:3}},
-  {id:'c_eco2',  name:'悟性',     emoji:'📖', desc:'经验获取 +3%',                 eco:{expPct:3}},
-  {id:'c_eco3',  name:'财富',     emoji:'🪙', desc:'金币获取 +6%',                 eco:{goldPct:6}},
-  {id:'c_eco4',  name:'智慧',     emoji:'🧠', desc:'经验获取 +6%',                 eco:{expPct:6}},
-  {id:'c_eco5',  name:'药剂强化', emoji:'🧴', desc:'红蓝药水效果 +5%',             eco:{potionPct:5}},
-  {id:'c_eco6',  name:'宝石强化', emoji:'💎', desc:'攻防宝石效果 +5%',             eco:{gemPct:5}},
-  {id:'c_eco7',  name:'战后回血', emoji:'🩹', desc:'战斗后恢复 0.3% 生命上限',     eco:{healPct:0.3}},
-  {id:'c_eco8',  name:'血腥盛宴', emoji:'🩸', desc:'战斗后恢复 0.8% 生命上限',     eco:{healPct:0.8}},
-  {id:'c_eco9',  name:'寻宝',     emoji:'🎒', desc:'装备掉落率 +3%',               eco:{dropPct:3}},
-  {id:'c_eco10', name:'幸运',     emoji:'🍀', desc:'金币与经验获取各 +2%',         eco:{goldPct:2, expPct:2}}
+  /* ---------- 变异 / 特殊（10） ---------- */
+  {id:'c_eco1',  name:'灼烧',     emoji:'🔥', desc:'勇士获得「灼烧」：开战即对怪物造成 200 点伤害',  heroTrait:'burn',       unique:true},
+  {id:'c_eco2',  name:'流血',     emoji:'🩹', desc:'勇士获得「流血」：对怪物伤害逐回合递增',          heroTrait:'bleed',      unique:true},
+  {id:'c_eco3',  name:'成长',     emoji:'📈', desc:'勇士获得「成长」：每回合攻击 +3',                 heroTrait:'grow',       unique:true},
+  {id:'c_eco4',  name:'狂暴',     emoji:'😡', desc:'勇士获得「狂暴」：血量低于 50% 时攻击 +50%',      heroTrait:'enrage',     unique:true},
+  {id:'c_eco5',  name:'狂血',     emoji:'🔥', desc:'勇士获得「狂血」：血量每降 25%，攻击 +20%',       heroTrait:'berserk',    unique:true},
+  {id:'c_eco6',  name:'坚壁',     emoji:'⛰️', desc:'勇士获得「坚壁」：每 4 回合防御 +10',             heroTrait:'fortify',    unique:true},
+  {id:'c_eco7',  name:'镜面',     emoji:'🪞', desc:'勇士获得「镜面」：每回合反弹 25 点伤害',          heroTrait:'reflect',    unique:true},
+  {id:'c_eco8',  name:'进化',     emoji:'🧬', desc:'勇士获得「进化」：每回合防御 +2',                 heroTrait:'evolve',     unique:true},
+  {id:'c_eco9',  name:'定身',     emoji:'⛓️', desc:'勇士获得「定身」：开战先打一轮，怪物少反击 1 次',  heroTrait:'root',       unique:true},
+  {id:'c_eco10', name:'圣盾',     emoji:'✨', desc:'勇士获得「圣盾」：战斗前 2 回合免疫伤害',         heroTrait:'holyShield', unique:true}
 ];
 
 const CARD_MAP = {};
 CARD_DEFS.forEach(c => { CARD_MAP[c.id] = c; });
+
+/* ★ 从 S.cards 反查勇士已拥有的怪物属性 */
+function getHeroTraits(){
+  const t = {};
+  if (!S.cards) return t;
+  for (const id in S.cards){
+    if (S.cards[id] <= 0) continue;
+    const c = CARD_MAP[id];
+    if (!c || !c.heroTrait) continue;
+    t[c.heroTrait] = true;
+  }
+  return t;
+}
 
 function getCardBonus(){
   const b = {};
@@ -3277,18 +3455,29 @@ function expNeededForLevel(lv){
 }
 
 function expGainOf(m){
-  return Math.max(1, Math.round((Math.sqrt(m.hp) * 2.5 + m.atk + m.def * 2) * 0.5));
+  // HP 与攻防采用独立楼层倍率，经验计算时分别归一化，避免倍率调整造成经验断层。
+  const L = S.floorIdx + 1;
+  const hpScale = monsterMultiplier(L) || 1;
+  const combatScale = monsterCombatMultiplier(L) || 1;
+  const hp  = m.hp  / hpScale;
+  const atk = m.atk / combatScale;
+  const def = m.def / combatScale;
+  return Math.max(1, Math.round((Math.sqrt(Math.max(0, hp)) * 2.5 + atk + def * 2) * 0.5));
 }
 
 function goldGainOf(m){
   return Math.max(1, Math.round((Math.sqrt(m.hp) * 1.2 + m.atk * 0.3 + m.def) * 0.5));
 }
 
+// 每级成长率：按默认 13×13 地图、60% 事件密度、25% 物品占比、2.5×怪物难度校准；
+// 在大致清理各层怪物的情况下，预计第 500 层勇士基础攻防约为 1 亿。
+const LEVEL_UP_RATE = 0.0472;
+
 function applyLevelUp(){
   const p = S.player;
-  const atkG = Math.max(1, Math.round(p.atk * 0.05));
-  const defG = Math.max(1, Math.round(p.def * 0.05));
-  const hpG  = Math.max(1, Math.round(p.maxHp * 0.05));
+  const atkG = Math.max(1, Math.round(p.atk * LEVEL_UP_RATE));
+  const defG = Math.max(1, Math.round(p.def * LEVEL_UP_RATE));
+  const hpG  = Math.max(1, Math.round(p.maxHp * LEVEL_UP_RATE));
   p.atk   += atkG;
   p.def   += defG;
   p.maxHp += hpG;
@@ -3796,6 +3985,7 @@ function calcFight(m){
   const P = S.player;
   const t = m.traits || {};
   const E = getTotalBonus();
+  const HT = getHeroTraits();
 
   const eAtk    = E.atk || 0;
   const eDef    = E.def || 0;
@@ -3819,10 +4009,16 @@ function calcFight(m){
   let mDef = m.def;
   if (t.king) mDef = Math.floor(mDef * 1.15);
   mDef = Math.max(0, mDef - ePen);
+  if (HT.pierce) mDef = Math.max(0, mDef - 20);
 
   let pd = A - mDef;
   if (t.armor && !E.antiArmor) pd -= 20;
   if (t.overwhelm) pd -= Math.floor(Math.max(0, A - 50) * 0.10);
+
+  let hMulti = 1;
+  if (HT.combo)     hMulti = Math.max(hMulti, 2);
+  if (HT.tripleHit) hMulti = Math.max(hMulti, 3);
+  pd *= hMulti;
   if (t.shell && pd < 30){
     return { ok:false, reason:'硬壳：单次伤害不足 30，无法破防' };
   }
@@ -3835,6 +4031,16 @@ function calcFight(m){
   if (t.fortify) pd = Math.max(1, pd - 10);
   if (t.evolve)  pd = Math.max(1, pd - 5);
   pd = Math.max(1, Math.floor(pd * (1 + eCrit / 100)));
+
+  if (HT.crit)    pd = Math.floor(pd * 1.25);
+  if (HT.trueDmg) pd += 30;
+  if (HT.poison)  pd += 25;
+  if (HT.bleed)   pd += 5;
+  if (HT.grow)    pd += 5;
+  if (HT.enrage)  pd = Math.floor(pd * 1.25);
+  if (HT.berserk) pd = Math.floor(pd * 1.30);
+  if (HT.reflect) pd += 25;
+  pd = Math.max(1, Math.floor(pd));
 
   let ehp = m.hp;
   if (t.king) ehp = Math.floor(ehp * 1.15);
@@ -3864,6 +4070,11 @@ function calcFight(m){
   if (t.stun && !E.antiStun) hits += Math.ceil(rounds * 0.15);
   if (t.frost && !E.antiStun) hits += Math.floor(rounds / 3);
 
+  if (HT.firstStrike) hits = Math.max(0, hits - 1);  // 先攻：少挨 1 轮
+  if (HT.root)        hits = Math.max(0, hits - 1);  // 定身：开战先打一轮
+  if (HT.holyShield)  hits = Math.max(0, hits - 2);  // 圣盾：前 2 回合免疫
+  if (HT.stun)        hits = Math.floor(hits * 0.85); // 眩晕：15% 让怪停手
+
   let ca = m.atk;
   if (t.king)    ca = Math.floor(ca * 1.15);
   if (t.enrage)  ca = Math.floor(ca * 1.25);
@@ -3889,9 +4100,20 @@ function calcFight(m){
   if (t.bleed)   dot += 5;
   dot *= (1 - eDot);
 
+
   let perHit = direct + dot;
   perHit *= (1 - eDmgRed);
   perHit = Math.max(0, perHit - eFlat);
+
+  if (HT.armor)      perHit = Math.max(0, perHit - 20);
+  if (HT.reduce)     perHit = Math.floor(perHit * 0.75);
+  if (HT.block)      perHit = Math.floor(perHit * 0.85);
+  if (HT.dodge)      perHit = Math.floor(perHit * 0.80);
+  if (HT.phase)      perHit = Math.floor(perHit * 0.75);
+  if (HT.bloodShell) perHit = Math.floor(perHit * 0.60);
+  if (HT.fortify)    perHit = Math.max(0, perHit - 2.5);
+  if (HT.evolve)     perHit = Math.max(0, perHit - 2);
+  perHit = Math.max(0, perHit);
 
   let back = perHit * hits;
 
@@ -3902,6 +4124,10 @@ function calcFight(m){
   if (t.burn)         back += 200 * (1 - eDot);
   if (t.deathBomb)    back += 300 * (1 - eDot) * (E.antiBomb ? 0.2 : 1);
   if (t.selfDestruct) back += Math.floor(m.hp * 0.10) * (1 - eDot) * (E.antiBomb ? 0.2 : 1);
+  if (HT.regen)     back = Math.max(0, back - 100 * hits);
+  if (HT.shield)    back = Math.max(0, back - 500);
+  if (HT.lifesteal) back = Math.max(0, back - Math.floor(ehp * 0.30));
+  if (HT.drain)     back = Math.max(0, back - 40 * hits);
 
   back = Math.max(0, Math.round(back));
   return { ok:true, rounds, hits, back, dmg:pd, cHit:perHit };
@@ -4029,17 +4255,18 @@ function getMonster(idx, extraTraits, multiplier){
   if (extraTraits) for (const k in extraTraits) traits[k] = true;
 
   const agg = getMonsterBuffAggregated();
-  const baseMul = multiplier || 1;
+  const hpFloorMul = multiplier || 1;
   const diff = (S.settings && S.settings.difficulty) || 1;
-  const mul = baseMul * diff;
 
   const L = S.floorIdx + 1;
-  const atkScale = 1 + Math.max(0, L - 1) * 0.015;
+  const combatMul = monsterCombatMultiplier(L) * diff;
+  const combatFloorScale = monsterCombatFloorScale(L);
   const defScale = 0.8;
 
-  let hp  = Math.max(1, Math.round(d.hp  * mul));
-  let atk = Math.max(1, Math.round(d.atk * mul * atkScale));
-  let def = Math.max(0, Math.round(d.def * mul * defScale));
+  // 生命沿用既有倍率；攻防使用平滑的循环倍率和逐层成长，不再乘精英 / BOSS 专属倍率。
+  let hp  = Math.max(1, Math.round(d.hp  * hpFloorMul * diff));
+  let atk = Math.max(1, Math.round(d.atk * combatMul * combatFloorScale));
+  let def = Math.max(0, Math.round(d.def * combatMul * defScale * combatFloorScale));
 
   if (agg.hpMul  !== 1) hp  = Math.max(1, Math.round(hp  * agg.hpMul));
   if (agg.atkMul !== 1) atk = Math.max(1, Math.round(atk * agg.atkMul));
@@ -4319,15 +4546,15 @@ function updateHUD(){
   renderMonsterBuffGrid();
 
   const elHp = document.getElementById('hudHp');
-  if (elHp) elHp.textContent = S.player.hp + ' / ' + S.player.maxHp;
+  if (elHp) elHp.textContent = fmtNum(S.player.hp) + ' / ' + fmtNum(S.player.maxHp);
 
   const elAtk = document.getElementById('hudAtk');
   if (elAtk) elAtk.innerHTML =
-    S.player.atk + (E.atk ? '<span class="eq-bonus">+' + E.atk + '</span>' : '');
+    fmtNum(S.player.atk) + (E.atk ? '<span class="eq-bonus">+' + fmtNum(E.atk) + '</span>' : '');
 
   const elDef = document.getElementById('hudDef');
   if (elDef) elDef.innerHTML =
-    S.player.def + (E.def ? '<span class="eq-bonus">+' + E.def + '</span>' : '');
+    fmtNum(S.player.def) + (E.def ? '<span class="eq-bonus">+' + fmtNum(E.def) + '</span>' : '');
 
   renderExtraStats();
 
@@ -4904,6 +5131,10 @@ function goUp(){
   updateHUD();
   // ★ 不再在上下楼瞬间自动清扫/拾取，交由 tryMove() 在移动后执行
   let msg = '进入第 ' + (next + 1) + ' 层' + (nf.hasShop ? ' · 🏪 有商店' : '');
+  if (nf.isBossFloor){
+    const boss = Object.values(nf.monsters).length ? MONSTER_DEFS[Object.values(nf.monsters)[0]] : null;
+    msg += ' · ⚔️ ' + (boss ? boss.name : '守关 BOSS');
+  }
   if (nf.gainedBuff) msg += ' · 🧬 ' + nf.gainedBuff.name;
   toast(msg);
   checkCardOffer();
@@ -5888,7 +6119,8 @@ function snapshot(){
       shopStock: f.shopStock,
       hasCardOffer: f.hasCardOffer,
       cardTaken: f.cardTaken,
-      gainedBuff: f.gainedBuff
+      gainedBuff: f.gainedBuff,
+      isBossFloor: !!f.isBossFloor
     } : null)
   };
 }
@@ -5949,12 +6181,32 @@ function restore(data){
     shopStock: f.shopStock,
     hasCardOffer: !!f.hasCardOffer,
     cardTaken: !!f.cardTaken,
-    gainedBuff: f.gainedBuff
+    gainedBuff: f.gainedBuff,
+    isBossFloor: !!f.isBossFloor
   } : null);
+
+  // 旧存档中已生成的百层关卡仍是随机地图，升级为新规则；新规则下已生成的层不重置。
+  const migratedBossFloors = new Set();
+  for (let i = 99; i < S.floors.length; i += 100){
+    if (S.floors[i] && !S.floors[i].isBossFloor){
+      S.floors[i] = generateFloor(i);
+      migratedBossFloors.add(i);
+    }
+  }
+
+  // 迁移旧存档中已经生成的 99、199、299……层，保留原地图内容，只移动上楼梯并打通道路。
+  for (let i = 98; i < S.floors.length; i += 100){
+    if (S.floors[i] && !S.floors[i].isBossFloor){
+      alignFloorExitToNextBoss(S.floors[i]);
+    }
+  }
 
   /* 5. 玩家 / 装备 / 增强 / 时间 */
   S.floorIdx   = data.floorIdx | 0;
   S.hero       = data.hero  || { x: 1, y: 1 };
+  if (migratedBossFloors.has(S.floorIdx) && S.floors[S.floorIdx]){
+    S.hero = {x:S.floors[S.floorIdx].entry.x, y:S.floors[S.floorIdx].entry.y};
+  }
   S.player     = data.player|| { hp:3000, maxHp:3000, atk:20, def:20 };
   S.keys       = data.keys  || { ykey:0, bkey:0, rkey:0 };
   S.slots      = (data.slots || [null,null,null,null,null,null]).slice(0, 6);
@@ -6143,7 +6395,7 @@ const AI = {
 function aiLoadSettings(){
   try {
     const v = parseInt(localStorage.getItem(AI_STORE_KEY), 10);
-    if (Number.isFinite(v) && v >= 50 && v <= 1000) AI.interval = v;
+    if (Number.isFinite(v) && v >= 10 && v <= 1000) AI.interval = v;
   } catch(e){}
 }
 function aiSaveSettings(){
@@ -6188,7 +6440,7 @@ function aiLoop(){
   try { aiStep(); }
   catch(e){ console.error('[AI]', e); }
   if (!AI.running) return;
-  AI.timer = setTimeout(aiLoop, Math.max(50, AI.interval));
+  AI.timer = setTimeout(aiLoop, Math.max(10, AI.interval));
 }
 
 function aiStep(){
@@ -7039,7 +7291,7 @@ function aiDecide(){
     range.value = String(AI.interval);
     range.addEventListener('input', () => {
       const v = parseInt(range.value, 10);
-      if (Number.isFinite(v)) AI.interval = Math.max(50, Math.min(1000, v));
+      if (Number.isFinite(v)) AI.interval = Math.max(10, Math.min(1000, v));
       aiSaveSettings();
       updateAIIntervalLabel();
     });
