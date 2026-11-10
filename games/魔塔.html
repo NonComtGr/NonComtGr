@@ -2877,8 +2877,10 @@ const S = {
   over: false,
   win: false,
   endless: false,
-  startTime: 0,
-  endTime: 0,
+  startTime: 0,          // 兼容：是否已开始过（有值即开始）
+  endTime: 0,            // 兼容：是否已结束（通关时为时间戳）
+  elapsedMs: 0,          // ★ 已累计的游戏时长（毫秒，暂停时冻结）
+  timerSessionStart: 0,  // ★ 本次计时会话的起点（0 = 当前已暂停）
   autoEquip: true,
   autoPickup: true,
   autoKillZero: true,
@@ -3220,23 +3222,54 @@ function formatClock(ms){
   return h > 0 ? (h + ':' + p(m) + ':' + p(s)) : (p(m) + ':' + p(s));
 }
 
+/* 累计游戏时间：暂停时冻结，关闭/切后台不计入 */
+function getElapsedMs(){
+  let base = S.elapsedMs || 0;
+  if (S.timerSessionStart){
+    base += Date.now() - S.timerSessionStart;
+  }
+  return base;
+}
+
 function updateTimerDisplay(){
   const el = document.getElementById('hudTime');
   if (!el) return;
   if (!S.startTime){ el.textContent = '00:00'; return; }
-  const end = S.endTime || Date.now();
-  el.textContent = formatClock(end - S.startTime);
+  el.textContent = formatClock(getElapsedMs());
 }
 
-function ensureGameTimerStarted(){
-  if (S.startTime) return;
-  S.startTime = Date.now();
-  S.endTime = 0;
+/* 开始/继续计时 */
+function startTimer(){
+  if (S.endTime) return;                        // 通关且未进无尽：不再计时
+  if (!S.startTime) S.startTime = Date.now();   // 首次开始的标志
+  if (!S.timerSessionStart) S.timerSessionStart = Date.now();
   if (!gameTimerInterval){
     gameTimerInterval = setInterval(updateTimerDisplay, 500);
   }
   updateTimerDisplay();
 }
+
+/* 暂停计时：把当前会话时长累加进 elapsedMs */
+function pauseTimer(){
+  if (S.timerSessionStart){
+    S.elapsedMs = (S.elapsedMs || 0) + (Date.now() - S.timerSessionStart);
+    S.timerSessionStart = 0;
+  }
+  if (gameTimerInterval){
+    clearInterval(gameTimerInterval);
+    gameTimerInterval = null;
+  }
+  updateTimerDisplay();
+}
+
+/* 彻底停止：暂停 + 标记结束 */
+function stopTimer(){
+  pauseTimer();
+  S.endTime = Date.now();
+  updateTimerDisplay();
+}
+
+function ensureGameTimerStarted(){ startTimer(); }
 
 /* ======================= 经验 / 金币 ======================= */
 function expNeededForLevel(lv){
@@ -5215,8 +5248,7 @@ cv.addEventListener('click', e => { tryClickMove(e.clientX, e.clientY); });
 
 /* ======================= 通关 / 无尽 ======================= */
 function showClearOverlay(){
-  if (S.startTime && !S.endTime) S.endTime = Date.now();
-  updateTimerDisplay();
+  stopTimer();
   document.getElementById('ovTitle').textContent = '通 关 !';
   document.getElementById('ovDesc').textContent  =
     '你已征服 200 层魔塔！可以继续挑战无尽模式。';
@@ -5230,11 +5262,13 @@ window.enterEndless = function(){
   S.endTime = 0;
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('endlessBtn').style.display = 'none';
+  startTimer();
   goUp();
 };
 
 window.restart = function(){
   aiStop();
+  pauseTimer();
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('game').style.display = 'none';
   document.getElementById('menu').classList.add('show');
@@ -5500,6 +5534,8 @@ function startGame(settings){
   S.endless = false;
   S.startTime = 0;
   S.endTime = 0;
+  S.elapsedMs = 0;
+  S.timerSessionStart = 0;
   if (gameTimerInterval){ clearInterval(gameTimerInterval); gameTimerInterval = null; }
   S.autoPickup = true;
   S.autoEquip  = true;
@@ -5828,6 +5864,7 @@ function snapshot(){
     gold: S.gold,
     win: !!S.win,
     endless: !!S.endless,
+    elapsedMs: getElapsedMs(),
     startTime: S.startTime,
     endTime: S.endTime,
     autoEquip: S.autoEquip,
@@ -5933,8 +5970,13 @@ function restore(data){
   S.win        = !!data.win;
   S.over       = false;
   S.endless    = !!data.endless;
-  S.startTime  = data.startTime || 0;
+    S.startTime  = data.startTime || 0;
   S.endTime    = data.endTime   || 0;
+  S.elapsedMs  = (typeof data.elapsedMs === 'number')
+    ? data.elapsedMs
+    // 兼容旧存档：无 elapsedMs 时用 endTime - startTime 兜底
+    : ((S.startTime && S.endTime) ? Math.max(0, S.endTime - S.startTime) : 0);
+  S.timerSessionStart = 0;
   S.autoEquip  = !!data.autoEquip;
   S.autoPickup = !!data.autoPickup;
   S.autoKillZero = !!data.autoKillZero;
@@ -5947,8 +5989,9 @@ function restore(data){
 
   /* 7. 计时器 */
   if (gameTimerInterval){ clearInterval(gameTimerInterval); gameTimerInterval = null; }
-  if (S.startTime && !S.endTime){
-    gameTimerInterval = setInterval(updateTimerDisplay, 500);
+  S.timerSessionStart = 0;
+  if (S.startTime && !S.endTime && !S.over && !S.win){
+    startTimer();
   }
 
   /* 8. UI 同步 */
@@ -5999,13 +6042,22 @@ function scheduleSave(){
 }
 
 window.addEventListener('pagehide', () => {
-  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null;
-    const d = snapshot(); if (d) Save.write(d); }
+  pauseTimer();
+  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+  const d = snapshot(); if (d) Save.write(d);
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && saveTimer){
-    clearTimeout(saveTimer); saveTimer = null;
-    const d = snapshot(); if (d) Save.write(d);
+  if (document.hidden){
+    pauseTimer();
+    if (saveTimer){
+      clearTimeout(saveTimer); saveTimer = null;
+      const d = snapshot(); if (d) Save.write(d);
+    }
+  } else {
+    if (S.startTime && !S.endTime && !S.over && !S.win
+        && S.floors && S.floors.length){
+      startTimer();
+    }
   }
 });
 
@@ -6495,10 +6547,17 @@ function aiDoorHasTarget(doorKey, fl, ex){
   const exitKeyF = fl.exit ? (f + ':' + fl.exit.x + ',' + fl.exit.y) : null;
   const exitReachableAlready = !!(ex && exitKeyF && ex.dist.has(exitKeyF));
 
+  // 玩家已可达区域：不属于「门后」，不能算作开门理由
+  const isReachable = (x, y) =>
+    !!(ex && ex.dist && ex.dist.has(f + ':' + x + ',' + y));
+
+  // ★ 修复 1：只从「玩家不可达」的那一侧出发，
+  //           否则会把玩家可达区误判为「门后」
   for (const [ox, oy] of DIRS){
     const nx = dx + ox, ny = dy + oy;
     if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
     if (fl.grid[ny][nx] === '#') continue;
+    if (isReachable(nx, ny)) continue;
     const k = nx + ',' + ny;
     if (seen.has(k)) continue;
     seen.add(k); queue.push(k);
@@ -6519,8 +6578,11 @@ function aiDoorHasTarget(doorKey, fl, ex){
       const m = getMonster(midx, fl.monsterTraits && fl.monsterTraits[k], fl.multiplier);
       if (m){
         const cf = calcFight(m);
+        // 能安全击杀：本身就是值得开门的目标
         if (cf.ok && cf.back < S.player.hp * 0.2) return true;
       }
+      // ★ 修复 2：打不过的怪物直接阻断，不能穿过去继续找后面的目标
+      continue;
     }
 
     if (fl.exit && cx === fl.exit.x && cy === fl.exit.y && !exitReachableAlready){
@@ -6531,6 +6593,7 @@ function aiDoorHasTarget(doorKey, fl, ex){
       const nx = cx + ox, ny = cy + oy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
       if (fl.grid[ny][nx] === '#') continue;
+      if (isReachable(nx, ny)) continue;  // ★ 不进入玩家可达区
       const nk = nx + ',' + ny;
       if (seen.has(nk)) continue;
       seen.add(nk); queue.push(nk);
