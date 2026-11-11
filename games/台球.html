@@ -205,6 +205,7 @@
         <button data-mode="polygon">正多边形</button>
       </div>
       <button id="restartBtn">↻ 重新开始</button>
+      <button id="resetScoreBtn">比分清零</button>
       <label class="friction-label">
         摩擦力
         <input type="range" id="frictionSlider" min="0" max="900" step="10" value="60">
@@ -373,6 +374,7 @@
   const frictionValueEl = document.getElementById('frictionValue');
   const modeSwitch = document.getElementById('modeSwitch');
   const restartBtn = document.getElementById('restartBtn');
+  const resetScoreBtn = document.getElementById('resetScoreBtn');
   const sidesWrap = document.getElementById('sidesWrap');
   const sidesSelect = document.getElementById('sidesSelect');
   const aiLevelSelect = document.getElementById('aiLevelSelect');
@@ -416,6 +418,9 @@
     const m = btn.dataset.mode;
     if (m === mode) return;
     mode = m;
+    // ★ 切换模式时重置比分
+    scoreP = 0;
+    scoreA = 0;
     modeSwitch.querySelectorAll('button').forEach(b =>
       b.classList.toggle('active', b.dataset.mode === mode)
     );
@@ -427,6 +432,15 @@
     newGame();
     beep(440, 0.08, 0.10, 'sine');
     setTimeout(() => beep(660, 0.10, 0.08, 'sine'), 70);
+  });
+
+  // ★ 比分清零（比分跨局累加，需要时可手动清空）
+  resetScoreBtn.addEventListener('click', () => {
+    ensureAudio();
+    scoreP = 0;
+    scoreA = 0;
+    beep(360, 0.08, 0.10, 'sine');
+    setTimeout(() => beep(300, 0.10, 0.08, 'sine'), 70);
   });
 
   // ============================================================
@@ -443,6 +457,7 @@
 
   let aiLevel = 0;
   let turn = 'player';
+  // ★ 比分：同一模式下跨局累加；切换模式时清零（“比分清零”按钮也可重置）
   let scoreP = 0;
   let scoreA = 0;
   let shotPotted = 0;
@@ -838,6 +853,8 @@
   //  开局布置
   // ============================================================
   function newGame() {
+    const _savedScoreP = scoreP;
+    const _savedScoreA = scoreA;
     clearAITimers();
     configureLayout();
     balls = [];
@@ -850,7 +867,7 @@
     placingCue = false;
     clearPending = false; clearTime = 0;
     turn = 'player';
-    scoreP = 0; scoreA = 0;
+    // ★ 比分不随新局清零：同一模式下跨局累加；切换模式时由 modeSwitch 处理清零
     shotPotted = 0; cuePottedThisShot = false;
     shotInProgress = false;
     groupsAssigned = false;
@@ -872,6 +889,8 @@
       else setupSnooker();
     }
     startCuePlacement();
+    scoreP = _savedScoreP;
+    scoreA = _savedScoreA;
   }
 
   function setupEightBall() {
@@ -1555,12 +1574,20 @@
     const potted = shotPottedBalls.slice();
     const first = shotFirstContact;
     const myGroup = isPlayer ? playerGroup : aiGroup;
+
+    // 击球前剩余的己方球数（用于「必须先碰己方球」的犯规判定）
     let remainingBefore = 0;
     if (myGroup) {
       remainingBefore = balls.filter(b =>
         b.type === myGroup && b.num !== 8 && (!b.potted || potted.indexOf(b) >= 0)
       ).length;
     }
+
+    // ★ 关键修复：击球后剩余的己方球数（用于 8 号球合法性判定）
+    const remainingAfter = myGroup
+      ? balls.filter(b => b.type === myGroup && b.num !== 8 && !b.potted).length
+      : 0;
+
     let foul = false;
     if (cuePotted) foul = true;
     if (!first) foul = true;
@@ -1569,9 +1596,11 @@
       if (first.num === 8) foul = true;
       else if (first.type !== myGroup) foul = true;
     } else { if (first.num !== 8) foul = true; }
+
     const eightPotted = potted.some(b => b.num === 8);
     if (eightPotted) {
-      const legal = groupsAssigned && remainingBefore === 0 && !cuePotted && !foul;
+      // ★ 用击球后的剩余球数判断：最后一颗己方球与 8 号球同杆进 = 合法获胜
+      const legal = groupsAssigned && remainingAfter === 0 && !cuePotted && !foul;
       gameOver = true;
       if (legal) {
         winner = isPlayer ? 'player' : 'ai';
@@ -1583,6 +1612,7 @@
       beep(180, 0.3, 0.16, 'sine');
       return;
     }
+
     if (!groupsAssigned) {
       const firstPotted = potted.find(b => b.num !== 8);
       if (firstPotted) {
@@ -1593,11 +1623,13 @@
         beep(880, 0.12, 0.10, 'sine');
       }
     }
+
     let keepTurn = false;
     if (!foul && groupsAssigned) {
       const groupNow = isPlayer ? playerGroup : aiGroup;
       if (potted.some(b => b.type === groupNow && b.num !== 8)) keepTurn = true;
     }
+
     if (foul) {
       ballInHandMode = (shotIsBreak && cuePotted) ? 'kitchen' : 'anywhere';
       pendingBallInHand = true;
@@ -3372,7 +3404,7 @@
       const rx = W - 18;
       ctx.textAlign = 'right';
 
-      // ★ 比分
+      // ★ 累计比分
       ctx.font = 'bold 17px system-ui, sans-serif';
       ctx.fillStyle = turn === 'player' ? '#8dffb0' : 'rgba(255,255,255,0.52)';
       ctx.fillText(`你 ${scoreP}`, rx - 96, hy);
@@ -3472,10 +3504,11 @@
     let sub;
     if (aiLevel > 0) {
       if (mode === 'eight' || mode === 'nine') {
-        sub = winner === 'player' ? '你赢了 🏆' : (winner === 'ai' ? 'AI 获胜' : '平局');
+        const w = winner === 'player' ? '你赢了 🏆' : (winner === 'ai' ? 'AI 获胜' : '平局');
+        sub = `累计 你 ${scoreP} : ${scoreA} AI  ·  ${w}`;
       } else {
         const w = scoreP > scoreA ? '你赢了 🏆' : (scoreP < scoreA ? 'AI 获胜' : '平局');
-        sub = `你 ${scoreP} : ${scoreA} AI  ·  ${w}`;
+        sub = `累计 你 ${scoreP} : ${scoreA} AI  ·  ${w}`;
       }
     } else if (mode === 'snooker') {
       sub = `得分 ${scoreP} · 即将重新开始`;
