@@ -1637,7 +1637,7 @@ function rollSynergyCount() {
         ]
     },
     {
-        name: 'Veil of Ice', startMoney: 1300, waveInterval: makeWaveInterval(12),
+        name: 'Veil of Ice', startMoney: 300, waveInterval: makeWaveInterval(12),
         cols: 22, rows: 21,
         map: [
             "######################",
@@ -10188,6 +10188,14 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
             return cur + diff * Math.min(1, rate * dt);
         }
 
+        // 实际开火时，将可转向炮塔的炮管精确对准本次射击目标。
+        // 空闲时仍保留原有的平滑追踪效果；开火瞬间以真实攻击方向为准。
+        function aimTurretAtTarget(t, towerPx, towerPy, target) {
+            if (!t || !target || !TURRET_TOWER_TYPES.has(t.type)) return;
+            const angle = Math.atan2(target.y - towerPy, target.x - towerPx);
+            if (Number.isFinite(angle)) t.angle = angle;
+        }
+
         const EMP_RATE_TO_DMG = 0.6;
         const EMP_RANGE_EXTRA = 2.5;
 
@@ -10445,6 +10453,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     const target = findTarget(t, towerPx, towerPy, rangePx);
                     const wasOn = t.beamOn;
                     if (target) {
+                        // 激光持续照射时，炮管始终精确朝向当前照射目标。
+                        aimTurretAtTarget(t, towerPx, towerPy, target);
                         const burnDur = isMax ? 1e9 : st.burnDur;
                         target.burnTimer = Math.max(target.burnTimer, burnDur);
                         target.burnDps   = Math.max(target.burnDps, st.burnDps);
@@ -10514,7 +10524,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     const target = findTarget(t, towerPx, towerPy, rangePx);
                     const wasOn = t.beamOn;
                     if (target) {
-                        t.angle = turnToward(t.angle, Math.atan2(target.y - towerPy, target.x - towerPx), dt, 22);
+                        aimTurretAtTarget(t, towerPx, towerPy, target);
                         const burnDur = isMax ? 1e9 : st.burnDur;
                         target.burnTimer = Math.max(target.burnTimer, burnDur);
                         target.burnDps   = Math.max(target.burnDps, st.burnDps);
@@ -10538,6 +10548,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 const target = findTarget(t, towerPx, towerPy, rangePx);
                 if (t.type !== 'amplifier' && accumulateOverheat(t, !!target, dt)) continue;
                 if (t.cooldown > 0 || !target) continue;
+                // 只有真正进入本次射击时才校准方向，确保炮管与子弹/光束方向一致。
+                aimTurretAtTarget(t, towerPx, towerPy, target);
                 if (t.type === 'amplifier') { t.cooldown = 0; continue; }
 
                 if (ascensionState && ascensionState.ammo && t.type !== 'laser' && t.type !== 'prism' && t.type !== 'amplifier') {
