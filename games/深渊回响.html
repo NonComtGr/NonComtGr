@@ -44,6 +44,13 @@
   #aiBtn:hover { background:#123528; border-color:#57d9a3; }
   #aiBtn.on { color:#08120e; background:#57d9a3; border-color:#57d9a3;
     box-shadow:0 0 12px rgba(87,217,163,.55); }
+        /* ★ 自动选择按钮（音量旁） */
+  #autoPickBtn { pointer-events:auto; cursor:pointer; color:#8f8fbe; font-weight:bold;
+    border:1px solid #3d3d68; border-radius:7px; padding:1px 9px; font-size:13px;
+    transition:.12s; white-space:nowrap; }
+  #autoPickBtn:hover { background:#2b2b4c; border-color:#7c5cff; color:#cfcaff; }
+  #autoPickBtn.on { color:#08120e; background:#ffd166; border-color:#ffd166;
+    box-shadow:0 0 12px rgba(255,209,102,.55); }
     /* ★ 当前关卡背景主题 */
   #zoneText { color:#7fe8c0; font-weight:bold; letter-spacing:1px;
     white-space:nowrap; transition:color .3s, text-shadow .3s; }
@@ -707,6 +714,7 @@
   }
   #itemtip { width: 240px; }
     #aiBtn { font-size: 11px; padding: 1px 7px; }
+    #autoPickBtn { font-size: 11px; padding: 1px 7px; }
 }
 
 /* 弹窗面板在小屏上更紧凑 */
@@ -1088,7 +1096,7 @@
     <h2>等级提升！</h2>
     <p class="sub" id="levelupSub">选择 1 项攻击技能（满 6 级进化为终极形态）</p>
     <div class="cards" id="skillcards"></div>
-    <div class="center" style="margin-top:18px;">
+      <div class="center" style="margin-top:18px;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;">
       <button class="btn" id="lvlRandomBtn" style="padding:8px 22px;font-size:13px;">🎲 随机选择</button>
     </div>
   </div>
@@ -4661,6 +4669,23 @@ function makeEnhanceCard(e){
   card.onclick = () => card._apply();
   return card;
 }
+/* ============================================================
+   ★ 属性增强卡自动选取（可开关，持久化）
+   ============================================================ */
+const AUTO_ENH_KEY = 'abyss_auto_enhance';
+let autoPickEnhance = false;
+try { autoPickEnhance = localStorage.getItem(AUTO_ENH_KEY) === '1'; } catch(e){}
+
+function updateAutoEnhBtn(){
+  const b = document.getElementById('autoPickBtn');
+  if (!b) return;
+  b.textContent = autoPickEnhance ? '⚡自动：开' : '⚡自动：关';
+  b.classList.toggle('on', autoPickEnhance);
+  b.title = autoPickEnhance
+    ? '已开启：升级时自动选取评分最高的一项（技能 / 属性均生效），点击关闭'
+    : '点击开启：升级时自动选取评分最高的一项';
+}
+
 
 function showLevelUp(){
   if (G.pendingLevelUps <= 0 || !P) return;
@@ -4693,7 +4718,7 @@ while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
   if (!s || seen.has(s.id)) continue;
 
   /* ★ AI 模式下，本关有抗性的「全新技能」直接跳过生成，让增强卡补位 */
-  if (G.aiMode && !(P.skills[s.id] > 0)){
+  if ((G.aiMode || autoPickEnhance) && !(P.skills[s.id] > 0)){
     const r = (G.skillResist && G.skillResist[s.id]) || 0;
     if (r >= 0.18) continue;
   }
@@ -4702,7 +4727,8 @@ while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
   skillOpts.push(s);
 }
 
-  if (skillOpts.length === 0){
+    /* ★ 只有 AI 托管才允许全自动；普通模式即使技能池耗尽也生成 3 张属性卡让玩家自己选 */
+  if (skillOpts.length === 0 && G.aiMode){
     const e = pick(ENHANCE_DEFS);
     applyEnhance(e);
     addFloat(P.x, P.y - 60, `🎲 自动加成：${e.ico} ${e.name}`, '#ffd166');
@@ -4720,6 +4746,8 @@ while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
   const box = document.getElementById('skillcards');
   const subEl = document.getElementById('levelupSub');
   box.innerHTML = '';
+  /* ★ 面板实例标记：用于取消上一轮遗留的自动选取 */
+  box.dataset.inst = String((G._lvlInst = (G._lvlInst || 0) + 1));
 
   const leftText = G.pendingLevelUps > 1 ? `（本次还可选择 ${G.pendingLevelUps} 次）` : '';
 
@@ -4730,6 +4758,9 @@ while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
       subEl.textContent = `技能已满 ${MAX_SKILLS} 个 —— 选择 1 项已拥有的技能进行升级` + leftText;
     } else {
       subEl.textContent = `选择 1 项攻击技能（技能池共 ${SKILL_DEFS.length} 种，最多掌握 ${MAX_SKILLS} 个）` + leftText;
+    }
+    if (!G.aiMode && autoPickEnhance){
+      subEl.textContent += ' · ⚡ 自动选择中…';
     }
   }
 
@@ -4792,28 +4823,17 @@ while (skillOpts.length < 3 && weighted.length > 0 && guard++ < 600){
     };
   }
 
-    document.getElementById('levelup').classList.remove('hidden');
-
-  /* ★ AI 自动选卡（按评分：AOE + 装备加成 + 抗性 + 生存价值） */
-if (G.aiMode){
-  G._aiSeq = (G._aiSeq || 0) + 1;
-  const seq = G._aiSeq;
-  setTimeout(() => {
-    if (G._aiSeq !== seq) return;
-    if (G.state !== 'levelup') return;
-    if (!G.aiMode) return;
+  /* ★ 自动模式（AI 托管 / 自动选择开关）：不显示选卡界面，直接选出最优卡 */
+  if (G.aiMode || autoPickEnhance){
     const cards = Array.from(box.querySelectorAll('.card'));
-    if (!cards.length) return;
-
-    const best = aiPickBestCard(cards);
+    const best = aiPickBestCard(cards) ||
+                 cards[Math.floor(Math.random() * cards.length)];
     if (best && best._apply) best._apply();
-    else {
-      // 兜底（理论上不会走到）
-      const c = cards[Math.floor(Math.random() * cards.length)];
-      if (c && c._apply) c._apply();
-    }
-  }, 260);
-}
+    else finishChoice();
+    return;
+  }
+
+  document.getElementById('levelup').classList.remove('hidden');
 }
 
 /* ============================================================
@@ -7154,6 +7174,7 @@ function addRandomGear(){
 /* ============================================================
    18. 事件绑定 & 初始化
    ============================================================ */
+
 document.getElementById('bigBtn').onclick = () => openLevelSelect();
 
 document.getElementById('menuBagBtn').onclick = () => openBag();
@@ -7224,6 +7245,21 @@ if (topbar){
     topbar.appendChild(sfxBtn);
   }
   SFX.updateMuteBtn();
+    /* ★ 自动选择按钮（音量旁边） */
+  const autoBtn = document.createElement('div');
+  autoBtn.id = 'autoPickBtn';
+  autoBtn.onclick = () => {
+    autoPickEnhance = !autoPickEnhance;
+    try { localStorage.setItem(AUTO_ENH_KEY, autoPickEnhance ? '1' : '0'); } catch(e){}
+    updateAutoEnhBtn();
+    if (autoPickEnhance && G.state === 'levelup' && !G.aiMode) scheduleAutoPick();
+  };
+  if (sfxBtn.parentNode){
+    sfxBtn.parentNode.insertBefore(autoBtn, sfxBtn.nextSibling);
+  } else {
+    topbar.appendChild(autoBtn);
+  }
+  updateAutoEnhBtn();
 }
 
 /* ★ 全局 UI 点击音效 */
