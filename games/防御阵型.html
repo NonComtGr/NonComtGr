@@ -1707,13 +1707,13 @@ function rollSynergyCount() {
             "####.#.#.#.#.####",
             "####.#.#.#.#.####",
             "#o.o.o.o.o.o.o.o#",
-            "#o.ooooo.ooooo.o#",
-            "#o.o.o.o.o.o.o.o#",
-            "#o.ooooo.ooooo.o#",
-            "#o.o.o.o.o.o.o.o#",
             "#oSooooo.oooooSo#",
+            "#o#o.o.o.o.o.o#o#",
+            "#o#ooooo.ooooo#o#",
+            "#o#o.o.o.o.o.o#o#",
+            "#o#ooooo.ooooo#o#",
             "#ooooooo.ooooooo#",
-            "#oS...........So#",
+            "#o####S...S####o#",
             "#ooooooo.ooooooo#",
             "#...............#",
             "#################"
@@ -1895,7 +1895,7 @@ function rollSynergyCount() {
             "######X#####ooo##..#.#X#X##",
             "########X#######..##.######",
             "#E...............##X.##X###",
-            "###########.######XX.######",
+            "###########.###.##XX.######",
             "##########...#...#XX.#X####",
             "##########.C.#.C.....######",
             "##########...#...##########",
@@ -2356,10 +2356,49 @@ function rollSynergyCount() {
             const idx = LEVELS.indexOf(lv);
             return Math.min(0, Math.floor(idx / 5));   // difficulty为0
         }
+
+        // 普通地图的波数与开局资金按实际可通行格子数缩放。
+        // '#' 岩壁和 'X' 炮台墙均不可通行，其余地图字符（包括 '.', '+', 'S', 'E', 'C', 'o'）计入。
+        // 每次载入页面都会根据 LEVELS 中全部地图重新计算范围，新地图会自动参与。
+        // 最小可通行区域对应 20 波 / 500 金币，最大可通行区域对应 50 波 / 2000 金币。
+        function getLevelWalkableCellCount(lv) {
+            if (!lv || !Array.isArray(lv.map) || lv.map.length === 0) return 1;
+            let count = 0;
+            for (const row of lv.map) {
+                const cells = String(row || '');
+                for (let c = 0; c < cells.length; c++) {
+                    const ch = cells[c];
+                    if (ch !== '#' && ch !== 'X') count++;
+                }
+            }
+            return Math.max(1, count);
+        }
+        const MAP_WALKABLE_BOUNDS = (() => {
+            const counts = LEVELS.map(getLevelWalkableCellCount);
+            return {
+                min: Math.min(...counts),
+                max: Math.max(...counts)
+            };
+        })();
+        function getMapSizeProgress(lv) {
+            const span = MAP_WALKABLE_BOUNDS.max - MAP_WALKABLE_BOUNDS.min;
+            if (span <= 0) return 0;
+            return Math.max(0, Math.min(1,
+                (getLevelWalkableCellCount(lv) - MAP_WALKABLE_BOUNDS.min) / span
+            ));
+        }
         function storyWaveCount(levelIdx) {
-            const idx = Math.max(0, levelIdx | 0);
-            return Math.min(35, 10 + Math.round(idx * 0.75));   // 第 1 关 10 波，逐关递增，封顶 45
-        } //波数设置
+            const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIdx | 0));
+            const progress = getMapSizeProgress(LEVELS[idx]);
+            return Math.max(20, Math.min(50, Math.round(20 + progress * 30)));
+        }
+        function getMapStartMoney(lv) {
+            const progress = getMapSizeProgress(lv);
+            // 资金按 50 为单位取整，保证范围严格落在 500～2000。
+            return Math.max(500, Math.min(2000,
+                Math.round((500 + progress * 1500) / 50) * 50
+            ));
+        }
         function getWaveInterval(lv, waveIdx) {
             if (waveIdx > 0 && waveIdx % 10 === 0) return 25;
             const wi = lv && lv.waveInterval;
@@ -3030,7 +3069,7 @@ function makeSeededRng(seed) {
             zoom = 1;
             computeLayoutForMap(mapRowCount(lv.map), mapColCount(lv.map));
             waves = generateWaves(levelDifficulty(lv), currentModeKey, mode.hpMul, levelIndex);
-            money = lv.startMoney;
+            money = getMapStartMoney(lv);
 
             // 自动升级与 AI 托管：每局开局默认关闭
             globalAutoUpgrade = false;
@@ -6793,7 +6832,7 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             ctx.fillText(lv.name, r.x + 16, r.y + 154, r.w - 32);
             ctx.font = '15px "Microsoft YaHei"'; 
             ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`💰 ${lv.startMoney}`, r.x + 16, r.y + 184);
+            ctx.fillText(`💰 ${getMapStartMoney(lv)}`, r.x + 16, r.y + 184);
             ctx.fillText(`🌊 ${storyWaveCount(i)} 波`, r.x + 150, r.y + 184);
         }
 
