@@ -205,18 +205,14 @@ canvas { touch-action: none; }
         .ai-msg.bot { align-self:flex-start; background:#142b43; border:1px solid #254d70; color:#c7e2ff; }
         .ai-msg.user { align-self:flex-end; background:#263b2e; border:1px solid #37684a; color:#caffd8; }
         .ai-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px 10px; border-top:1px solid #203954; }
-        .ai-actions button, .ai-send { border:1px solid #365e82; border-radius:8px; padding:7px 8px; background:#19324c; color:#a9d8ff; cursor:pointer; font-family:inherit; font-size:11px; font-weight:600; }
-        .ai-actions button:hover, .ai-send:hover { background:#244969; border-color:#6bb8f0; }
+        .ai-actions button { border:1px solid #365e82; border-radius:8px; padding:7px 8px; background:#19324c; color:#a9d8ff; cursor:pointer; font-family:inherit; font-size:11px; font-weight:600; }
+        .ai-actions button:hover { background:#244969; border-color:#6bb8f0; }
         .ai-actions button.primary { background:#24472f; border-color:#4d9560; color:#a9ffc0; }
         .ai-actions button:disabled { opacity:.42; cursor:not-allowed; }
         .ai-actions button.full-auto { grid-column:1 / -1; background:#3b2b17; border-color:#98703a; color:#ffe0a0; }
         .ai-auto { display:flex; align-items:center; gap:7px; padding:7px 11px; border-top:1px solid #203954; color:#ffd978; font-size:11px; }
         .ai-auto input { accent-color:#42d98a; }
         .ai-auto span { margin-left:auto; color:#7796b4; font-size:10px; }
-        .ai-form { display:flex; gap:6px; padding:8px 10px 10px; background:#0d1929; border-top:1px solid #203954; }
-        .ai-form input { min-width:0; flex:1; border:1px solid #2e4d6c; border-radius:8px; padding:8px 9px; outline:none; color:#d9eaff; background:#101f32; font-family:inherit; font-size:12px; }
-        .ai-form input:focus { border-color:#6bb8f0; }
-        .ai-send { flex:0 0 auto; padding:0 12px; }
         @media (pointer: coarse) {
             .ai-assistant { top:auto; bottom:74px; right:8px; width:min(340px, calc(100vw - 16px)); max-height:65vh; }
             .ai-log { max-height:22vh; }
@@ -283,10 +279,6 @@ canvas { touch-action: none; }
     <label class="ai-auto"><input type="checkbox" id="aiAutoCheck"> 智能托管
         <span id="aiAutoHint">战斗中建塔升级 · 清场后自动推进</span>
     </label>
-    <form class="ai-form" id="aiAskForm">
-        <input id="aiAskInput" type="text" maxlength="120" autocomplete="off" placeholder="例如：下一波有飞行怪怎么办？">
-        <button class="ai-send" type="submit">发送</button>
-    </form>
 </div>
 <div id="towerTip" class="tower-tip hidden"></div>
 <script>
@@ -1895,7 +1887,7 @@ function rollSynergyCount() {
             "######X#####ooo##..#.#X#X##",
             "########X#######..##.######",
             "#E...............##X.##X###",
-            "###########.###.##XX.######",
+            "###########.######XX.######",
             "##########...#...#XX.#X####",
             "##########.C.#.C.....######",
             "##########...#...##########",
@@ -5919,13 +5911,6 @@ for (const type of bestTypes) {
         document.getElementById('aiUpgradeBtn')?.addEventListener('click', () => aiUpgradeAdvice());
         document.getElementById('aiAutoCheck')?.addEventListener('change', e => aiToggleAuto(e.target.checked));
         document.getElementById('aiFullAutoBtn')?.addEventListener('click', () => aiStartFullAuto());
-        document.getElementById('aiAskForm')?.addEventListener('submit', e => {
-            e.preventDefault();
-            const input = document.getElementById('aiAskInput');
-            const q = input ? input.value : '';
-            if (input) input.value = '';
-            aiAskQuestion(q);
-        });
 
         function draw() {
             if (screen === 'menu') drawMainMenu();
