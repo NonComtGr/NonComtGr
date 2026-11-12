@@ -4509,7 +4509,7 @@ function aiConsumePlanPositionIfFromPlan(rec) {
             } else {
                 sourceLabel = '本关没有待分析的波次';
             }
-            let total = 0, air = 0, stealth = 0, heavy = 0, fast = 0, slowableFast = 0, mech = 0, healer = 0, jammer = 0, crowd = 0;
+            let total = 0, air = 0, stealth = 0, heavy = 0, fast = 0, slowableFast = 0, mech = 0, healer = 0, jammer = 0, crowd = 0, hatcher = 0, summoner = 0;
             const entries = [];
             for (const type of Object.keys(counts)) {
                 const v = counts[type], def = ENEMY_TYPES[type] || {}, st = ENEMY_STATS[type] || {};
@@ -4520,6 +4520,8 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 if ((st.spdFactor || 1) >= 1.3 || type === 'jammer') { fast += v.count; if (!def.immuneSlow) slowableFast += v.count; }
                 if (MECH_TYPES.has(type)) mech += v.count;
                 if (def.healer) healer += v.count;
+                if (def.hatcher) hatcher += v.count;
+                if (def.summoner) summoner += v.count;
                 if (def.jammer || type === 'jammer') jammer += v.count;
                 if (v.count >= 3) crowd += v.count;
                 entries.push({ type, name: def.name || type, count: v.count, hp: v.hp });
@@ -4541,14 +4543,240 @@ function aiConsumePlanPositionIfFromPlan(rec) {
 
             const den = Math.max(1, total);
             return {
-                sourceLabel, entries, total, air, stealth, heavy, fast, slowableFast, mech, healer, jammer, crowd,
+                sourceLabel, entries, total, air, stealth, heavy, fast, slowableFast, mech, healer, jammer, crowd, hatcher, summoner,
                 airRatio: air / den, stealthRatio: stealth / den, heavyRatio: heavy / den,
                 fastRatio: fast / den, mechRatio: mech / den, healerRatio: healer / den,
-                jammerRatio: jammer / den, crowdRatio: crowd / den,             jammerRatio: jammer / den, crowdRatio: crowd / den, slowableFastRatio: slowableFast / den, groundRatio: (total - air) / den,
+                jammerRatio: jammer / den, crowdRatio: crowd / den, slowableFastRatio: slowableFast / den, groundRatio: (total - air) / den,
                 // ★ 群体威胁
                 avgGroupSize, maxGroupSize, swarmRatio
             };
         }
+        // 终局规划画像：最后 4 波不再只盯着当前波的随机组合，
+        // 而是假设所有敌种都以高数量同时出现，让 AI 提前形成完整的反制体系。
+        // 该画像只用于 AI 评分，不会生成/修改敌人，也不改变波次机制。
+        function aiPlanningEnemyProfile() {
+            const actual = aiEnemyProfile();
+            const inFinalWaves = currentModeKey !== 'endless' && totalWaves > 0 &&
+                waveIndex >= Math.max(0, totalWaves - 4);
+            if (!inFinalWaves) {
+                // AI 始终按进阶 20 的规则评估；普通波次仍以真实波次构成为主。
+                const p = { ...actual, difficulty20: true };
+                p.healerThreat = (p.healer || 0) * 2.2; // 萨满全图治疗且治疗量翻倍
+                const forecastOrdinal = Math.max(0, waveIndex - 1);
+                p.spawnPressure = (p.hatcher || 0) * Math.min(4, 1 + Math.floor(forecastOrdinal / 8)) *
+                    (2 + Math.floor(forecastOrdinal / 6)) * 0.55 + (p.summoner || 0) * 2.0;
+                p.regenThreat = (waveIndex >= totalWaves - 1 && currentModeKey !== 'endless') ? 1 : 0;
+                p.damageDecay = Math.max(0.5, 1 - Math.floor(Math.max(0, waveIndex) / 10) * 0.1);
+                return p;
+            }
+
+            const isFinalWave = currentModeKey !== 'endless' && totalWaves > 0 && waveIndex >= totalWaves - 1;
+            const waveOrdinal = Math.max(0, isFinalWave ? totalWaves - 1 : waveIndex);
+            const waveMultiplier = isFinalWave && AI_ASCENSION_STATE.finalWaveDouble ? 2 : 1;
+            const counts = Object.create(null);
+            let total = 0, air = 0, stealth = 0, heavy = 0, fast = 0;
+            let slowableFast = 0, mech = 0, healer = 0, jammer = 0, crowd = 0, hatcher = 0, summoner = 0;
+            let totalHp = 0;
+
+            // 压力测试：每种常规敌人均视为高数量，干扰者与首领额外加权。
+            for (const type of Object.keys(ENEMY_TYPES)) {
+                const baseCount = type === 'jammer' ? 28 : (type === 'boss' ? 10 : 18);
+                let count = baseCount * waveMultiplier;
+                if (type === 'boss' && isFinalWave && AI_ASCENSION_STATE.finalJudgment) count += 2;
+                const def = ENEMY_TYPES[type] || {};
+                const st = ENEMY_STATS[type] || {};
+                // 精英降临：10% 概率属性 ×1.5，故期望生命/速度系数为 1.05。
+                const eliteHpMul = AI_ASCENSION_STATE.elite ? 1.05 : 1;
+                counts[type] = { count, hp: (st.hpFactor || 1) * count * eliteHpMul };
+            }
+
+            // 梦魇重生：每只首领死亡后分裂成两只巨兽；最终审判额外首领血量更高。
+            if (AI_ASCENSION_STATE.bossSplit && counts.brute && counts.boss) {
+                const regularBosses = Math.max(0, counts.boss.count - (isFinalWave && AI_ASCENSION_STATE.finalJudgment ? 2 : 0));
+                const extraBosses = isFinalWave && AI_ASCENSION_STATE.finalJudgment ? 2 : 0;
+                const splitBrutes = regularBosses * 2 + extraBosses * 2;
+                const bruteHp = (ENEMY_STATS.boss.hpFactor || 45) * 0.30 * regularBosses * 2 +
+                    (ENEMY_STATS.boss.hpFactor || 45) * 1.6 * 0.30 * extraBosses * 2;
+                counts.brute.count += splitBrutes;
+                counts.brute.hp += bruteHp;
+            }
+
+            // 孵化母体与召唤者会把波次规模继续放大；把预期增援折算为普通群怪压力。
+            const hatcherCount = counts.hatcher ? counts.hatcher.count : 0;
+            const summonerCount = counts.summoner ? counts.summoner.count : 0;
+            const hatchKinds = Math.min(4, 1 + Math.floor(waveOrdinal / 8));
+            const hatchPerKind = 2 + Math.floor(waveOrdinal / 6);
+            const hatchAdds = Math.round(hatcherCount * hatchKinds * hatchPerKind * 0.55);
+            const summonAdds = Math.round(summonerCount * 2.0);
+            const hatchPool = ['grunt', 'runner', 'shield', 'flyer', 'wasp', 'tank', 'ghost', 'brute', 'wraith', 'phantom', 'stalker', 'specter', 'shade'];
+            const summonPoolSize = Math.min(SUMMON_POOL.length, 2 + Math.floor(waveOrdinal / 3));
+            const summonPool = SUMMON_POOL.slice(0, summonPoolSize);
+            const addExpectedReinforcements = (pool, amount) => {
+                if (!pool.length || amount <= 0) return;
+                const each = amount / pool.length;
+                for (const type of pool) {
+                    if (!counts[type]) counts[type] = { count: 0, hp: 0 };
+                    counts[type].count += each;
+                    counts[type].hp += each * ((ENEMY_STATS[type] && ENEMY_STATS[type].hpFactor) || 1) * 1.05;
+                }
+            };
+            addExpectedReinforcements(hatchPool, hatchAdds);
+            addExpectedReinforcements(summonPool, summonAdds);
+
+            // 聚合全部派生威胁指标，避免增援只增加总量却没有进入群体压力评估。
+            for (const type of Object.keys(counts)) {
+                const item = counts[type];
+                const def = ENEMY_TYPES[type] || {};
+                const st = ENEMY_STATS[type] || {};
+                total += item.count;
+                totalHp += item.hp;
+                if (def.air) air += item.count;
+                if (def.stealth) stealth += item.count;
+                if (['tank', 'brute', 'boss', 'hatcher', 'summoner', 'jammer'].includes(type)) heavy += item.count;
+                if ((st.spdFactor || 1) >= 1.3 || type === 'jammer') {
+                    fast += item.count;
+                    if (!def.immuneSlow) slowableFast += item.count;
+                }
+                if (MECH_TYPES.has(type)) mech += item.count;
+                if (def.healer) healer += item.count;
+                if (def.hatcher) hatcher += item.count;
+                if (def.summoner) summoner += item.count;
+                if (def.jammer || type === 'jammer') jammer += item.count;
+                if (item.count >= 3) crowd += item.count;
+            }
+
+            const averageHp = totalHp / Math.max(1, total);
+            let swarmCount = 0;
+            const entries = [];
+            for (const type of Object.keys(counts)) {
+                const item = counts[type];
+                const averageTypeHp = item.hp / Math.max(1, item.count);
+                if (item.count >= 3 && averageTypeHp <= averageHp * 0.75) swarmCount += item.count;
+                entries.push({ type, name: (ENEMY_TYPES[type] && ENEMY_TYPES[type].name) || type,
+                    count: item.count, hp: item.hp });
+            }
+
+            const den = Math.max(1, total);
+            const p = {
+                ...actual,
+                sourceLabel: isFinalWave ? '难度20末波压力预案（双倍敌群/首领分裂/全图治疗）' : '难度20终局综合预案（全敌种高数量）',
+                entries, total, air, stealth, heavy, fast, slowableFast, mech, healer, jammer, crowd, hatcher, summoner,
+                airRatio: air / den,
+                stealthRatio: stealth / den,
+                heavyRatio: heavy / den,
+                fastRatio: fast / den,
+                mechRatio: mech / den,
+                healerRatio: healer / den,
+                jammerRatio: jammer / den,
+                crowdRatio: crowd / den,
+                slowableFastRatio: slowableFast / den,
+                groundRatio: (total - air) / den,
+                avgGroupSize: Object.keys(counts).reduce((a, k) => a + counts[k].count, 0) / Math.max(1, Object.keys(counts).length),
+                maxGroupSize: Math.max(0, ...Object.keys(counts).map(k => counts[k].count)),
+                swarmRatio: swarmCount / den,
+                difficulty20: true,
+                endgameUniversal: true,
+                lastWaveStress: isFinalWave,
+                healerThreat: healer * 2.2,
+                spawnPressure: hatchAdds + summonAdds,
+                bossSplitPressure: isFinalWave ? (counts.boss ? counts.boss.count * 2 : 0) : (counts.boss ? counts.boss.count * 2 : 0),
+                regenThreat: isFinalWave && AI_ASCENSION_STATE.finalJudgment ? 1 : 0,
+                eliteRatio: AI_ASCENSION_STATE.elite ? 0.10 : 0,
+                damageDecay: Math.max(0.5, 1 - Math.floor(waveOrdinal / 10) * 0.1)
+            };
+            return p;
+        }
+
+        function aiDifficulty20RoleState(profile) {
+            const usable = towers.filter(t => !!TOWER_TYPES[t.type]);
+            const effectiveCount = (t) => {
+                let v = 1;
+                if (AI_ASCENSION_STATE.ammo && !['laser', 'prism', 'amplifier', 'harvester'].includes(t.type)) {
+                    const ammo = Math.max(0, Math.min(50, Number.isFinite(t.ammo) ? t.ammo : 50));
+                    v *= ammo <= 0 ? 0.48 : (ammo < 10 ? 0.72 : 1);
+                }
+                if ((t.silenceTimer || 0) > 0) v *= 0.72;
+                return v;
+            };
+            let aoe = 0, jammer = 0, air = 0, control = 0, heavy = 0;
+            const typeHave = { shock: 0, chain: 0, missile: 0, prism: 0, emp: 0 };
+            for (const t of usable) {
+                const e = effectiveCount(t);
+                if (t.type === 'shock') { aoe += 1.15 * e; control += 0.85 * e; typeHave.shock += e; }
+                else if (t.type === 'chain') { aoe += 1.05 * e; typeHave.chain += e; }
+                else if (t.type === 'missile') { aoe += 1.05 * e; typeHave.missile += e; }
+                else if (t.type === 'prism') {
+                    const quality = Math.min(1.20, 0.65 + Math.max(0, (t.level || 1) - 1) * 0.11);
+                    aoe += quality * e; typeHave.prism += quality * e;
+                } else if (t.type === 'emp') { aoe += 0.95 * e; control += 1.0 * e; typeHave.emp += e; }
+                if (['sniper', 'railgun'].includes(t.type)) jammer += e;
+                else if (t.type === 'cannon') jammer += 0.65 * e;
+                if (t.type === 'flak') air += e;
+                if (t.type === 'temporal') control += e;
+                if (['sniper', 'railgun', 'venom', 'laser'].includes(t.type)) heavy += (t.type === 'venom' ? 0.75 : 1) * e;
+                else if (t.type === 'cannon') heavy += 0.65 * e;
+            }
+            const highAir = profile && profile.airRatio > 0.28;
+            const airNeed = profile && profile.airRatio > 0.08 ? (highAir ? 4 : (profile.airRatio > 0.16 ? 3 : 2)) : 0;
+            // 若当前压力画像几乎全是飞行单位，地面 AOE 配额应为 0，不能因此无限补地面群攻塔。
+            const hasGroundTargets = !!profile && (profile.groundRatio == null || profile.groundRatio > 0.10);
+            const aoeNeed = !hasGroundTargets ? 0 : (profile && profile.endgameUniversal ? 5.1 :
+                (profile && (profile.total > 45 || profile.swarmRatio > 0.55) ? 3.8 : 2.6));
+            return {
+                aoe, jammer, air, control, heavy, typeHave,
+                aoeNeed,
+                jammerNeed: profile && profile.jammerRatio >= 0.08 ? 3 : ((profile && profile.jammer > 0) ? 2 : 0),
+                airNeed,
+                controlNeed: profile && (profile.endgameUniversal || profile.fastRatio > 0.15) ? 2 : 1,
+                heavyNeed: profile && (profile.endgameUniversal || profile.heavyRatio > 0.12) ? 3 : 1
+            };
+        }
+
+        function aiDifficulty20RoleMultiplier(type, profile, state) {
+            if (!profile || !profile.difficulty20) return 1;
+            const r = state || aiDifficulty20RoleState(profile);
+            const deficit = (need, have) => Math.max(0, (need || 0) - (have || 0));
+            let m = 1;
+            const aoeGap = deficit(r.aoeNeed, r.aoe);
+            if (AI_GROUND_AOE_TYPES.has(type)) {
+                // 高数量地面敌人下，先补到至少 5 个有效群攻单位（20 塔总上限内仍留出防空/反干扰位）。
+                m *= 1 + Math.min(1.45, aoeGap * 0.34);
+                const typeNeed = { shock: 1.15, chain: 1.10, missile: 1.45, prism: 0.95, emp: 0.85 }[type] || 0;
+                const typeGap = deficit(typeNeed, (r.typeHave && r.typeHave[type]) || 0);
+                m *= 1 + Math.min(0.75, typeGap * 0.48);
+            } else if (['sniper', 'railgun', 'laser', 'cannon', 'gun', 'venom'].includes(type) && aoeGap >= 1.0) {
+                // 群攻严重不足时，压低继续堆单体塔的收益；但保留反干扰/重甲的必要火力。
+                const singlePenalty = ['sniper', 'railgun', 'cannon'].includes(type) && profile.jammerRatio >= 0.08 ? 0.82 : 0.68;
+                m *= Math.max(singlePenalty, 1 - Math.min(0.34, aoeGap * 0.075));
+            }
+            if (['sniper', 'railgun', 'cannon'].includes(type))
+                m *= 1 + Math.min(0.80, deficit(r.jammerNeed, r.jammer) * 0.27);
+            if (type === 'flak' && r.airNeed > 0)
+                m *= 1 + Math.min(2.10, deficit(r.airNeed, r.air) * 0.72);
+            if (['temporal', 'shock', 'emp'].includes(type))
+                m *= 1 + Math.min(0.48, deficit(r.controlNeed, r.control) * 0.22);
+            if (['sniper', 'railgun', 'venom', 'cannon', 'laser'].includes(type))
+                m *= 1 + Math.min(0.48, deficit(r.heavyNeed, r.heavy) * 0.16);
+            if ((profile.healer || 0) > 0 && ['sniper', 'railgun', 'cannon', 'laser'].includes(type)) m *= 1.18;
+            if ((profile.spawnPressure || 0) > 0 && ['cannon', 'missile', 'chain', 'prism', 'shock', 'emp'].includes(type))
+                m *= 1 + Math.min(0.30, profile.spawnPressure / Math.max(1, profile.total) * 0.42);
+            return m;
+        }
+
+        function aiDifficulty20AmmoReserve() {
+            if (!AI_ASCENSION_STATE.ammo) return 0;
+            let reserve = 0;
+            for (const t of towers) {
+                if (!TOWER_TYPES[t.type] || ['laser', 'prism', 'amplifier', 'harvester'].includes(t.type)) continue;
+                const ammo = Math.max(0, Number.isFinite(t.ammo) ? t.ammo : 50);
+                if (ammo > 8 && !t.isReloading) continue;
+                const reloadCost = Math.floor(TOWER_TYPES[t.type].cost * 0.1) + (t.level || 1) * 5;
+                const urgency = (ammo <= 0 || t.isReloading) ? 1 : (8 - ammo) / 8 * 0.45;
+                reserve += reloadCost * urgency;
+            }
+            return Math.min(Math.ceil(reserve), Math.floor(Math.max(0, money) * 0.28));
+        }
+
         function aiCoverageStats() {
             const nodes = [];
             for (const route of routes) for (const p of route.pts || []) {
@@ -4567,7 +4795,7 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                     const ts = towerStatsAt(t.type, t.level);
                     const rr = (ts.range || def.range || 0) * ((t.buffs && t.buffs.range) || 1) * (1 + ((t.syn && t.syn.range) || 0));
                     const canFire = !['temporal','amplifier','harvester'].includes(t.type);
-                    if (d <= rr && canFire) n = true;
+                    if (d <= rr && canFire && !def.airOnly) n = true;
                     if (d <= rr && canFire && def.targetsAir && !(AI_ASCENSION_STATE.airOnlyFlak && t.type !== 'flak')) a = true;
                     // 攻击塔：按难度20（暗影迷雾）下的检测半径判定
                     if (canFire && d <= rr && d <= aiStealthRevealRadius(t) / CELL) st = true;
@@ -4641,20 +4869,17 @@ function aiConsumePlanPositionIfFromPlan(rec) {
             }
                         // ★ 群体威胁诊断
             const swarmA = p.swarmRatio || 0;
-            const loadA = Math.min(1, p.total / 60);
-            const groupPressureA = swarmA * 0.65 + loadA * 0.35;
-            const AOE_TYPES_A = new Set(['shock', 'chain', 'missile', 'cannon', 'prism', 'emp', 'flak', 'temporal']);
-            const aoeCntA = towers.filter(t => AOE_TYPES_A.has(t.type)).length;
-            if (groupPressureA >= 0.55 && aoeCntA === 0) {
+            const loadA = Math.min(1, p.total / 38);
+            const sizeA = Math.min(1, Math.max(0, (p.avgGroupSize || 0) - 2) / 8);
+            const spawnA = Math.min(1, (p.spawnPressure || 0) / Math.max(1, p.total || 1));
+            const groupPressureA = swarmA * 0.25 + loadA * 0.48 + sizeA * 0.15 + spawnA * 0.12;
+            const aoeCntA = aiDifficulty20RoleState(p).aoe;
+            const aoeNeedA = p.endgameUniversal ? 5.1 : ((p.total > 45 || swarmA > 0.55) ? 3.8 : 2.6);
+            if (p.groundRatio > 0.10 && groupPressureA >= 0.48 && aoeCntA < aoeNeedA) {
                 lines.push(
-                    `⚠ 群体威胁高：小怪占比约 ${Math.round(swarmA * 100)}%，本波总敌人数约 ${p.total} 只，` +
-                    `但当前没有 AOE / 控场塔——这是核心容易被成批夺走的主要原因。` +
-                    `建议优先补减速塔、震荡塔、链雷塔、棱镜塔或满级机枪塔，任何单体高伤塔都赶不上这个速度。`
-                );
-            } else if (groupPressureA >= 0.55 && aoeCntA <= 1) {
-                lines.push(
-                    `群体威胁偏高（小怪占比 ${Math.round(swarmA * 100)}%，本波 ${p.total} 只），` +
-                    `AOE / 控场塔仅有 ${aoeCntA} 座。建议升级现有 AOE 塔或再补 1 座减速 / 震荡塔。`
+                    `⚠ 群体威胁高：本波约 ${Math.round(p.total)} 只敌人（小怪占比 ${Math.round(swarmA * 100)}%），` +
+                    `当前有效地面 AOE ${aoeCntA.toFixed(1)} / 需求 ${aoeNeedA.toFixed(1)}。` +
+                    `建议组合震荡塔（范围内全体地面伤害）、链雷塔（跳跃多目标）、导弹塔（溅射）、棱镜塔（升级多目标）与 EMP（范围伤害/眩晕）；防空塔单独负责飞行单位，不计入地面 AOE。`
                 );
             }
             if (p.fastRatio > 0.18) lines.push('建议：在转弯或长通道附近配置减速塔；注意幽灵类敌人免疫减速。');
@@ -4671,12 +4896,12 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 // ★ 群体效能系数：群怪场景下 AOE / 控场塔加权，单体塔降权
         function aiGroupMultiplier(type, profile, level) {
             const swarm = profile.swarmRatio || 0;
-            const load = Math.min(1, (profile.total || 0) / 60);
-            // 群体压力 = 小怪占比 65% + 波次总人数负载 35%
-            const groupPressure = swarm * 0.65 + load * 0.35;
-            // 每组平均敌人数量压力（>2 开始计入，>10 封顶）
+            // 难度20下不能只看“小怪占比”：即使敌人普遍高血量，只要总数很多也会形成群体压力。
+            const load = Math.min(1, (profile.total || 0) / 38);
+            const spawnPressure = Math.min(1, (profile.spawnPressure || 0) / Math.max(1, profile.total || 1));
             const groupSizePressure = Math.min(1, Math.max(0, ((profile.avgGroupSize || 0) - 2) / 8));
-            const p = Math.max(groupPressure, groupSizePressure * 0.8);
+            const groupPressure = Math.min(1, swarm * 0.25 + load * 0.48 + groupSizePressure * 0.15 + spawnPressure * 0.12);
+            const p = Math.max(groupPressure, groupSizePressure * 0.85);
             switch (type) {
                 case 'temporal':  return 1 + p * 0.70;   // 减速对所有经过的敌人有效
                 case 'emp':       return 1 + p * 0.60;   // 范围眩晕
@@ -4685,8 +4910,8 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 case 'shock':     return 1 + p * 0.50;   // 范围伤害
                 case 'missile':   return 1 + p * 0.45;   // 溅射
                 case 'flak':      return 1 + p * 0.40;   // 小范围溅射
-                case 'venom':     return 1 + p * 0.35;   // 可对多目标叠加中毒
-                case 'cannon':    return 1 + p * 0.35;   // 小范围溅射
+                case 'venom':     return level >= MAX_LEVEL ? 1 + p * 0.30 : 1 - p * 0.08; // 仅满级毒液弹会扩散
+                case 'cannon':    return 1 - p * 0.16;   // 当前实现只伤害主目标，爆炸效果不造成范围伤害
                 case 'gun':       return level >= MAX_LEVEL
                                        ? 1 + p * 0.45     // 满级同时打 5 个
                                        : 1 + p * 0.10;
@@ -4696,6 +4921,46 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 default:          return 1;
             }
         }
+        // 仅把真实能同时伤害多个目标的攻击方式计入地面 AOE：
+        // shock/emp 对范围内所有地面敌人结算，chain 跳跃，missile 溅射，prism 多目标。
+        // cannon 在当前战斗实现中只伤害主目标，爆炸只是表现效果，不能占用 AOE 名额。
+        const AI_GROUND_AOE_TYPES = new Set(['shock', 'chain', 'missile', 'prism', 'emp']);
+        function aiGroupTargetFactor(profile, airOnly) {
+            const groundCount = Math.max(0, (profile.total || 0) * (profile.groundRatio == null ? 1 : profile.groundRatio));
+            const count = airOnly ? Math.max(0, profile.air || (profile.total || 0) * (profile.airRatio || 0)) : groundCount;
+            const average = Math.max(0, profile.avgGroupSize || 0);
+            const spawn = Math.max(0, profile.spawnPressure || 0);
+            return Math.max(1, Math.min(4.0,
+                1 + Math.sqrt(count) * 0.17 + Math.min(0.65, Math.max(0, average - 2) * 0.055) + Math.sqrt(spawn) * 0.10));
+        }
+        function aiDifficulty20AoeMultiplier(type, level, profile) {
+            if (!profile || !profile.difficulty20) return 1;
+            const crowd = aiGroupTargetFactor(profile, false);
+            const pressure = Math.max(0, Math.min(1,
+                (profile.swarmRatio || 0) * 0.25 + Math.min(1, (profile.total || 0) / 38) * 0.48 +
+                Math.min(1, Math.max(0, (profile.avgGroupSize || 0) - 2) / 8) * 0.15 +
+                Math.min(1, (profile.spawnPressure || 0) / Math.max(1, profile.total || 1)) * 0.12));
+            if (type === 'shock') return 1 + (crowd - 1) * 0.95;
+            if (type === 'emp') return 1 + (crowd - 1) * 0.78 + pressure * 0.22;
+            if (type === 'chain') {
+                const jumps = (TOWER_TYPES.chain.chainJumps || 3) + Math.floor(level / 2);
+                let weightedHits = 0, decay = 1;
+                for (let i = 0; i < jumps; i++) { weightedHits += decay; decay *= TOWER_TYPES.chain.chainDecay || 0.75; }
+                return 1 + (Math.min(crowd, weightedHits) - 1) * 0.88;
+            }
+            if (type === 'missile') return 1 + (crowd - 1) * 0.48 * (TOWER_TYPES.missile.splashRatio || 0.6);
+            if (type === 'prism') {
+                const targets = Math.max(1, towerStatsAt('prism', level).targets || 1);
+                // 一级棱镜只有一个目标，但升级后迅速获得多目标能力；给出有限的成长预期，避免永远选不到它。
+                return Math.min(crowd, targets) * (1 + pressure * (level <= 2 ? 0.34 : 0.12));
+            }
+            if (type === 'flak') {
+                const airCrowd = aiGroupTargetFactor(profile, true);
+                return 1 + (airCrowd - 1) * 0.42;
+            }
+            return 1;
+        }
+
         function aiTowerPower(type, level, profile, atCol, atRow) {
             const def = TOWER_TYPES[type];
             if (!def) return 0;
@@ -4723,7 +4988,7 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 const dps = (st.damage || def.damage || 0) / Math.max(0.12, st.cooldown || def.fireRate || 1);
                 power = dps;
                 // 角色基础加成（与群体密度无关，保留战术角色）
-                if (type === 'cannon')  power *= 1.15;   // 溅射基础
+                if (type === 'cannon')  power *= 1.15;   // 单体重炮的高伤害角色加成
                 if (type === 'missile') power *= 1.10;
                 if (type === 'chain')   power *= 1.20;
                 if (type === 'shock')   power *= 1.05;
@@ -4734,11 +4999,13 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 if (type === 'cannon' && profile.jammer > 0) power *= 1.18;
                 if (type === 'railgun') power *= 1 + profile.heavyRatio * 0.22 + (profile.jammer > 0 ? 0.30 : 0);
                 if (type === 'emp') power += profile.mechRatio * 18 + (profile.jammer > 0 ? 12 : 0);
-                if (type === 'flak') power *= profile.airRatio > 0 ? (0.30 + profile.airRatio * 1.25) : 0.30;
+                if (type === 'flak') power *= AI_ASCENSION_STATE.airOnlyFlak ? 1 : (profile.airRatio > 0 ? (0.30 + profile.airRatio * 1.25) : 0.30);
             }
             // ★ 群体效能：群怪场景下 AOE / 控场塔加分，纯单体塔降分
             if (type !== 'amplifier' && type !== 'harvester') {
                 power *= aiGroupMultiplier(type, profile, level);
+                // 按真实多目标伤害/控制目标数量估算群攻的边际收益。
+                power *= aiDifficulty20AoeMultiplier(type, level, profile);
             }
                         // ★ 新增：攻击塔的反隐价值随等级提升（检测半径扩大的实际收益）
             if (profile.stealth > 0 && !['temporal', 'amplifier', 'harvester'].includes(type)) {
@@ -4746,10 +5013,53 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 power *= 1 + Math.min(0.35, profile.stealthRatio * 0.5) * (lvBonus - 1) / 0.30;
             }
             if (AI_ASCENSION_STATE.airOnlyFlak) {
-                power *= type === 'flak' ? profile.airRatio : profile.groundRatio;
+                // 进阶20绝对制空：只有防空塔能对飞行单位造成伤害；其他塔的分数只代表地面输出。
+                const targetShare = type === 'flak' ? (profile.airRatio || 0) : (def.airOnly ? 0 : (profile.groundRatio || 0));
+                power *= type === 'flak' ? Math.sqrt(Math.max(0.01, targetShare)) : targetShare;
             } else if (!def.targetsAir && !def.airOnly) {
                 power *= Math.max(0.18, 1 - profile.airRatio * 0.82);
             }
+            // 进阶20：弹药、过热与火力衰减都会降低实际持续输出。
+            if (AI_ASCENSION_STATE.fireDecay && !['temporal', 'amplifier', 'harvester'].includes(type)) {
+                power *= Math.max(0.5, 1 - Math.floor(Math.max(0, waveIndex) / 10) * 0.1);
+            }
+            if (AI_ASCENSION_STATE.overheat && !['temporal', 'amplifier', 'harvester'].includes(type)) {
+                power *= 5 / 6; // 连续输出 5 秒后停机 1 秒
+            }
+            if (AI_ASCENSION_STATE.ammo && !['laser', 'prism', 'amplifier', 'harvester'].includes(type)) {
+                const shotRate = 1 / Math.max(0.12, st.cooldown || def.fireRate || 1);
+                // 高频低弹匣塔更容易频繁停火/消耗装填资金；不直接改变炮塔实际属性。
+                power *= 1 - Math.min(0.18, Math.max(0, shotRate - 0.55) * 0.055);
+            } else if (type === 'laser' || type === 'prism') {
+                power *= 1.12; // 难度20下不消耗弹药，持续战更稳定
+            }
+            if (profile.regenThreat > 0 && ['sniper', 'railgun', 'cannon', 'laser'].includes(type)) power *= 1.16;
+
+            // ── 塔种边际收益：避免 AI 无脑重复建造同一种塔 ──
+            // 机枪塔只适合稳定清理普通目标；面对干扰者时收益明显下降。
+            // 这里仅改变 AI 的评估分数，不改变任何炮塔或敌人的游戏属性。
+            const sameTypeCount = towers.reduce((n, t) => n + (t.type === type ? 1 : 0), 0);
+            if (type === 'gun') {
+                power *= Math.pow(0.72, sameTypeCount);
+                if (profile.jammerRatio >= 0.08) power *= 0.58;
+            } else {
+                // 同类型塔越多，新增一座的边际价值越低；保留少量重复部署空间。
+                power *= Math.pow(0.90, Math.max(0, sameTypeCount - 1));
+            }
+
+            // 干扰者是高优先级威胁：优先评估能在干扰圈外处理它的远程/高单体伤害塔。
+            if (profile.jammerRatio > 0) {
+                if (type === 'sniper') power *= 1.42;
+                else if (type === 'railgun') power *= 1.30;
+                else if (type === 'cannon') power *= 1.16;
+                else if (type === 'gun' || type === 'flak') power *= 0.78;
+            }
+            if (profile.heavyRatio > 0.15) {
+                if (type === 'sniper' || type === 'railgun' || type === 'venom') power *= 1.12;
+            }
+
+            // 难度20职能配比：同时补足群体清理、反干扰、防空、控制与重甲火力。
+            if (profile.difficulty20) power *= aiDifficulty20RoleMultiplier(type, profile);
             return Math.max(0.1, power);
         }
         function aiGetPathNodes() {
@@ -4769,7 +5079,7 @@ function aiFindBuildRecommendation(openingOnly) {
         // ★ 按进阶20的建筑限额（20 座）自我约束：达到上限后只推荐升级
     if (AI_ASCENSION_STATE.limitTowers && battleStats && battleStats.towersBuilt >= AI_ASCENSION_STATE.limitTowers && currentModeKey !== 'endless') return null;
 
-    const profile = aiEnemyProfile();
+    const profile = aiPlanningEnemyProfile();
     const energy = getEnergyStats();
     const coreTotal = Math.max(1, totalCores || 1);
     const coreRatio = energy.green / coreTotal;
@@ -4840,13 +5150,16 @@ function aiFindBuildRecommendation(openingOnly) {
     // ── 塔类型候选 ──
     const openingExcluded = new Set(['temporal', 'amplifier', 'harvester']);
     const attackTowerCount = towers.filter(t => !['temporal', 'amplifier', 'harvester'].includes(t.type)).length;
-        // ★ 群体压力与 AOE 缺口评估
-    const AOE_TOWER_TYPES = new Set(['shock', 'chain', 'missile', 'cannon', 'prism', 'emp', 'flak', 'temporal']);
+        // ★ 群体压力与地面 AOE 缺口：防空塔不占地面 AOE 名额，单体炮塔的爆炸特效也不算 AOE。
     const swarm = profile.swarmRatio || 0;
-    const load = Math.min(1, (profile.total || 0) / 60);
-    const groupPressure = swarm * 0.65 + load * 0.35;
-    const aoeCount = towers.filter(t => AOE_TOWER_TYPES.has(t.type)).length;
-    const needAoe = groupPressure >= 0.55 && aoeCount === 0;
+    const load = Math.min(1, (profile.total || 0) / 38);
+    const spawnPressure = Math.min(1, (profile.spawnPressure || 0) / Math.max(1, profile.total || 1));
+    const groupSizePressure = Math.min(1, Math.max(0, (profile.avgGroupSize || 0) - 2) / 8);
+    const groupPressure = Math.min(1, swarm * 0.25 + load * 0.48 + groupSizePressure * 0.15 + spawnPressure * 0.12);
+    const roleState = aiDifficulty20RoleState(profile);
+    const aoeCount = roleState.aoe;
+    const needAoe = !openingOnly && profile.groundRatio > 0.10 && groupPressure >= 0.48 &&
+        (roleState.aoeNeed - roleState.aoe) >= 0.85;
     const bestTypes = Object.keys(TOWER_TYPES).filter(type => {
         if (money < getBuildCost(type)) return false;
         if (openingOnly && openingExcluded.has(type)) return false;
@@ -4859,8 +5172,8 @@ function aiFindBuildRecommendation(openingOnly) {
         if (type === 'emp' && profile.mechRatio < 0.12 && groupPressure < 0.55) return false;
         if (profile.total > 0 && profile.groundRatio < 0.08 && !TOWER_TYPES[type].targetsAir) return false;
         if (AI_ASCENSION_STATE.airOnlyFlak && profile.airRatio > 0.08 && profile.groundRatio < 0.08 && type !== 'flak') return false;
-        // ★ 群体压力大且当前没有 AOE / 控场塔时，强制只推荐 AOE / 控场
-        if (needAoe && !AOE_TOWER_TYPES.has(type)) return false;
+        // 群攻缺口较大时强制优先选择真正的地面 AOE；若防空位也不足，保留防空塔作为并列候选。
+        if (needAoe && !AI_GROUND_AOE_TYPES.has(type) && !(type === 'flak' && roleState.air < roleState.airNeed)) return false;
         return true;
     });
     if (!bestTypes.length) return null;
@@ -4965,28 +5278,43 @@ for (const type of bestTypes) {
             const power = aiTowerPower(type, 1, profile, cell.c, cell.r);
             const cost = getBuildCost(type);
             const overlap = towers.filter(t => t.type === type && Math.hypot(t.col - cell.c, t.row - cell.r) < Math.max(2.4, range * 0.65)).length;
+            const nearbyTowers = towers.filter(t => Math.hypot(t.col - cell.c, t.row - cell.r) <= 2.5).length;
+            const stealthSilencePenalty = profile.stealth > 0
+                ? 1 / (1 + Math.min(0.55, nearbyTowers * 0.09)) : 1;
+            const onMud = AI_ASCENSION_STATE.mudPit && mudPits.some(p => p.c === cell.c && p.r === cell.r);
+            const mudPenalty = onMud ? 0.78 : 1;
             const coverageFactor = 0.48 + Math.sqrt(inRange) * 0.28;
             const marginalRatio = relevantTowerCanHit(type) ? newCoverage / Math.max(1, inRange) : 0.35;
             const marginalFactor = newCoverage > 0 ? (0.28 + 0.72 * Math.sqrt(marginalRatio)) : 0.16;
             const saturationPenalty = coverageRate >= 0.88 && newCoverage <= 1 ? 0.48 : 1;
 
             let jammerSafeReach = 0, jammerExposure = 0, carrierReach = 0;
+            const canHitGroundTarget = !def.airOnly &&
+                !['temporal', 'amplifier', 'harvester'].includes(type);
             for (const e of liveJammers) {
+                if (!canHitGroundTarget) continue;
                 const d = Math.hypot(e.x - px, e.y - py) / CELL;
                 if (d <= aiJammerInterferenceCells()) jammerExposure++;
                 else if (d <= range) jammerSafeReach++;
             }
             for (const e of liveCarriers) {
+                const enemyAir = !!(ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].air);
+                if (['temporal', 'amplifier', 'harvester'].includes(type) ||
+                    (enemyAir && !def.targetsAir) || (!enemyAir && def.airOnly)) continue;
+                if (AI_ASCENSION_STATE.airOnlyFlak && enemyAir && type !== 'flak') continue;
                 const d = Math.hypot(e.x - px, e.y - py) / CELL;
                 if (d <= range) carrierReach++;
             }
             let roleBonus = 1;
-            if (profile.jammer > 0) {
-                if (type === 'sniper') roleBonus *= 1.48;
-                else if (type === 'cannon' || type === 'railgun') roleBonus *= 1.25;
-                else if (type === 'missile') roleBonus *= 1.08;
+            if (profile.jammer > 0 && canHitGroundTarget) {
+                // 只有真正能攻击地面干扰者的塔才获得反干扰加分。
+                if (type === 'sniper') roleBonus *= 1.55;
+                else if (type === 'railgun') roleBonus *= 1.38;
+                else if (type === 'cannon') roleBonus *= 1.22;
+                else if (type === 'missile') roleBonus *= 1.04;
+                else if (type === 'gun' || type === 'flak') roleBonus *= 0.72;
             }
-            if (profile.airRatio > 0.12 && def.targetsAir) roleBonus *= 1.08;
+            if (profile.airRatio > 0.12 && def.targetsAir && (!AI_ASCENSION_STATE.airOnlyFlak || type === 'flak')) roleBonus *= 1.08;
                         if (profile.stealth > 0) {
                 roleBonus *= 1 + Math.min(0.55, stealthPathCover * profile.stealthRatio * 1.4);
             }
@@ -5010,7 +5338,7 @@ for (const type of bestTypes) {
             const score = power * coverageFactor * marginalFactor * saturationPenalty * roleBonus *
                 liveThreatBonus * interferencePenalty * coreUrgency /
                 Math.pow(Math.max(1, cost), 0.72) / (1 + overlap * 0.42) *
-                mazeBonus * towerCountPenalty * hotspotBonus;
+                mazeBonus * towerCountPenalty * hotspotBonus * stealthSilencePenalty * mudPenalty;
 
             if (!best || score > best.score) best = {
                 action: 'build', type, col: cell.c, row: cell.r, cost, score, power,
@@ -5030,7 +5358,7 @@ for (const type of bestTypes) {
 }
         function aiFindUpgradeRecommendation() {
             if (screen !== 'game' || gameOver) return null;
-            const profile = aiEnemyProfile();
+            const profile = aiPlanningEnemyProfile();
             const liveJammers = enemies.filter(e => e.hp > 0 && (e.type === 'jammer' || (ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].jammer)));
             const liveCarriers = enemies.filter(e => e.hp > 0 && e.carrying > 0);
             let best = null;
@@ -5053,11 +5381,17 @@ for (const type of bestTypes) {
                 for (const e of liveCarriers) {
                     const air = !!(ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].air);
                     if (['temporal','amplifier','harvester'].includes(t.type) || (air && !TOWER_TYPES[t.type].targetsAir) || (!air && TOWER_TYPES[t.type].airOnly)) continue;
+                    if (AI_ASCENSION_STATE.airOnlyFlak && air && t.type !== 'flak') continue;
                     if (Math.hypot(e.x - tx, e.y - ty) <= nextRange) carrierReach++;
                 }
                 const tacticalGain = 1 + Math.min(0.95, jammerReach * 0.55 + carrierReach * 0.35);
-                const jammedPenalty = t.silenceTimer > 0 ? 0.42 : 1;
-                const gain = Math.max(0.5, next - current) * performance * tacticalGain * jammedPenalty;
+                const jammedPenalty = t.silenceTimer > 0 ? 0.22 : 1;
+                const rolePenalty = (profile.jammerRatio >= 0.08 && t.type === 'gun') ? 0.62 : 1;
+                const ammo = Math.max(0, Number.isFinite(t.ammo) ? t.ammo : 50);
+                const ammoRefillBonus = AI_ASCENSION_STATE.ammo && !['laser','prism','amplifier'].includes(t.type)
+                    ? 1 + (1 - Math.min(50, ammo) / 50) * 0.34 + (t.isReloading ? 0.22 : 0) : 1;
+                const mudPenalty = AI_ASCENSION_STATE.mudPit && mudPits.some(p => p.c === t.col && p.r === t.row) ? 0.82 : 1;
+                const gain = Math.max(0.5, next - current) * performance * tacticalGain * jammedPenalty * rolePenalty * ammoRefillBonus * mudPenalty;
                 const score = gain / Math.pow(Math.max(1, cost), 0.72);
                 if (!best || score > best.score) best = { action: 'upgrade', tower: t, cost, score, gain, profile, jammerReach, carrierReach };
             }
@@ -5068,7 +5402,7 @@ for (const type of bestTypes) {
     if (rec.action === 'build') {
     const reasons = [];
     if (rec.fromPlan) reasons.push('📋 按地图整体规划（先定路线再建塔）');
-    if (rec.profile.airRatio > 0.12 && TOWER_TYPES[rec.type].targetsAir) reasons.push('可处理飞行单位');
+    if (rec.profile.airRatio > 0.12 && TOWER_TYPES[rec.type].targetsAir && (!AI_ASCENSION_STATE.airOnlyFlak || rec.type === 'flak')) reasons.push('可处理飞行单位');
     if (rec.profile.stealth > 0 && rec.stealthPathCover > 0.15) {
         reasons.push(`隐形反制（按进阶20暗影迷雾）：新塔检测半径可覆盖约 ${Math.round(rec.stealthPathCover * 100)}% 的路径（当前隐形威胁 ${rec.profile.stealth} 只）`);
     }
@@ -5077,13 +5411,16 @@ for (const type of bestTypes) {
 
     if (rec.profile.fastRatio > 0.18 && rec.type === 'temporal') reasons.push('减速高速单位，降低核心被突破的风险');
         const swarmR = rec.profile.swarmRatio || 0;
-    const loadR = Math.min(1, (rec.profile.total || 0) / 60);
-    const groupPressureR = swarmR * 0.65 + loadR * 0.35;
+    const loadR = Math.min(1, (rec.profile.total || 0) / 38);
+    const sizeR = Math.min(1, Math.max(0, (rec.profile.avgGroupSize || 0) - 2) / 8);
+    const spawnR = Math.min(1, (rec.profile.spawnPressure || 0) / Math.max(1, rec.profile.total || 1));
+    const groupPressureR = swarmR * 0.25 + loadR * 0.48 + sizeR * 0.15 + spawnR * 0.12;
     if (groupPressureR >= 0.55) {
-        const AOE_TYPES = new Set(['shock', 'chain', 'missile', 'cannon', 'prism', 'emp', 'flak', 'temporal']);
-        const aoeCnt = towers.filter(t => AOE_TYPES.has(t.type)).length;
-        if (aoeCnt === 0 && AOE_TYPES.has(rec.type)) {
-            reasons.push(`⚠ 群体威胁高（小怪占比 ${Math.round(swarmR * 100)}% / 本波 ${rec.profile.total} 只），但当前没有 AOE / 控场塔——这是核心被大量夺走的主要原因，必须优先补此塔`);
+        const AOE_TYPES = AI_GROUND_AOE_TYPES;
+        const aoeCnt = aiDifficulty20RoleState(rec.profile).aoe;
+        const aoeNeedNow = rec.profile.endgameUniversal ? 5.1 : ((rec.profile.total > 45 || swarmR > 0.55) ? 3.8 : 2.6);
+        if (aoeCnt < aoeNeedNow && AOE_TYPES.has(rec.type)) {
+            reasons.push(`⚠ 群体威胁高（小怪占比 ${Math.round(swarmR * 100)}% / 本波约 ${Math.round(rec.profile.total)} 只），当前有效地面 AOE 约 ${aoeCnt.toFixed(1)} / 需求 ${aoeNeedNow.toFixed(1)}，建议优先补齐群攻组合`);
         } else if (AOE_TYPES.has(rec.type)) {
             reasons.push(`群体效能：可同时压制多个敌人（小怪占比 ${Math.round(swarmR * 100)}%）`);
         }
@@ -5267,7 +5604,7 @@ for (const type of bestTypes) {
             const hint = document.getElementById('aiAutoHint');
             if (hint) hint.textContent = aiAutoMode ? '战斗中建塔升级 · 自动选卡/推进' : '战斗中建塔升级 · 清场后自动推进';
             aiAddMessage(aiAutoMode
-                ? '智能托管已开启：「少塔长路」策略——优先选取能延长敌军路径的建塔点，塔数越多越倾向升级现有塔；自动处理开局、补塔、升级、Roguelike 选卡，清场后自动推进下一波。所有战术决策均以进阶难度 20 为基准（绝对制空 / 暗影迷雾 / 建筑限额 20 / 弹药限制 / 火力衰减等）。'
+                ? '智能托管已开启：「少塔长路」策略——优先延长路径并形成职能组合，重点处理全图治疗萨满、孵化/召唤增援、干扰者与双倍末波首领；按进阶难度20计入弹药装填、过热、火力衰减、暗影迷雾、绝对制空、死亡沉默、泥潭和20座建塔上限，自动处理开局、补塔、升级、选卡与推进。'
                 : '智能托管已关闭，之后只提供建议，不会自动花费资金或推进波次。', 'bot');
             aiSetStatus(aiAutoMode ? '全自动托管运行中' : '手动辅助模式');
         }
@@ -5281,7 +5618,7 @@ for (const type of bestTypes) {
             paused = false;
             pauseBtn.textContent = '⏸ 暂停';
             pauseBtn.classList.remove('active');
-            aiAddMessage('已启动全自动通关。AI 将以进阶难度 20 为基准（绝对制空 / 暗影迷雾 / 建筑限额 20 / 弹药限制 / 火力衰减等）进行保守规划，自动开局、处理战斗和选卡，并持续推进至本关胜利或失败。', 'bot');
+            aiAddMessage('已启动全自动通关。AI 将按进阶难度 20 规划：计入全图萨满治疗、孵化/召唤增援、末波双倍首领与分裂、弹药装填、过热、火力衰减、死亡沉默、泥潭和20座建塔上限，自动开局、处理战斗和选卡，并持续推进至本关胜利或失败。', 'bot');
         }
         function aiUpdateAuto(dt) {
             if (!aiAutoMode || screen !== 'game' || gameOver || paused) return;
@@ -5343,7 +5680,8 @@ for (const type of bestTypes) {
             const liveCarriers = enemies.filter(e => e.hp > 0 && e.carrying > 0);
             const hasSafeJammerCounter = liveJammers.some(e => towers.some(t => {
                 const def = TOWER_TYPES[t.type];
-                if (!def || def.airOnly || ['temporal','amplifier','harvester'].includes(t.type) || t.silenceTimer > 0) return false;
+                if (!def || def.airOnly || ['temporal','amplifier','harvester'].includes(t.type) || t.silenceTimer > 0 ||
+                    (AI_ASCENSION_STATE.ammo && !['laser','prism','amplifier','harvester'].includes(t.type) && (t.ammo <= 0 || t.isReloading))) return false;
                 const range = (towerStatsAt(t.type, t.level).range || def.range || 0) * CELL *
                     ((t.buffs && t.buffs.range) || 1) * (1 + ((t.syn && t.syn.range) || 0));
                 const d = Math.hypot(e.x - cellCenterX(t.col), e.y - cellCenterY(t.row));
@@ -5352,7 +5690,8 @@ for (const type of bestTypes) {
             const hasCarrierCounter = liveCarriers.some(e => towers.some(t => {
                 const def = TOWER_TYPES[t.type];
                 if (!def || ['temporal','amplifier','harvester'].includes(t.type) || (def.airOnly && !ENEMY_TYPES[e.type].air) || (ENEMY_TYPES[e.type].air && !def.targetsAir) ||
-                    (AI_ASCENSION_STATE.airOnlyFlak && ENEMY_TYPES[e.type].air && t.type !== 'flak') || t.silenceTimer > 0) return false;
+                    (AI_ASCENSION_STATE.airOnlyFlak && ENEMY_TYPES[e.type].air && t.type !== 'flak') || t.silenceTimer > 0 ||
+                    (AI_ASCENSION_STATE.ammo && !['laser','prism','amplifier','harvester'].includes(t.type) && (t.ammo <= 0 || t.isReloading))) return false;
                 const range = (towerStatsAt(t.type, t.level).range || def.range || 0) * CELL *
                     ((t.buffs && t.buffs.range) || 1) * (1 + ((t.syn && t.syn.range) || 0));
                 return Math.hypot(e.x - cellCenterX(t.col), e.y - cellCenterY(t.row)) <= range;
@@ -5379,11 +5718,13 @@ for (const type of bestTypes) {
             // ── 紧急情况（干扰者 / 携核敌人）覆盖上面的偏置 ──
             if (liveJammers.length) {
                 if (hasSafeJammerCounter) {
+                    // 已有塔能在干扰圈外命中：优先升级这类有效火力，而非升级被沉默的塔。
                     upgradeBias = 3.25;
                     buildBias = 0.92;
                 } else {
-                    upgradeBias = 1.35;
-                    buildBias = 1.55;
+                    // 没有安全反制时，优先新建狙击/磁轨炮等安全射程火力。
+                    upgradeBias = 1.10;
+                    buildBias = 1.85;
                 }
             }
             if (liveCarriers.length && !hasCarrierCounter) {
@@ -5395,17 +5736,42 @@ for (const type of bestTypes) {
             if (coreRatio < 0.35 && !liveJammers.length && !liveCarriers.length) {
                 upgradeBias = Math.max(upgradeBias, 3.0);
             }
+
+            // 最后 4 波按难度20综合压力模型补齐职能缺口，但保留20座总建塔上限。
+            const endgameProfile = aiPlanningEnemyProfile();
+            if (endgameProfile.difficulty20 && build) {
+                const roles = aiDifficulty20RoleState(endgameProfile);
+                const roleGap = roles.aoe < roles.aoeNeed || roles.jammer < roles.jammerNeed ||
+                    roles.air < roles.airNeed || roles.control < roles.controlNeed || roles.heavy < roles.heavyNeed;
+                if (roleGap) {
+                    upgradeBias = Math.min(upgradeBias, 1.55);
+                    buildBias = Math.max(buildBias, 2.05);
+                }
+                // 地面群攻明显短缺时，即使已有少量 AOE，也持续补足而不是转回单体塔升级。
+                if (roles.aoeNeed - roles.aoe >= 1.15 && endgameProfile.groundRatio > 0.10 && (endgameProfile.total > 45 || endgameProfile.swarmRatio > 0.55 || endgameProfile.endgameUniversal)) {
+                    upgradeBias = Math.min(upgradeBias, 1.18);
+                    buildBias = Math.max(buildBias, 2.45);
+                }
+                // 飞行单位只能由防空塔处理，防空缺口也必须优先补齐。
+                if (AI_ASCENSION_STATE.airOnlyFlak && roles.airNeed > roles.air + 0.5) {
+                    upgradeBias = Math.min(upgradeBias, 1.25);
+                    buildBias = Math.max(buildBias, 2.30);
+                }
+            }
+
                         // ★ 群体压力大且缺乏 AOE / 控场塔时，优先补塔而不是继续升级单体塔
             if (build) {
-                const prof = aiEnemyProfile();
+                const prof = aiPlanningEnemyProfile();
                 const swarmR = prof.swarmRatio || 0;
-                const loadR = Math.min(1, (prof.total || 0) / 60);
-                const gp = swarmR * 0.65 + loadR * 0.35;
-                const AOE_TYPES = new Set(['shock', 'chain', 'missile', 'cannon', 'prism', 'emp', 'flak', 'temporal']);
-                const aoeCnt = towers.filter(t => AOE_TYPES.has(t.type)).length;
-                if (gp >= 0.55 && aoeCnt === 0) {
+                const loadR = Math.min(1, (prof.total || 0) / 38);
+                const sizeR = Math.min(1, Math.max(0, (prof.avgGroupSize || 0) - 2) / 8);
+                const spawnR = Math.min(1, (prof.spawnPressure || 0) / Math.max(1, prof.total || 1));
+                const gp = Math.min(1, swarmR * 0.25 + loadR * 0.48 + sizeR * 0.15 + spawnR * 0.12);
+                const roleNow = aiDifficulty20RoleState(prof);
+                const aoeCnt = roleNow.aoe;
+                if (gp >= 0.48 && aoeCnt < Math.min(2.0, roleNow.aoeNeed)) {
                     const cost0 = getBuildCost(build.type);
-                    if (money >= cost0 && canBuildAt(build.col, build.row)) {
+                    if (money >= cost0 + (aiDifficulty20AmmoReserve() * 0.5) && canBuildAt(build.col, build.row)) {
                         closeBuildMenu(); closeTowerMenu();
                         addTower(build.col, build.row, build.type);
                         rebuildPaths(); updateUI();
@@ -5420,7 +5786,17 @@ for (const type of bestTypes) {
             }
 
 
-            const chooseUpgrade = up && (!build || up.score * upgradeBias >= build.score * buildBias);
+            const criticalResponse = (liveJammers.length > 0 && !hasSafeJammerCounter) ||
+                (liveCarriers.length > 0 && !hasCarrierCounter) || coreRatio < 0.30;
+            const ammoReserve = criticalResponse ? 0 : aiDifficulty20AmmoReserve();
+            const spendableMoney = Math.max(0, money - ammoReserve);
+            const upAffordable = !!up && up.cost <= spendableMoney;
+            const buildAffordable = !!build && build.cost <= spendableMoney;
+            if (!upAffordable && !buildAffordable) {
+                aiSetStatus(`难度20资源管理：预留 ${ammoReserve} 金币用于弹药装填`);
+                return;
+            }
+            const chooseUpgrade = upAffordable && (!buildAffordable || up.score * upgradeBias >= build.score * buildBias);
 
             if (chooseUpgrade) {
                 const t = up.tower;
@@ -5432,8 +5808,9 @@ for (const type of bestTypes) {
                 SFX.upgrade();
                 aiLastAssistantAction = `自动升级 ${TOWER_TYPES[t.type].name} Lv.${t.level}`;
             } else {
+                if (!buildAffordable || !build) return;
                 const cost = getBuildCost(build.type);
-                const reserve = underPressure || coreRatio < 0.65 ? 0 : Math.max(20, Math.floor(money * 0.04));
+                const reserve = 0;
                 if (money < cost + reserve || !canBuildAt(build.col, build.row)) return;
                 closeBuildMenu(); closeTowerMenu();
                 addTower(build.col, build.row, build.type);
@@ -10133,14 +10510,15 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
             const def = ENEMY_TYPES[e.type] || {};
             let score = 0;
             // 干扰者会令周围炮塔停火，并且能夺取 3 枚核心，是最优先的击杀对象。
-            if (def.jammer || e.type === 'jammer') score += 1600;
+            if (def.jammer || e.type === 'jammer') score += 2100;
             // 已夺取的核心必须在敌人抵达出口前追回；携核越多优先级越高。
-            if (e.carrying > 0) score += 900 + Math.min(3, e.carrying) * 110;
-            if (def.healer) score += 260;
-            if (def.summoner) score += 220;
-            if (def.hatcher) score += 200;
-            if (e.type === 'boss') score += 120;
-            if (e.maxHp > 0 && e.hp <= e.maxHp * 0.30) score += 35;
+            if (e.carrying > 0) score += 1200 + Math.min(3, e.carrying) * 150;
+            // 难度20萨满全图治疗、孵化母体/召唤者增援，威胁高于普通高血量单位。
+            if (def.healer) score += 1080;
+            if (def.summoner) score += 560;
+            if (def.hatcher) score += 620;
+            if (e.type === 'boss') score += 260;
+            if (e.maxHp > 0 && e.hp <= e.maxHp * 0.30) score += 110; // 血怒下残血单位速度翻倍
 
             // 同等威胁下，优先处理已经接近目标地点的敌人。
             const goals = e.state === 'toExit' ? exits : bases;
@@ -10384,34 +10762,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     continue;
                 }
 
-                // ── 统一转向（唯一写 t.angle 的地方）──
-                // 每帧无条件执行：即使被沉默 / 过热 / 装填中，炮管也跟随最近的敌人，
-                // 避免状态 continue 之后角度彻底冻结。
-                if (TURRET_TOWER_TYPES.has(t.type)) {
-                    const aimPx = cellCenterX(t.col), aimPy = cellCenterY(t.row);
-                    let aim = null, best = Infinity;
-                    for (const e of enemies) {
-                        if (!e || e.hp <= 0 || e.charmed) continue;
-                        const dx = e.x - aimPx, dy = e.y - aimPy;
-                        const dd = dx * dx + dy * dy;
-                        if (dd < best) { best = dd; aim = e; }
-                    }
-                    if (aim) {
-                        const wantAngle = Math.atan2(aim.y - aimPy, aim.x - aimPx);
-                        if (Number.isFinite(wantAngle)) {
-                            t.angle = turnToward(t.angle, wantAngle, dt, 18);
-                        }
-                    }
-                }
-
-                if (t.silenceTimer > 0) { t.silenceTimer -= dt; continue; }
-
-                // 进阶难度机制 11：武器过热 —— 所有攻击塔连续攻击 5 秒后停机 1 秒
-                if (ascensionState && ascensionState.overheat && t.overheatTimer > 0) {
-                    t.overheatTimer -= dt;
-                    t.beamOn = false; t.beamTarget = null; t.beamTargets = null;
-                    continue;
-                }
+                // 先计算有效射程与目标过滤，再决定是否转向；射程内没有可攻击目标时保持原朝向。
+                // 沉默/过热状态仍允许炮塔对射程内目标保持瞄准，但不会因此获得攻击能力。
 
                 const base = towerStatsAt(t.type, t.level);
                 const bf = t.buffs || { dmg: 1, rate: 1, range: 1 };
@@ -10448,6 +10800,23 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 const towerPx = cellCenterX(t.col), towerPy = cellCenterY(t.row);
                 const rangePx = st.range * CELL;
                 const isMax = t.level >= MAX_LEVEL;
+
+                if (TURRET_TOWER_TYPES.has(t.type) && rangePx > 0) {
+                    const aim = findTarget(t, towerPx, towerPy, rangePx);
+                    if (aim) {
+                        const wantAngle = Math.atan2(aim.y - towerPy, aim.x - towerPx);
+                        if (Number.isFinite(wantAngle)) t.angle = turnToward(t.angle, wantAngle, dt, 18);
+                    }
+                }
+
+                if (t.silenceTimer > 0) { t.silenceTimer -= dt; continue; }
+
+                // 进阶难度机制 11：过热时停止攻击，但仍允许炮管跟踪射程内目标。
+                if (ascensionState && ascensionState.overheat && t.overheatTimer > 0) {
+                    t.overheatTimer -= dt;
+                    t.beamOn = false; t.beamTarget = null; t.beamTargets = null;
+                    continue;
+                }
 
                 if (t.type === 'laser') {
                     const target = findTarget(t, towerPx, towerPy, rangePx);
