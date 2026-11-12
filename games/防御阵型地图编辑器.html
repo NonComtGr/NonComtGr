@@ -264,6 +264,17 @@
             <span class="hint">生成时自动生效；也可对当前地图点“应用”</span>
         </div>
 
+        <div class="panel-head"><span>✚ 十字路口 + 比例</span></div>
+        <div class="opts">
+            <label style="flex:1; min-width:240px;">
+                <span style="white-space:nowrap;">比例</span>
+                <input id="crossRatioIn" type="range" min="0" max="100" step="5" value="50">
+                <b id="crossRatioPct" style="color:#c0a8ff; min-width:40px; text-align:right;">50%</b>
+            </label>
+            <button class="tool" id="applyCrossBtn" style="color:#c0a8ff; border-color:#4a3f7a;">应用</button>
+            <span class="hint">仅在“上下左右 4 格均可通行”且“四个对角均为 #/X”的格子上生成，数量 = 候选格数 × 比例</span>
+        </div>
+
         <div class="legend">
             <span class="lg"><span class="sw sw-wall"></span># 岩壁</span>
             <span class="lg"><span class="sw sw-build"></span>X 炮台墙</span>
@@ -313,6 +324,8 @@ const wDotIn = document.getElementById('wDotIn');
 
     const pathOIn = document.getElementById('pathOIn');
     const pathOPct = document.getElementById('pathOPct');
+    const crossRatioIn = document.getElementById('crossRatioIn');
+    const crossRatioPct = document.getElementById('crossRatioPct');
 
     let grid = [];
     let brushChar = '.';
@@ -358,6 +371,63 @@ const wDotIn = document.getElementById('wDotIn');
             }
         }
         return count;
+    }
+
+    // ============================================================
+    // 十字路口 + 生成
+    //   候选格必须同时满足：
+    //     1) 本身为 . 或 o
+    //     2) 上下左右 4 格都是可通行格（. o + S E C）
+    //     3) 四个对角均为 # 或 X（典型十字路口形状）
+    //   生成数量 = 候选格数量 × 比例（四舍五入），随机挑选
+    // ============================================================
+    function getCrossRatio() {
+        return Math.max(0, Math.min(100, parseInt(crossRatioIn.value, 10) || 0)) / 100;
+    }
+
+    function applyCrossConversion(g, ratio) {
+        if (ratio <= 0) return 0;
+
+        const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+        const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+        const isWalk = ch => ch === '.' || ch === 'o' || ch === '+'
+                          || ch === 'S' || ch === 'E' || ch === 'C';
+        const isWall = ch => ch === '#' || ch === 'X';
+
+        const candidates = [];
+        for (let r = 1; r < ROWS - 1; r++) {
+            for (let c = 1; c < COLS - 1; c++) {
+                const ch = g[r][c];
+                if (ch !== '.' && ch !== 'o') continue;
+
+                // 条件 2：上下左右 4 格均可通行
+                let ok = true;
+                for (const [dx, dy] of dirs) {
+                    if (!isWalk(g[r + dy][c + dx])) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                // 条件 3：四个对角均为 # 或 X
+                for (const [dx, dy] of corners) {
+                    if (!isWall(g[r + dy][c + dx])) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                candidates.push({ c: c, r: r });
+            }
+        }
+
+        if (!candidates.length) return 0;
+
+        const count = Math.round(candidates.length * ratio);
+        if (count <= 0) return 0;
+
+        shuffle(candidates);
+        const n = Math.min(count, candidates.length);
+        for (let i = 0; i < n; i++) {
+            g[candidates[i].r][candidates[i].c] = '+';
+        }
+        return n;
     }
 
     // ============================================================
@@ -761,12 +831,14 @@ const wDotIn = document.getElementById('wDotIn');
         const oCount = applyPathOConversion(newGrid, getPathORatio());
         const connBroken = ensureConnectivity(newGrid);
         const fixedCount = fixIsolatedCells(newGrid);
+        const crossCount = applyCrossConversion(newGrid, getCrossRatio());
 
         grid = newGrid;
         resetEditState();
         refreshAll();
         let msg = "🧱 DFS迷宫已生成";
         if (oCount) msg += `（${oCount} 个通路转为 o）`;
+        if (crossCount) msg += `（生成 ${crossCount} 个十字路口 +）`;
         if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
         if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
         toast(msg);
@@ -879,12 +951,14 @@ const wDotIn = document.getElementById('wDotIn');
         const oCount = applyPathOConversion(g, getPathORatio());
         const connBroken = ensureConnectivity(g);
         const fixedCount = fixIsolatedCells(g);
+        const crossCount = applyCrossConversion(g, getCrossRatio());
 
         grid = g;
         resetEditState();
         refreshAll();
         let msg = "🔀 融合迷宫地图已生成";
         if (oCount) msg += `（${oCount} 个通路转为 o）`;
+        if (crossCount) msg += `（生成 ${crossCount} 个十字路口 +）`;
         if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
         if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
         toast(msg);
@@ -1729,7 +1803,25 @@ const wDotIn = document.getElementById('wDotIn');
         toast(`已按 ${pathOIn.value}% 比例把 ${n} 个通路转为 o`);
     });
 
-    // ===== 新增：随机地图名按钮 =====
+    // ===== 十字路口 + 比例 =====
+    crossRatioIn.addEventListener('input', () => {
+        crossRatioPct.textContent = crossRatioIn.value + '%';
+    });
+
+    document.getElementById('applyCrossBtn').addEventListener('click', () => {
+        const ratio = getCrossRatio();
+        if (ratio <= 0) {
+            toast('当前比例为 0%，未转换');
+            return;
+        }
+        pushHistory();
+        const n = applyCrossConversion(grid, ratio);
+        floodCacheKey = '';
+        refreshAll();
+        toast(`已按 ${crossRatioIn.value}% 比例生成 ${n} 个十字路口 +`);
+    });
+
+    // ===== 随机地图名按钮 =====
     document.getElementById('randNameBtn').addEventListener('click', () => {
         nameIn.value = randomMapName();
         updateCode();
@@ -1957,12 +2049,14 @@ const wDotIn = document.getElementById('wDotIn');
     const oCount = applyPathOConversion(g, getPathORatio());
     const connBroken = ensureConnectivity(g);
     const fixedCount = fixIsolatedCells(g);
+    const crossCount = applyCrossConversion(g, getCrossRatio());
 
     grid = g;
     resetEditState();
     refreshAll();
     let msg = "🎲 随机曲折地图已生成";
     if (oCount) msg += `（${oCount} 个通路转为 o）`;
+    if (crossCount) msg += `（生成 ${crossCount} 个十字路口 +）`;
     if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
     if (fixedCount) msg += `（修正 ${fixedCount} 个孤立点）`;
     toast(msg);
