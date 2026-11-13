@@ -274,7 +274,7 @@ canvas { touch-action: none; }
         <button type="button" id="aiRecommendBtn">🎯 推荐建塔</button>
         <button type="button" class="primary" id="aiApplyBtn" disabled>⚡ 执行推荐</button>
         <button type="button" id="aiUpgradeBtn">⬆ 优化升级</button>
-        <button type="button" class="full-auto" id="aiFullAutoBtn">🚀 全自动通关（自动开局 / 选卡 / 推进波次）</button>
+        <button type="button" class="full-auto" id="aiLearningBtn">📈 我的学习曲线 / 重置</button>
     </div>
     <label class="ai-auto"><input type="checkbox" id="aiAutoCheck"> 智能托管
         <span id="aiAutoHint">战斗中建塔升级 · 清场后自动推进</span>
@@ -1126,7 +1126,16 @@ function rollSynergyCount() {
             waveIntervalNext = s.waveIntervalNext || 10;
             waveCountdownStarted = !!s.waveCountdownStarted;
             globalAutoUpgrade = !!s.globalAutoUpgrade;
-            battleStats = s.battleStats || { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0 };
+            const _sb = s.battleStats || {};
+            battleStats = {
+                kills: _sb.kills || 0, leaked: _sb.leaked || 0,
+                towersBuilt: _sb.towersBuilt || 0, wavesCleared: _sb.wavesCleared || 0,
+                builds: Array.isArray(_sb.builds) ? _sb.builds.slice() : [],
+                upgrades: Array.isArray(_sb.upgrades) ? _sb.upgrades.slice() : [],
+                drafts: Array.isArray(_sb.drafts) ? _sb.drafts.slice() : [],
+                basePathLength: _sb.basePathLength || 0,
+                pathLength: _sb.pathLength || 0
+            };
             gameOver = false;
             projectiles = [];
             arrowAnimTime = 0;
@@ -2305,6 +2314,76 @@ function rollSynergyCount() {
     ]
 },
 {
+    name: '毒沼峡谷', startMoney: 1500,
+    cols: 29, rows: 29,
+    map: [
+        "#############################",
+        "#oo.oo.oo..o.oX.o...#....ooo#",
+        "#.#.oXXXoX##X....oXoo.X.X#o.#",
+        "#oXoX..o.o#oo.#oo...#.oo..#.#",
+        "#.o.X..X#.XoXoX.###o#.XX.o#o#",
+        "#..oo.X...ooX.o+.oX.X.X..oX.#",
+        "##X#Xo.oXXXo#.XoX.#..oo.o...#",
+        "#oo..oo..oX.X.o.#...oo.oC.o.#",
+        "#.#.o.#.ooX..Xoo.X#o#o#.#oo.#",
+        "#...#.X..o.o..oooo.oSo#S...o#",
+        "#X#oX.XX#.oX#.XXXX.ooo#oX##.#",
+        "#.o.#.o.o.X.o...o...#.Xo.o.o#",
+        "#oX#oo.XXoX.oo###o#.X.###...#",
+        "#.#.o..o#..ooo#o..o.X.oo..X.#",
+        "#.Xoo..o.#Xooo#o#.CXXXXo....#",
+        "#o#.X..o..ooXo....#.oo#.Xooo#",
+        "#oXoo#Xo#o..oo#.XXooX.#.#..o#",
+        "#.X..o.+o..oX..oo.ooo+ooX.#o#",
+        "#.#X#X#o#.XoXXo#.XXX#o#oXo.E#",
+        "#.X.o...X.X.ooo..o.o..X.o.X.#",
+        "#oXoX.X.oo#.X.ooooX.ooX.###o#",
+        "#oo....oo.Xo..X..oo..oX.....#",
+        "#.Xo#.#oXo###XXooo#.oX#X##XC#",
+        "#oooX.#..o..o.o.o.o.X..S..X.#",
+        "#oX.#.Xo#XXo.o.#ooooX.#X..#.#",
+        "#...#...o..oX...X.X.oooo#oXo#",
+        "#o#.oXo.#.oX#.X.X.X#XXo.o.o.#",
+        "#oo.o..o....ooX.o..o.o.oo...#",
+        "#############################"
+    ]
+},
+{
+    name: '赤岩之渊', startMoney: 1500,
+    cols: 29, rows: 29,
+    map: [
+        "#############################",
+        "#....ooo.ooo......o....o.oo.#",
+        "#..##.oX#o#.X..X..XooX.oo.oo#",
+        "#.oo#.oo..Xooo.o#o#oooX.#o.o#",
+        "#.oo.o#X#oX#XXo.#ooo#.Xo#.#o#",
+        "#o.o..#.o.oooo..o..o#oo+oo..#",
+        "#o#.Xoooo#XXX.XXX.X.X##o#.#.#",
+        "#oXo#ooooo.oXooS.oXo.oo...Xo#",
+        "#.X.#X##oo#.X#oXX.oX#XX#o#oo#",
+        "#oXo#.o.ooo+o.oo#.o.#oooo.o.#",
+        "#.#.#o####XoX#o.X#.o#oXXXXXo#",
+        "#o.oo.oo.oo.ooXo..X.#oXo.ooo#",
+        "#.#oo.XXXo.#oo.X#.#oo.oo#.X.#",
+        "#.Xo..oooooo......ooo.#o..#.#",
+        "#o#X#.X.#.#.X#oo#.o.X.o.Xo#.#",
+        "#oooo.o.#oXoo.o.#o#.X.Xo#o#o#",
+        "##X#XX#XXo##Xo###.#.Xo#o#oo.#",
+        "#.o.o.ooo.X.o+.oo+o.X.oo#o..#",
+        "#oXoXoXo#ooo#o#oXo#.##XooXo.#",
+        "#oo.ooo.Xo...o..o..ooooo.o..#",
+        "#X#.X.XoooooooXX##oXXXX#oo#X#",
+        "#o..ooX.#ooooooo..o..oo.oooC#",
+        "#o###.X.XoX##oXo#o#o#o#.#o#.#",
+        "#oooXooo.o..XoooX.#o.oooXoo.#",
+        "#oXo##.o#ooo#XooXoXCooXo##Xo#",
+        "#oo.ooooX.#ooo..#oo.oo#oo..o#",
+        "#o#..oX.oo.ooXXooo#oX.XX#Xo.#",
+        "#oo.Xoo..o..oooooo.o#oo.oooo#",
+        "#############################"
+    ]
+},
+{
     name: '地下防线', startMoney: 1500,
     cols: 39, rows: 29,
     map: [
@@ -3048,7 +3127,9 @@ function makeSeededRng(seed) {
         function loadLevel(idx, modeKey, reverse, rogue, keptAffixes, reuseMudPits) {
             closeBuildMenu(); closeTowerMenu();
             gameResult = null; resultBtnHover = false; endlessBtnHover = false;
-            battleStats = { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0 };
+            battleStats = { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0,
+                            builds: [], upgrades: [], drafts: [],
+                            basePathLength: 0, pathLength: 0 };
             levelIndex = Math.min(idx, LEVELS.length - 1);
             currentModeKey = modeKey || 'story';
             routeReverse = !!reverse;
@@ -3347,6 +3428,9 @@ function computeRoutesWithExtraBlocks(extraBlocks) {
                 if (!anyDirFinite(distToExitDir, b.r, b.c)) continue;
                 const pts = tracePathDir(distToExitDir, b.c, b.r, (c, r) => exits.some(x => x.c === c && x.r === r));
                 if (pts.length > 1) routes.push({ pts, kind: 'out' });
+            }
+                        if (battleStats && !battleStats.basePathLength) {
+                battleStats.basePathLength = routes.reduce((s, r) => s + Math.max(0, r.pts.length - 1), 0);
             }
             rebuildActiveBaseField();
         }
@@ -4136,6 +4220,14 @@ function pickSummonType(selfType, waveId) {
             }
             if (changed) { updateUI(); if (selectedTower) updateSellButton(); }
         }
+        function recordUpgrade(t, fromLv, cost) {
+            if (battleStats && t) {
+                battleStats.upgrades.push({
+                    type: t.type, fromLv, toLv: t.level, wave: waveIndex, cost
+                });
+            }
+        }
+
 
         function addTower(col, row, type, startCountdown) {
             const d = TOWER_TYPES[type];
@@ -4151,7 +4243,11 @@ function pickSummonType(selfType, waveId) {
                 jamResist: 0
             });
             battleStats.towersBuilt++;
+            if (battleStats) battleStats.builds.push({ type, col, row, wave: waveIndex, cost });
             SFX.build();
+            if (battleStats && battleStats.builds.length === 1) {
+                battleStats.firstBuildType = type;
+            }
             if (startCountdown !== false && !waveCountdownStarted) waveCountdownStarted = true;
         }
 
@@ -4242,8 +4338,281 @@ function pickSummonType(selfType, waveId) {
             }
             return r;
         }
+// 把一个建造事件编码成桶键：塔类型 × 离路径距离 × 是否拐角 × 波次段
+function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
+    const type = typeOverride || buildOrPos.type;
+    const col  = buildOrPos.col;
+    const row  = buildOrPos.row;
+    const wave = (waveOverride != null ? waveOverride : buildOrPos.wave) | 0;
+
+    // ① 离最近路径点的格子距离
+    const cx = col + 0.5, cy = row + 0.5;
+    let minD = Infinity;
+    for (const route of routes) for (const p of route.pts || []) {
+        const x = (p.x - mapOffX) / CELL, y = (p.y - mapOffY) / CELL;
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < minD) minD = d;
+    }
+    if (!Number.isFinite(minD)) return null;
+    const distBucket = minD <= 1.2 ? 'adj' : (minD <= 2.6 ? 'near' : 'far');
+
+    // ② 3×3 邻域内路径是否有转弯（用路径点的方向变化近似）
+    let corner = false;
+    for (const route of routes) {
+        const pts = route.pts || [];
+        for (let i = 1; i < pts.length - 1; i++) {
+            const a = pts[i-1], b = pts[i], c = pts[i+1];
+            const ax = (b.x - a.x), ay = (b.y - a.y);
+            const bx = (c.x - b.x), by = (c.y - b.y);
+            if (Math.abs(ax*by - ay*bx) < 1e-3) continue;   // 共线不算拐角
+            const px = (b.x - mapOffX)/CELL, py = (b.y - mapOffY)/CELL;
+            if (Math.hypot(px - cx, py - cy) <= 1.8) { corner = true; break; }
+        }
+        if (corner) break;
+    }
+
+    // ③ 波次段：前 / 中 / 后
+    const prog = totalWaves > 0 ? wave / totalWaves : 0;
+    const phase = prog < 0.34 ? 'early' : (prog < 0.67 ? 'mid' : 'late');
+
+    return `${type}|${distBucket}|${corner ? 'c' : 's'}|${phase}`;
+}
 
 
+                // ============================================================
+        // AI 自我优化：历史对局学习器
+        //   只统计"赢的局 vs 输的局"的决策分布，用平滑胜率微调 AI 打分权重。
+        //   不触碰战斗逻辑，所有参数带软限幅，永不跑飞。
+        // ============================================================
+        const AI_LEARN_KEY = 'defense_ai_learning_v1';
+        const AI_LEARN = (function () {
+            let data = null;
+
+            const DEFAULT = {
+                version: 1,
+                games: [],                    // 最近 200 局
+                weights: {
+                    towerType: {},            // { gun:1.03, cannon:0.97, ... }
+                    draftBias: {},            // { pierce:1.2, killAll:0.9, ... }
+                    upgradeVsBuild: 1.0,
+                    buildVsUpgrade: 1.0,
+                    mazeWeight: 1.0,
+                    coverageWeight: 1.0,
+                    roleNeed: { aoe:1, jammer:1, air:1, control:1, heavy:1 }
+                },
+                stats: {
+                    byTower: {},              // { gun:{ games, wins, kills, dmg, cost } }
+                    byDraft: {},              // { pierce:{ picks, wins } }
+                    byLevel: {}               // { "3|story":{ games, wins, avgCleared } }
+                },
+                learnCount: 0,
+                lastLearnAt: 0
+            };
+
+            function load() {
+                if (data) return data;
+                try {
+                    const raw = localStorage.getItem(AI_LEARN_KEY);
+                    if (raw) data = JSON.parse(raw);
+                } catch (e) { data = null; }
+                if (!data || data.version !== DEFAULT.version)
+                    data = JSON.parse(JSON.stringify(DEFAULT));
+                return data;
+            }
+            function getContextMul(key) {
+                const w = load().weights.towerContext?.[key];
+                return w == null ? 1.0 : clamp(w, 0.6, 1.6);
+            }
+            function save() {
+                try { localStorage.setItem(AI_LEARN_KEY, JSON.stringify(data)); } catch (e) {}
+            }
+
+            const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+            function getTowerMul(type) {
+                const w = load().weights.towerType[type];
+                return w == null ? 1.0 : clamp(w, 0.55, 1.8);
+            }
+            function getDraftBias(id) {
+                const w = load().weights.draftBias[id];
+                return w == null ? 1.0 : clamp(w, 0.6, 1.6);
+            }
+            function getUpgradeVsBuild() { return clamp(load().weights.upgradeVsBuild, 0.6, 1.6); }
+            function getBuildVsUpgrade()  { return clamp(load().weights.buildVsUpgrade, 0.6, 1.6); }
+            function getMazeWeight()      { return clamp(load().weights.mazeWeight, 0.6, 1.5); }
+            function getCoverageWeight()  { return clamp(load().weights.coverageWeight, 0.6, 1.5); }
+            function getRoleNeed(mode) {
+                const v = load().weights.roleNeed[mode];
+                return v == null ? 1 : clamp(v, 0.7, 1.4);
+            }
+
+            function smoothedRate(wins, total, priorN, priorRate) {
+                return (wins + priorN * priorRate) / (total + priorN);
+            }
+
+            function recordGame(snapshot) {
+                if (!data) load();
+                data.games.push(snapshot);
+                while (data.games.length > 200) data.games.shift();
+
+                const st = data.stats;
+                const key = snapshot.levelIndex + '|' + snapshot.modeKey;
+                const L = st.byLevel[key] = st.byLevel[key] || { games:0, wins:0, avgCleared:0 };
+                L.avgCleared = (L.avgCleared * L.games + (snapshot.wavesCleared || 0)) / (L.games + 1);
+                L.games++; if (snapshot.win) L.wins++;
+
+                for (const b of (snapshot.builds || [])) {
+                    const T = st.byTower[b.type] = st.byTower[b.type] || { games:0, wins:0, kills:0, dmg:0, cost:0 };
+                    T.games++; if (snapshot.win) T.wins++;
+                    T.kills += b.kills || 0;
+                    T.dmg   += b.damageDealt || 0;
+                    T.cost  += b.cost || 0;
+                }
+                for (const d of (snapshot.drafts || [])) {
+                    if (d.kind === 'enemy') continue;
+                    const D = st.byDraft[d.id] = st.byDraft[d.id] || { picks:0, wins:0 };
+                    D.picks++; if (snapshot.win) D.wins++;
+                }
+
+                save();
+                if (data.games.length >= 3) learn();
+            }
+
+            function learn() {
+                if (!data) load();
+                const games = data.games;
+                if (games.length < 3) return;
+
+                const recent = games.slice(-40);
+                const total  = recent.length;
+                const wins   = recent.filter(g => g.win).length;
+                const baseRate = smoothedRate(wins, total, 4, 0.5);
+
+                // ① 塔类型偏好
+                const typeAgg = {};
+                for (const g of recent) {
+                    const seen = new Set();
+                    for (const b of (g.builds || [])) {
+                        if (seen.has(b.type)) continue;
+                        seen.add(b.type);
+                        const t = typeAgg[b.type] = typeAgg[b.type] || { n:0, w:0 };
+                        t.n++; if (g.win) t.w++;
+                    }
+                }
+                const LR = 0.10;
+                for (const type in typeAgg) {
+                    const { n, w } = typeAgg[type];
+                    if (n < 3) continue;
+                    const r = smoothedRate(w, n, 3, baseRate);
+                    const cur = data.weights.towerType[type] ?? 1.0;
+                    data.weights.towerType[type] = cur * (1 + (r - baseRate) * LR);
+                }
+                // ①-b 带上下文的塔偏好（真正接近"风格"的那一层）
+const ctxAgg = {};
+for (const g of recent) {
+    for (const b of (g.builds || [])) {
+        const ctx = aiBuildContextKey(g, b);   // ← 见下文
+        if (!ctx) continue;
+        const t = ctxAgg[ctx] = ctxAgg[ctx] || { n:0, w:0 };
+        t.n++; if (g.win) t.w++;
+    }
+}
+for (const k in ctxAgg) {
+    const { n, w } = ctxAgg[k];
+    if (n < 4) continue;                        // 分桶后样本更稀，阈值抬高
+    const r = smoothedRate(w, n, 4, baseRate);
+    const cur = data.weights.towerContext[k] ?? 1.0;
+    data.weights.towerContext[k] = clamp(cur * (1 + (r - baseRate) * 0.08), 0.6, 1.6);
+}
+
+                // ② 选卡偏好（跳过敌人强化）
+                const draftAgg = {};
+                for (const g of recent) {
+                    for (const d of (g.drafts || [])) {
+                        if (d.kind === 'enemy') continue;
+                        const t = draftAgg[d.id] = draftAgg[d.id] || { n:0, w:0 };
+                        t.n++; if (g.win) t.w++;
+                    }
+                }
+                for (const id in draftAgg) {
+                    const { n, w } = draftAgg[id];
+                    if (n < 3) continue;
+                    const r = smoothedRate(w, n, 3, baseRate);
+                    const cur = data.weights.draftBias[id] ?? 1.0;
+                    data.weights.draftBias[id] = cur * (1 + (r - baseRate) * LR);
+                }
+
+                // ③ 建塔 vs 升级倾向
+                const buildPerWave = recent.map(g => (g.towersBuilt || 0) / Math.max(1, g.wavesCleared || 1));
+                const winB  = buildPerWave.filter((_, i) => recent[i].win);
+                const lossB = buildPerWave.filter((_, i) => !recent[i].win);
+                if (winB.length >= 2 && lossB.length >= 2) {
+                    const avgW = winB.reduce((a,b)=>a+b,0) / winB.length;
+                    const avgL = lossB.reduce((a,b)=>a+b,0) / lossB.length;
+                    const gap  = avgL - avgW;                       // >0：赢的局建塔更少
+                    const bump = clamp(gap * 0.08, -0.15, 0.15);
+                    data.weights.upgradeVsBuild *= (1 + bump);
+                    data.weights.buildVsUpgrade  *= (1 - bump);
+                }
+
+                // ④ 迷宫偏好
+                const mazeScore = recent.map(g => (g.pathLength || 0) / Math.max(1, g.basePathLength || 1));
+                const winM  = mazeScore.filter((_, i) => recent[i].win);
+                const lossM = mazeScore.filter((_, i) => !recent[i].win);
+                if (winM.length >= 2 && lossM.length >= 2) {
+                    const avgW = winM.reduce((a,b)=>a+b,0) / winM.length;
+                    const avgL = lossM.reduce((a,b)=>a+b,0) / lossM.length;
+                    data.weights.mazeWeight *= (1 + clamp((avgW - avgL) * 0.05, -0.10, 0.10));
+                }
+
+                // ⑤ 输了且漏怪 → 需求被低估
+                const lossLeak = recent.filter(g => !g.win).map(g => (g.leaked || 0) / Math.max(1, g.totalWaves || 1));
+                if (lossLeak.length >= 2) {
+                    const avgLeak = lossLeak.reduce((a,b)=>a+b,0) / lossLeak.length;
+                    const bump = clamp(avgLeak * 0.25, 0, 0.15);
+                    data.weights.roleNeed.aoe     *= (1 + bump);
+                    data.weights.roleNeed.air     *= (1 + bump * 0.7);
+                    data.weights.roleNeed.jammer  *= (1 + bump * 0.7);
+                }
+
+                // 软限幅
+                for (const k in data.weights.towerType)
+                    data.weights.towerType[k] = clamp(data.weights.towerType[k], 0.55, 1.8);
+                for (const k in data.weights.draftBias)
+                    data.weights.draftBias[k] = clamp(data.weights.draftBias[k], 0.6, 1.6);
+                for (const k in data.weights.roleNeed)
+                    data.weights.roleNeed[k] = clamp(data.weights.roleNeed[k], 0.7, 1.4);
+                data.weights.upgradeVsBuild = clamp(data.weights.upgradeVsBuild, 0.6, 1.6);
+                data.weights.buildVsUpgrade = clamp(data.weights.buildVsUpgrade, 0.6, 1.6);
+                data.weights.mazeWeight     = clamp(data.weights.mazeWeight, 0.6, 1.5);
+                data.weights.coverageWeight = clamp(data.weights.coverageWeight, 0.6, 1.5);
+
+                data.learnCount++;
+                data.lastLearnAt = Date.now();
+                save();
+            }
+
+            function getSummary() {
+                if (!data) load();
+                const g = data.games;
+                return {
+                    games: g.length,
+                    wins:  g.filter(x => x.win).length,
+                    aiGames: g.filter(x => x.aiAuto).length,
+                    humanGames: g.filter(x => !x.aiAuto).length,
+                    learnCount: data.learnCount,
+                    weights: data.weights,
+                    stats: data.stats
+                };
+            }
+            function reset() {
+                data = JSON.parse(JSON.stringify(DEFAULT));
+                save();
+            }
+
+            return { load, save, recordGame, getTowerMul, getDraftBias,
+                     getUpgradeVsBuild, getBuildVsUpgrade, getMazeWeight, getCoverageWeight,
+                     getRoleNeed, getSummary, reset };
+        })();
 
         let aiPanelOpen = false;
         let aiAutoMode = false;
@@ -4578,9 +4947,143 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 fastRatio: fast / den, mechRatio: mech / den, healerRatio: healer / den,
                 jammerRatio: jammer / den, crowdRatio: crowd / den, slowableFastRatio: slowableFast / den, groundRatio: (total - air) / den,
                 // ★ 群体威胁
-                avgGroupSize, maxGroupSize, swarmRatio
+                          avgGroupSize, maxGroupSize, swarmRatio
             };
         }
+
+        // ============================================================
+        // ★ 全局波次预知：AI 直接读取整关所有剩余波次的敌人构成
+        //   常规波次按「当前波 + 剩余全部波次」加权评估，提前补齐长期短板
+        //   （防空 / 反隐 / 反干扰 / 群攻），而不是只看眼前一波。
+        //   结果按 waveIndex 缓存，开新波才重算。
+        // ============================================================
+        let _aiGlobalProfileCache = null;
+
+        function aiGlobalThreatProfile() {
+            const affixKey = rogueState ? rogueState.affixes.map(a => a.id).join('+') : '';
+            const cacheKey = levelIndex + '|' + currentModeKey + '|' + waveIndex + '|' + totalWaves + '|' + affixKey;
+            if (_aiGlobalProfileCache && _aiGlobalProfileCache.key === cacheKey) return _aiGlobalProfileCache.data;
+
+            const empty = {
+                sourceLabel: '暂无波次信息', startWave: 0, endWave: 0, waveSpan: 0,
+                counts: Object.create(null), entries: [], total: 0, totalHp: 0,
+                air: 0, stealth: 0, heavy: 0, fast: 0, slowableFast: 0, mech: 0,
+                healer: 0, jammer: 0, crowd: 0, hatcher: 0, summoner: 0,
+                airRatio: 0, stealthRatio: 0, heavyRatio: 0, fastRatio: 0,
+                slowableFastRatio: 0, mechRatio: 0, healerRatio: 0, jammerRatio: 0,
+                crowdRatio: 0, groundRatio: 1, avgHp: 0, swarmRatio: 0,
+                avgWaveSize: 0, maxTypeCount: 0,
+                peakWave: 0, peakScore: 0, peakCount: 0, peakHp: 0, wavesUntilPeak: 0
+            };
+            if (!waves || waves.length === 0) return empty;
+
+            const em = (rogueState && rogueState.enemyMods) ? rogueState.enemyMods : { hpMul: 1 };
+            const isEndless = currentModeKey === 'endless';
+            const curWave = Math.max(0, waveIndex - 1);
+            const startWave = Math.min(waves.length - 1, curWave);
+            // 无尽模式只预知未来 12 波，避免遍历 9999 波造成卡顿
+            const horizon = isEndless ? 12 : Math.max(1, waves.length - startWave);
+            const endWave = Math.min(waves.length, startWave + horizon);
+
+            const counts = Object.create(null);
+            let total = 0, totalHp = 0;
+            let peakWave = startWave, peakScore = -1, peakCount = 0, peakHp = 0;
+
+            for (let w = startWave; w < endWave; w++) {
+                const wave = waves[w];
+                if (!wave || !wave.groups) continue;
+                const isLast = !isEndless && totalWaves > 0 && w === totalWaves - 1;
+                let waveCount = 0, waveHp = 0, hasBoss = false;
+                for (const g of wave.groups) {
+                    const type = g.type;
+                    if (!ENEMY_TYPES[type]) continue;
+                    let count = Math.max(0, Math.round(g.count || 0));
+                    let hp = Math.max(0, g.hp || 0) * (em.hpMul || 1);
+                    // 与 startNextWave 保持一致：末波双倍 / 最终审判额外首领
+                    if (isLast && ascensionState && ascensionState.finalWaveDouble) count *= 2;
+                    if (isLast && ascensionState && ascensionState.finalJudgment && type === 'boss') count += 2;
+                    if (count <= 0) continue;
+                    if (type === 'boss') hasBoss = true;
+                    const item = counts[type] || (counts[type] = { count: 0, hp: 0 });
+                    item.count += count;
+                    item.hp += hp * count;
+                    total += count;
+                    totalHp += hp * count;
+                    waveCount += count;
+                    waveHp += hp * count;
+                }
+                // 波峰评分：血量为主、数量为辅，首领波额外加权
+                const score = waveHp * 0.6 + waveCount * 45 + (hasBoss ? waveHp * 0.5 + 220 : 0);
+                if (score > peakScore) {
+                    peakScore = score;
+                    peakWave = w;
+                    peakCount = waveCount;
+                    peakHp = waveHp;
+                }
+            }
+
+            let air = 0, stealth = 0, heavy = 0, fast = 0, slowableFast = 0, mech = 0;
+            let healer = 0, jammer = 0, crowd = 0, hatcher = 0, summoner = 0;
+            const entries = [];
+            for (const type of Object.keys(counts)) {
+                const v = counts[type];
+                const def = ENEMY_TYPES[type] || {};
+                const st = ENEMY_STATS[type] || {};
+                if (def.air) air += v.count;
+                if (def.stealth) stealth += v.count;
+                if (['tank', 'brute', 'boss', 'hatcher', 'summoner', 'jammer'].includes(type)) heavy += v.count;
+                if ((st.spdFactor || 1) >= 1.3 || type === 'jammer') {
+                    fast += v.count;
+                    if (!def.immuneSlow) slowableFast += v.count;
+                }
+                if (MECH_TYPES.has(type)) mech += v.count;
+                if (def.healer) healer += v.count;
+                if (def.hatcher) hatcher += v.count;
+                if (def.summoner) summoner += v.count;
+                if (def.jammer || type === 'jammer') jammer += v.count;
+                if (v.count >= 3) crowd += v.count;
+                entries.push({ type, name: def.name || type, count: v.count, hp: v.hp });
+            }
+
+            const den = Math.max(1, total);
+            const avgHp = totalHp / den;
+            let swarmCount = 0;
+            for (const type of Object.keys(counts)) {
+                const v = counts[type];
+                if (v.count >= 3 && v.hp / v.count <= avgHp * 0.75) swarmCount += v.count;
+            }
+
+            const waveSpan = Math.max(1, endWave - startWave);
+            const data = {
+                sourceLabel: isEndless
+                    ? `无尽模式未来 ${waveSpan} 波预知`
+                    : `整关剩余 ${waveSpan} 波预知`,
+                startWave, endWave, waveSpan,
+                counts, entries, total, totalHp,
+                air, stealth, heavy, fast, slowableFast, mech, healer, jammer, crowd, hatcher, summoner,
+                airRatio: air / den,
+                stealthRatio: stealth / den,
+                heavyRatio: heavy / den,
+                fastRatio: fast / den,
+                slowableFastRatio: slowableFast / den,
+                mechRatio: mech / den,
+                healerRatio: healer / den,
+                jammerRatio: jammer / den,
+                crowdRatio: crowd / den,
+                groundRatio: (total - air) / den,
+                avgHp,
+                swarmRatio: swarmCount / den,
+                avgWaveSize: total / waveSpan,
+                maxTypeCount: entries.length ? Math.max.apply(null, entries.map(e => e.count)) : 0,
+                peakWave, peakScore, peakCount, peakHp,
+                wavesUntilPeak: Math.max(0, peakWave - curWave)
+            };
+            _aiGlobalProfileCache = { key: cacheKey, data };
+            return data;
+        }
+
+
+
         // 终局规划画像：最后 4 波不再只盯着当前波的随机组合，
         // 而是假设所有敌种都以高数量同时出现，让 AI 提前形成完整的反制体系。
         // 该画像只用于 AI 评分，不会生成/修改敌人，也不改变波次机制。
@@ -4588,15 +5091,75 @@ function aiConsumePlanPositionIfFromPlan(rec) {
             const actual = aiEnemyProfile();
             const inFinalWaves = currentModeKey !== 'endless' && totalWaves > 0 &&
                 waveIndex >= Math.max(0, totalWaves - 4);
-            if (!inFinalWaves) {
-                // AI 始终按进阶 20 的规则评估；普通波次仍以真实波次构成为主。
-                const p = { ...actual, difficulty20: true };
-                p.healerThreat = (p.healer || 0) * 2.2; // 萨满全图治疗且治疗量翻倍
+                        if (!inFinalWaves) {
+                // ★ 全局预知：AI 读取整关剩余波次的完整构成，与当前波加权融合。
+                //   - 构成比例（防空/反隐/反干扰/群攻）→ 当前 45% + 全局 55%，提前布局
+                //   - 规模/群体压力（AOE 数量需求）→ 以当前波为主，避免前期过度堆 AOE
+                const global = aiGlobalThreatProfile();
+                const useActual = actual.total > 0;
+                const wa = useActual ? 0.45 : 0;   // 当前波权重
+                const wg = 1 - wa;
+                const mix  = (a, b) => (a || 0) * wa + (b || 0) * wg;
+                const mixN = (a, b) => Math.round((a || 0) * wa + (b || 0) * wg);
+
+                const p = { ...actual, difficulty20: true, globalAware: true, global };
+                p.globalSourceLabel = global.sourceLabel;
+                p.upcomingWaves = Math.max(0, totalWaves - waveIndex);
+                p.peakWave = global.peakWave;
+                p.peakCount = global.peakCount;
+                p.peakHp = global.peakHp;
+                p.wavesUntilPeak = global.wavesUntilPeak;
+
+                // 数量：用于 > 0 判断与"是否存在该类威胁"
+                p.air           = mixN(actual.air, global.air);
+                p.stealth       = mixN(actual.stealth, global.stealth);
+                p.heavy         = mixN(actual.heavy, global.heavy);
+                p.fast          = mixN(actual.fast, global.fast);
+                p.slowableFast  = mixN(actual.slowableFast, global.slowableFast);
+                p.mech          = mixN(actual.mech, global.mech);
+                p.healer        = mixN(actual.healer, global.healer);
+                p.jammer        = mixN(actual.jammer, global.jammer);
+                p.crowd         = mixN(actual.crowd, global.crowd);
+                p.hatcher       = mixN(actual.hatcher, global.hatcher);
+                p.summoner      = mixN(actual.summoner, global.summoner);
+
+                // 比例：驱动职能需求（防空/反隐/反干扰/AOE）
+                p.airRatio           = mix(actual.airRatio, global.airRatio);
+                p.stealthRatio       = mix(actual.stealthRatio, global.stealthRatio);
+                p.heavyRatio         = mix(actual.heavyRatio, global.heavyRatio);
+                p.fastRatio          = mix(actual.fastRatio, global.fastRatio);
+                p.slowableFastRatio  = mix(actual.slowableFastRatio, global.slowableFastRatio);
+                p.mechRatio          = mix(actual.mechRatio, global.mechRatio);
+                p.healerRatio        = mix(actual.healerRatio, global.healerRatio);
+                p.jammerRatio        = mix(actual.jammerRatio, global.jammerRatio);
+                p.crowdRatio         = mix(actual.crowdRatio, global.crowdRatio);
+                p.groundRatio        = mix(actual.groundRatio, global.groundRatio);
+
+                // 规模/群体压力：当前波有敌人时以真实规模为准，否则用全局平均波规模预判
+                if (useActual) {
+                    p.total        = actual.total;
+                    p.avgGroupSize = actual.avgGroupSize;
+                    p.maxGroupSize = actual.maxGroupSize;
+                    p.swarmRatio   = actual.swarmRatio;
+                } else {
+                    p.total        = global.avgWaveSize;
+                    p.avgGroupSize = global.avgWaveSize;
+                    p.maxGroupSize = global.maxTypeCount;
+                    p.swarmRatio   = global.swarmRatio;
+                }
+
+                p.sourceLabel = useActual
+                    ? `${actual.sourceLabel} + ${global.sourceLabel}`
+                    : global.sourceLabel;
+
+                // 其余派生威胁指标
+                p.healerThreat = (p.healer || 0) * 2.2;
                 const forecastOrdinal = Math.max(0, waveIndex - 1);
                 p.spawnPressure = (p.hatcher || 0) * Math.min(4, 1 + Math.floor(forecastOrdinal / 8)) *
                     (2 + Math.floor(forecastOrdinal / 6)) * 0.55 + (p.summoner || 0) * 2.0;
                 p.regenThreat = (waveIndex >= totalWaves - 1 && currentModeKey !== 'endless') ? 1 : 0;
                 p.damageDecay = Math.max(0.5, 1 - Math.floor(Math.max(0, waveIndex) / 10) * 0.1);
+                p.endgameUniversal = false;
                 return p;
             }
 
@@ -4747,18 +5310,23 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 else if (t.type === 'cannon') heavy += 0.65 * e;
             }
             const highAir = profile && profile.airRatio > 0.28;
-            const airNeed = profile && profile.airRatio > 0.08 ? (highAir ? 4 : (profile.airRatio > 0.16 ? 3 : 2)) : 0;
+            let airNeed = profile && profile.airRatio > 0.08 ? (highAir ? 4 : (profile.airRatio > 0.16 ? 3 : 2)) : 0;
             // 若当前压力画像几乎全是飞行单位，地面 AOE 配额应为 0，不能因此无限补地面群攻塔。
             const hasGroundTargets = !!profile && (profile.groundRatio == null || profile.groundRatio > 0.10);
-            const aoeNeed = !hasGroundTargets ? 0 : (profile && profile.endgameUniversal ? 5.1 :
+            let aoeNeed = !hasGroundTargets ? 0 : (profile && profile.endgameUniversal ? 5.1 :
                 (profile && (profile.total > 45 || profile.swarmRatio > 0.55) ? 3.8 : 2.6));
+            let jammerNeed = profile && profile.jammerRatio >= 0.08 ? 3 : ((profile && profile.jammer > 0) ? 2 : 0);
+            let controlNeed = profile && (profile.endgameUniversal || profile.fastRatio > 0.15) ? 2 : 1;
+            let heavyNeed = profile && (profile.endgameUniversal || profile.heavyRatio > 0.12) ? 3 : 1;
+            // ★ 历史学习：按过去输赢局的需求缺口微调各职能配额
+            if (aoeNeed > 0)     aoeNeed     *= AI_LEARN.getRoleNeed('aoe');
+            if (jammerNeed > 0)  jammerNeed  *= AI_LEARN.getRoleNeed('jammer');
+            if (airNeed > 0)     airNeed     *= AI_LEARN.getRoleNeed('air');
+            if (controlNeed > 0) controlNeed *= AI_LEARN.getRoleNeed('control');
+            if (heavyNeed > 0)   heavyNeed   *= AI_LEARN.getRoleNeed('heavy');
             return {
                 aoe, jammer, air, control, heavy, typeHave,
-                aoeNeed,
-                jammerNeed: profile && profile.jammerRatio >= 0.08 ? 3 : ((profile && profile.jammer > 0) ? 2 : 0),
-                airNeed,
-                controlNeed: profile && (profile.endgameUniversal || profile.fastRatio > 0.15) ? 2 : 1,
-                heavyNeed: profile && (profile.endgameUniversal || profile.heavyRatio > 0.12) ? 3 : 1
+                aoeNeed, jammerNeed, airNeed, controlNeed, heavyNeed
             };
         }
 
@@ -4872,6 +5440,15 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 `路径火力覆盖估算：普通 ${cov.normal}% · 对空 ${cov.air}% · 隐形探测 ${cov.stealth}%。`,
                 `当前炮塔 ${towers.length} 座，待建造 ${pendingBuilds.length} 座，资金 ${Math.floor(money)}。`
             ];
+
+            // ★ 全局波次预知：整关剩余敌人构成与压力峰值
+            const gp = aiGlobalThreatProfile();
+            if (gp && gp.total > 0) {
+                lines.push(
+                    `🔮 ${gp.sourceLabel}：共 ${gp.total} 个目标 · 飞行 ${Math.round(gp.airRatio * 100)}% · 隐形 ${Math.round(gp.stealthRatio * 100)}% · 干扰者 ${gp.jammer} 只 · 治疗者 ${gp.healer} 只 · 小怪占比 ${Math.round(gp.swarmRatio * 100)}%；` +
+                    `预计第 ${gp.peakWave + 1} 波压力最大（约 ${gp.wavesUntilPeak} 波后）。`
+                );
+            }
             if (p.airRatio > 0.12) lines.push(AI_ASCENSION_STATE.airOnlyFlak
                 ? '建议：按进阶20的「绝对制空」规则，飞行怪只能由防空塔攻击，务必优先补防空塔。'
                 : '建议：补充防空塔；机枪、导弹、狙击等可对空塔可作为第二层火力。');
@@ -5090,6 +5667,7 @@ function aiConsumePlanPositionIfFromPlan(rec) {
 
             // 难度20职能配比：同时补足群体清理、反干扰、防空、控制与重甲火力。
             if (profile.difficulty20) power *= aiDifficulty20RoleMultiplier(type, profile);
+            power *= AI_LEARN.getTowerMul(type);
             return Math.max(0.1, power);
         }
         function aiGetPathNodes() {
@@ -5313,7 +5891,8 @@ for (const type of bestTypes) {
                 ? 1 / (1 + Math.min(0.55, nearbyTowers * 0.09)) : 1;
             const onMud = AI_ASCENSION_STATE.mudPit && mudPits.some(p => p.c === cell.c && p.r === cell.r);
             const mudPenalty = onMud ? 0.78 : 1;
-            const coverageFactor = 0.48 + Math.sqrt(inRange) * 0.28;
+            let coverageFactor = 0.48 + Math.sqrt(inRange) * 0.28;
+            coverageFactor = Math.pow(coverageFactor, AI_LEARN.getCoverageWeight());
             const marginalRatio = relevantTowerCanHit(type) ? newCoverage / Math.max(1, inRange) : 0.35;
             const marginalFactor = newCoverage > 0 ? (0.28 + 0.72 * Math.sqrt(marginalRatio)) : 0.16;
             const saturationPenalty = coverageRate >= 0.88 && newCoverage <= 1 ? 0.48 : 1;
@@ -5362,8 +5941,12 @@ for (const type of bestTypes) {
             if (lenRatio < 0.95) mazeBonus *= Math.max(0.35, lenRatio);
             mazeBonus *= (0.6 + selfCover * 0.6);      // 新塔自身覆盖的连续奖励
             mazeBonus = Math.max(0.25, Math.min(8, mazeBonus));
+            mazeBonus = Math.pow(mazeBonus, AI_LEARN.getMazeWeight());
 
             const hotspotBonus = 1 + Math.min(0.5, hotspotNear * 0.05);
+            const ctxKey = aiBuildContextKey(null, { col: cell.c, row: cell.r }, type, waveIndex);
+            const ctxMul = ctxKey ? AI_LEARN.getContextMul(ctxKey) : 1;
+            // ... 然后 score 里 * ctxMul
 
             const score = power * coverageFactor * marginalFactor * saturationPenalty * roleBonus *
                 liveThreatBonus * interferencePenalty * coreUrgency /
@@ -5484,6 +6067,24 @@ for (const type of bestTypes) {
 
     if (rec.type === 'amplifier') reasons.push('可为附近炮塔提供增幅');
     if (rec.type === 'harvester') reasons.push('补充经济收益');
+
+    // ★ 全局预知理由：说明这是"提前布局"而不是只为当前一波
+    const gp = (rec.profile && rec.profile.global) || aiGlobalThreatProfile();
+    if (gp && gp.total > 0) {
+        if (TOWER_TYPES[rec.type].targetsAir && gp.airRatio > 0.10) {
+            reasons.push(`全局预知：剩余波次飞行单位占 ${Math.round(gp.airRatio * 100)}%，现在补防空可避免后续被动`);
+        }
+        if (gp.stealthRatio > 0.05 && ['temporal', 'sniper', 'railgun', 'laser', 'prism', 'cannon'].includes(rec.type)) {
+            reasons.push(`全局预知：剩余波次隐形单位约占 ${Math.round(gp.stealthRatio * 100)}%，提前准备反隐火力`);
+        }
+        if (gp.jammer > 0 && ['sniper', 'railgun', 'cannon'].includes(rec.type)) {
+            reasons.push(`全局预知：后续仍有 ${gp.jammer} 只干扰者，优先保证 2.5 格沉默圈外的安全射程`);
+        }
+        if (gp.wavesUntilPeak <= 2 && gp.peakCount > 0) {
+            reasons.push(`⚠ 第 ${gp.peakWave + 1} 波是压力峰值（约 ${gp.wavesUntilPeak} 波后），建议优先完成关键升级`);
+        }
+    }
+
     if (!reasons.length) reasons.push(`${rec.inRange} 个路径采样点处于射程内`);
 
     return `推荐在第 ${rec.col + 1} 列、第 ${rec.row + 1} 行建造【${TOWER_TYPES[rec.type].name}】（${rec.cost} 金币）。\n` +
@@ -5535,7 +6136,9 @@ for (const type of bestTypes) {
                     aiAddMessage('该升级方案已失效或资金不足，请重新分析。', 'bot');
                     aiLastRecommendation = null; aiSetApplyEnabled(false); return;
                 }
+                const _fromLv = t.level;
                 money -= cost; t.level++; t.invested += cost;
+                recordUpgrade(t, _fromLv, cost);
                 if (ascensionState && ascensionState.ammo) t.ammo = 50;
                 updateUI(); if (selectedTower === t) updateSellButton();
                 SFX.upgrade();
@@ -5572,12 +6175,20 @@ for (const type of bestTypes) {
                 for (const [key, v] of Object.entries(choice.mods || {})) value += (weights[key] || 1) * v * (choice.cap || 1);
                 // 开局没有塔时，优先拿泛用输出联动。
                 if (towers.length === 0) value += (choice.mods && (choice.mods.dmg || choice.mods.rate || choice.mods.targets || choice.mods.chain) ? 8 : 0);
-                return value;
+                return value * AI_LEARN.getDraftBias(choice.id);
             }
             const energy = getEnergyStats();
             const coreTotal = Math.max(1, totalCores || 1);
             const coreRatio = energy.green / coreTotal;
-            const p = aiEnemyProfile();
+            // 即时判断用当前波，长期需求取当前波与整关预知的较大值
+            const pNow = aiEnemyProfile();
+            const pGlobal = aiGlobalThreatProfile();
+            const p = {
+                ...pNow,
+                fastRatio: Math.max(pNow.fastRatio || 0, pGlobal.fastRatio || 0),
+                stealth:   Math.max(pNow.stealth   || 0, pGlobal.stealth   || 0),
+                jammer:    Math.max(pNow.jammer    || 0, pGlobal.jammer    || 0)
+            };
             const scores = {
                 money: waveIndex < 5 ? 24 : 17,
                 killBonus: 18,
@@ -5604,7 +6215,8 @@ for (const type of bestTypes) {
                 killAll: p.total >= 8 ? 32 : (p.total > 0 ? 15 : 3),
                 stunAll: p.total >= 5 ? 22 : 9
             };
-            return scores[choice.id] == null ? 5 : scores[choice.id];
+            const _base = scores[choice.id] == null ? 5 : scores[choice.id];
+            return _base * AI_LEARN.getDraftBias(choice.id);
         }
         function aiAutoPickDraft() {
             if (!aiAutoMode || !draftPanel || screen !== 'game' || gameOver) return false;
@@ -5732,8 +6344,8 @@ for (const type of bestTypes) {
             const cov = aiCoverageStats();
             const avgCoverage = (cov.normal + cov.air + cov.stealth) / 3;
 
-            let upgradeBias = 2.4;
-            let buildBias = (underPressure ? 1.10 : 1.20) * (coreRatio < 0.55 ? 1.18 : 1);
+            let upgradeBias = 2.4 * AI_LEARN.getUpgradeVsBuild();
+            let buildBias = (underPressure ? 1.10 : 1.20) * (coreRatio < 0.55 ? 1.18 : 1) * AI_LEARN.getBuildVsUpgrade();
 
             // 塔数量已经很多 → 新塔边际价值下降
             upgradeBias += Math.min(1.2, Math.max(0, towers.length - 2) * 0.12);
@@ -5769,6 +6381,13 @@ for (const type of bestTypes) {
 
             // 最后 4 波按难度20综合压力模型补齐职能缺口，但保留20座总建塔上限。
             const endgameProfile = aiPlanningEnemyProfile();
+
+            // ★ 全局预知：波峰即将到来时，优先升级现有塔（提升质量）而不是继续铺塔
+            if (endgameProfile.globalAware && endgameProfile.wavesUntilPeak <= 2 && endgameProfile.peakCount > 0) {
+                upgradeBias += 0.30;
+                buildBias *= 0.88;
+            }
+
             if (endgameProfile.difficulty20 && build) {
                 const roles = aiDifficulty20RoleState(endgameProfile);
                 const roleGap = roles.aoe < roles.aoeNeed || roles.jammer < roles.jammerNeed ||
@@ -5832,7 +6451,9 @@ for (const type of bestTypes) {
                 const t = up.tower;
                 const cost = getUpgradeCostEffective(t.type, t.level);
                 if (cost == null || money < cost || !towers.includes(t)) return;
+                const _fromLv = t.level;
                 money -= cost; t.level++; t.invested += cost;
+                recordUpgrade(t, _fromLv, cost);
                 if (ascensionState && ascensionState.ammo) t.ammo = 50;
                 updateUI(); if (selectedTower === t) updateSellButton();
                 SFX.upgrade();
@@ -5910,6 +6531,40 @@ for (const type of bestTypes) {
         document.getElementById('aiUpgradeBtn')?.addEventListener('click', () => aiUpgradeAdvice());
         document.getElementById('aiAutoCheck')?.addEventListener('change', e => aiToggleAuto(e.target.checked));
         document.getElementById('aiFullAutoBtn')?.addEventListener('click', () => aiStartFullAuto());
+                document.getElementById('aiLearningBtn')?.addEventListener('click', () => {
+            SFX.click();
+            const s = AI_LEARN.getSummary();
+            if (s.games === 0) {
+                aiAddMessage('还没有任何对局数据。打一局（AI 托管或手动都行）后我就能开始学习了。', 'bot');
+                return;
+            }
+            const winRate = s.wins / s.games;
+            const lines = [`📈 学习进度：已累计 ${s.games} 局（AI 托管 ${s.aiGames} · 玩家操作 ${s.humanGames}），整体胜率 ${Math.round(winRate * 100)}%。`];
+
+            const arr = Object.entries(s.stats.byTower)
+                .filter(([, v]) => v.games >= 3)
+                .map(([k, v]) => ({
+                    type: k,
+                    name: (TOWER_TYPES[k] && TOWER_TYPES[k].name) || k,
+                    mul: AI_LEARN.getTowerMul(k)
+                }))
+                .sort((a, b) => b.mul - a.mul);
+            if (arr.length) {
+                const top = arr.slice(0, 3).map(x => `${x.name}×${x.mul.toFixed(2)}`);
+                const low = arr.slice(-3).map(x => `${x.name}×${x.mul.toFixed(2)}`);
+                lines.push(`✅ 我更倾向：${top.join(' / ')}`);
+                lines.push(`⚠ 我更少用：${low.join(' / ')}`);
+            }
+            lines.push(`⚖ 建塔↔升级倾向：${AI_LEARN.getUpgradeVsBuild() > 1 ? '更爱升级' : '更爱铺塔'}（系数 ${AI_LEARN.getUpgradeVsBuild().toFixed(2)}）`);
+            lines.push(`🗺 迷宫权重 ×${AI_LEARN.getMazeWeight().toFixed(2)} · 覆盖权重 ×${AI_LEARN.getCoverageWeight().toFixed(2)}`);
+            aiAddMessage(lines.join('\n'), 'bot');
+
+            if (confirm('是否清空全部学习数据并回到初始权重？')) {
+                AI_LEARN.reset();
+                aiAddMessage('已重置学习数据。AI 助手回到出厂设置。', 'bot');
+                aiSetStatus('学习数据已重置');
+            }
+        });
 
         function draw() {
             if (screen === 'menu') drawMainMenu();
@@ -8113,9 +8768,10 @@ function drawRogueToggle() {
         }
 
         // 应用一张联动卡
-function applySynergy(s) {
-    if (!rogueState || !s) return;
-    rogueState.synergies.push(s);
+        function applySynergy(s) {
+            if (!rogueState || !s) return;
+            rogueState.synergies.push(s);
+            if (battleStats) battleStats.drafts.push({ id: s.id, kind: 'synergy', wave: waveIndex });
     SFX.click();
     msgDisplay.textContent = `🔗 联动激活：${s.name}（${TOWER_TYPES[s.a].name} × ${TOWER_TYPES[s.b].name}）`;
     updateUI();
@@ -8124,6 +8780,7 @@ function applySynergy(s) {
             if (!rogueState || !up) return;
             if (up.isSynergy) { applySynergy(up); return; } 
             rogueState.upgrades.push(up);
+            if (battleStats) battleStats.drafts.push({ id: up.id, kind: 'tower', wave: waveIndex });
             up.apply(rogueState);
             if (rogueState.moneyBonus > 0) {
                 money += rogueState.moneyBonus;
@@ -8140,8 +8797,10 @@ function applySynergy(s) {
                 const upgradable = towers.filter(t => t.level < MAX_LEVEL);
                 if (upgradable.length > 0) {
                     const t = upgradable[Math.floor(Math.random() * upgradable.length)];
+                    const _fromLv = t.level;
                     const cost = getUpgradeCostEffective(t.type, t.level) || 0;
                     t.level++; t.invested += cost;
+                    recordUpgrade(t, _fromLv, cost);
                     SFX.upgrade();
                     msgDisplay.textContent = `免费升级：${TOWER_TYPES[t.type].name} → Lv.${t.level}`;
                 }
@@ -8186,6 +8845,7 @@ function applySynergy(s) {
             if (!rogueState || !b) return;
             const em = rogueState.enemyMods;
             em.picks.push(b.id);
+            if (battleStats) battleStats.drafts.push({ id: b.id, kind: 'enemy', wave: waveIndex });
             switch (b.id) {
                 case 'hp':        em.hpMul *= 1.20; break;
                 case 'speed':     em.speedMul *= 1.20; break;
@@ -8469,6 +9129,31 @@ if (up.id === 'synBoost' && rogueState) {
                 aiSetStatus(win ? 'AI 已完成本关 · 通关成功' : 'AI 托管结束 · 本关未能守住');
                 aiAddMessage(win ? '🎉 本关所有波次已清除，AI 自动通关成功！' : '本局结束：基地核心已全部丢失。可以重新开始并调整难度。', 'bot');
             }
+                        // ★ 记录本局，触发 AI 学习
+            try {
+                AI_LEARN.recordGame({
+                    ts: Date.now(),
+                    levelIndex, modeKey: currentModeKey,
+                    ascension: selectedAscension, rogue: !!rogueState,
+                    aiAuto: !!aiAutoMode,
+                    win,
+                    wavesCleared: s.wavesCleared,
+                    totalWaves,
+                    builds: (s.builds || []).slice(),
+                    upgrades: (s.upgrades || []).slice(),
+                    drafts: (s.drafts || []).slice(),
+                    towersBuilt: s.towersBuilt,
+                    kills: s.kills,
+                    leaked: st.red || 0,
+                    basePathLength: s.basePathLength || 0,
+                    pathLength: routes.reduce((sum, r) => sum + Math.max(0, r.pts.length - 1), 0),
+                    score: gameResult.score,
+                    moneyLeft: Math.floor(money)
+                });
+                const _ls = AI_LEARN.getSummary();
+                aiAddMessage(`📊 本局已记录（${aiAutoMode ? 'AI 托管' : '玩家操作'}）：${win ? '胜' : '负'}。已累计学习 ${_ls.games} 局。`, 'bot');
+            } catch (err) { console.error('学习记录失败', err); }
+
             if (win) SFX.win(); else SFX.lose();
         }
 
@@ -11701,9 +12386,11 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     if (existingTower.level >= MAX_LEVEL) { msgDisplay.textContent = `${TOWER_TYPES[existingTower.type].name} 已满级 (Lv.${MAX_LEVEL})`; return; }
                     const upgradeCost = getUpgradeCostEffective(existingTower.type, existingTower.level);
                     if (upgradeCost !== null && money >= upgradeCost) {
+                        const _fromLv = existingTower.level;
                         money -= upgradeCost;
                         existingTower.level++;
                         existingTower.invested += upgradeCost;
+                        recordUpgrade(existingTower, _fromLv, upgradeCost);
                         if (ascensionState && ascensionState.ammo) existingTower.ammo = 50;
                         updateUI();
                         updateSellButton();
