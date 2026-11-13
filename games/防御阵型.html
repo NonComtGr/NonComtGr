@@ -4393,6 +4393,7 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                 games: [],                    // 最近 200 局
                 weights: {
                     towerType: {},            // { gun:1.03, cannon:0.97, ... }
+                    towerContext: {},         // { 'gun|near|c|early':1.05, ... }
                     draftBias: {},            // { pierce:1.2, killAll:0.9, ... }
                     upgradeVsBuild: 1.0,
                     buildVsUpgrade: 1.0,
@@ -4417,6 +4418,28 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                 } catch (e) { data = null; }
                 if (!data || data.version !== DEFAULT.version)
                     data = JSON.parse(JSON.stringify(DEFAULT));
+
+                // 向前兼容旧版学习存档：此前虽然已经计算情境权重，
+                // 但默认结构可能没有 towerContext，必须在读取时补齐。
+                if (!data.weights || typeof data.weights !== 'object') data.weights = {};
+                if (!data.weights.towerType || typeof data.weights.towerType !== 'object') data.weights.towerType = {};
+                if (!data.weights.towerContext || typeof data.weights.towerContext !== 'object') data.weights.towerContext = {};
+                if (!data.weights.draftBias || typeof data.weights.draftBias !== 'object') data.weights.draftBias = {};
+                if (!data.weights.roleNeed || typeof data.weights.roleNeed !== 'object') {
+                    data.weights.roleNeed = { ...DEFAULT.weights.roleNeed };
+                } else {
+                    for (const [k, v] of Object.entries(DEFAULT.weights.roleNeed)) {
+                        if (!Number.isFinite(data.weights.roleNeed[k])) data.weights.roleNeed[k] = v;
+                    }
+                }
+                for (const k of ['upgradeVsBuild', 'buildVsUpgrade', 'mazeWeight', 'coverageWeight']) {
+                    if (!Number.isFinite(data.weights[k])) data.weights[k] = DEFAULT.weights[k];
+                }
+                if (!Array.isArray(data.games)) data.games = [];
+                if (!data.stats || typeof data.stats !== 'object') data.stats = JSON.parse(JSON.stringify(DEFAULT.stats));
+                if (!data.stats.byTower || typeof data.stats.byTower !== 'object') data.stats.byTower = {};
+                if (!data.stats.byDraft || typeof data.stats.byDraft !== 'object') data.stats.byDraft = {};
+                if (!data.stats.byLevel || typeof data.stats.byLevel !== 'object') data.stats.byLevel = {};
                 return data;
             }
             function getContextMul(key) {
@@ -4609,7 +4632,7 @@ for (const k in ctxAgg) {
                 save();
             }
 
-            return { load, save, recordGame, getTowerMul, getDraftBias,
+            return { load, save, recordGame, getTowerMul, getContextMul, getDraftBias,
                      getUpgradeVsBuild, getBuildVsUpgrade, getMazeWeight, getCoverageWeight,
                      getRoleNeed, getSummary, reset };
         })();
@@ -5949,7 +5972,7 @@ for (const type of bestTypes) {
             // ... 然后 score 里 * ctxMul
 
             const score = power * coverageFactor * marginalFactor * saturationPenalty * roleBonus *
-                liveThreatBonus * interferencePenalty * coreUrgency /
+                liveThreatBonus * interferencePenalty * coreUrgency * ctxMul /
                 Math.pow(Math.max(1, cost), 0.72) / (1 + overlap * 0.42) *
                 mazeBonus * towerCountPenalty * hotspotBonus * stealthSilencePenalty * mudPenalty;
 
@@ -11968,7 +11991,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
         aiUpdateAuto(rawDt);
     } catch (err) {
         console.error('AI 托管异常:', err);
-        aiSetStatus('AI 托管遇到异常，本次决策已跳过');
+        const detail = err && err.message ? err.message : String(err || '未知错误');
+        aiSetStatus(`AI 托管遇到异常：${detail}`);
     }
 }
             // 选中的敌人信息面板定期刷新（敌人移动/状态变化时）
