@@ -274,7 +274,8 @@ canvas { touch-action: none; }
         <button type="button" id="aiRecommendBtn">🎯 推荐建塔</button>
         <button type="button" class="primary" id="aiApplyBtn" disabled>⚡ 执行推荐</button>
         <button type="button" id="aiUpgradeBtn">⬆ 优化升级</button>
-        <button type="button" class="full-auto" id="aiLearningBtn">📈 我的学习曲线 / 重置</button>
+        <button type="button" id="aiLearningBtn">📈 我的学习曲线</button>
+        <button type="button" id="aiLearningResetBtn" style="background:#4a2025;border-color:#8a3a42;color:#ffb0b0;">🗑 重置学习</button>
     </div>
     <label class="ai-auto"><input type="checkbox" id="aiAutoCheck"> 智能托管
         <span id="aiAutoHint">战斗中建塔升级 · 清场后自动推进</span>
@@ -6581,11 +6582,14 @@ for (const type of bestTypes) {
             lines.push(`🗺 迷宫权重 ×${AI_LEARN.getMazeWeight().toFixed(2)} · 覆盖权重 ×${AI_LEARN.getCoverageWeight().toFixed(2)}`);
             aiAddMessage(lines.join('\n'), 'bot');
 
-            if (confirm('是否清空全部学习数据并回到初始权重？')) {
-                AI_LEARN.reset();
-                aiAddMessage('已重置学习数据。AI 助手回到出厂设置。', 'bot');
-                aiSetStatus('学习数据已重置');
-            }
+        });
+
+        document.getElementById('aiLearningResetBtn')?.addEventListener('click', () => {
+            SFX.click();
+            if (!confirm('确定清空全部 AI 学习数据并恢复初始权重吗？此操作不可撤销。')) return;
+            AI_LEARN.reset();
+            aiAddMessage('已重置全部学习数据，AI 助手已恢复初始权重。', 'bot');
+            aiSetStatus('学习数据已重置');
         });
 
         function draw() {
