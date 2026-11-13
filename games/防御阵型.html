@@ -196,6 +196,10 @@ canvas { touch-action: none; }
         }
         .ai-assistant.hidden { display: none !important; }
         .ai-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:11px 13px; background:linear-gradient(110deg,#153452,#17223a); border-bottom:1px solid #2d5278; }
+        /* AI 助手可通过顶部标题栏拖动 */
+        .ai-head { cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+        .ai-head:active { cursor: grabbing; }
+        .ai-head button { cursor: pointer; }
         .ai-head strong { color:#8ed4ff; font-size:14px; letter-spacing:.4px; }
         .ai-head small { display:block; color:#7295b9; font-size:10px; margin-top:2px; font-weight:400; }
         .ai-close { border:0; border-radius:8px; width:28px; height:28px; cursor:pointer; color:#a9c9e8; background:#263a53; font-size:18px; }
@@ -1135,7 +1139,14 @@ function rollSynergyCount() {
                 upgrades: Array.isArray(_sb.upgrades) ? _sb.upgrades.slice() : [],
                 drafts: Array.isArray(_sb.drafts) ? _sb.drafts.slice() : [],
                 basePathLength: _sb.basePathLength || 0,
-                pathLength: _sb.pathLength || 0
+                pathLength: _sb.pathLength || 0,
+                aiAssisted: !!_sb.aiAssisted,
+                baseBreachesByRole: { ...(_sb.baseBreachesByRole || {}) },
+                baseBreachesByEnemy: { ...(_sb.baseBreachesByEnemy || {}) },
+                coreStolenByRole: { ...(_sb.coreStolenByRole || {}) },
+                coreStolenByEnemy: { ...(_sb.coreStolenByEnemy || {}) },
+                coreLossByRole: { ...(_sb.coreLossByRole || {}) },
+                coreLossByEnemy: { ...(_sb.coreLossByEnemy || {}) }
             };
             gameOver = false;
             projectiles = [];
@@ -2925,8 +2936,50 @@ function makeSeededRng(seed) {
             return { green, yellow, red: lostCores };
         }
 
+        // 轻量失败归因：只在核心被夺取/永久带走的事件点累计，不扫描整场战斗。
+        function aiLearningRoleForEnemy(type) {
+            const def = ENEMY_TYPES[type] || {};
+            if (def.jammer) return 'jammer';
+            if (def.air) return 'air';
+            if (def.healer || def.summoner || def.hatcher) return 'control';
+            if (def.stealth || def.immuneSlow || type === 'runner') return 'control';
+            const hpFactor = (ENEMY_STATS[type] && ENEMY_STATS[type].hpFactor) || 1;
+            if (type === 'boss' || type === 'tank' || type === 'brute' || hpFactor >= 2) return 'heavy';
+            return 'aoe';
+        }
+        function aiRecordEnemyBaseBreach(enemy, stolen) {
+            if (!battleStats || !enemy) return;
+            const role = aiLearningRoleForEnemy(enemy.type);
+            const type = enemy.type || 'unknown';
+            const br = battleStats.baseBreachesByRole || (battleStats.baseBreachesByRole = {});
+            const be = battleStats.baseBreachesByEnemy || (battleStats.baseBreachesByEnemy = {});
+            br[role] = (br[role] || 0) + 1;
+            be[type] = (be[type] || 0) + 1;
+            if (stolen > 0) {
+                const sr = battleStats.coreStolenByRole || (battleStats.coreStolenByRole = {});
+                const se = battleStats.coreStolenByEnemy || (battleStats.coreStolenByEnemy = {});
+                sr[role] = (sr[role] || 0) + stolen;
+                se[type] = (se[type] || 0) + stolen;
+            }
+        }
+        function aiRecordEnemyCoreLoss(enemy, amount) {
+            if (!battleStats || !enemy || amount <= 0) return;
+            const role = aiLearningRoleForEnemy(enemy.type);
+            const type = enemy.type || 'unknown';
+            const rr = battleStats.coreLossByRole || (battleStats.coreLossByRole = {});
+            const ee = battleStats.coreLossByEnemy || (battleStats.coreLossByEnemy = {});
+            rr[role] = (rr[role] || 0) + amount;
+            ee[type] = (ee[type] || 0) + amount;
+        }
+
         function setScreen(s) {
-            // ★ 新增：即将离开关卡选择界面时，记住当前滚动位置
+            // ★ 离开战斗界面时清除结算层状态，避免结算层继续拦截关卡选择界面的鼠标事件。
+            if (s !== 'game') {
+                gameResult = null;
+                resultBtnHover = false;
+                endlessBtnHover = false;
+            }
+            // ★ 即将离开关卡选择界面时，记住当前滚动位置
             if (screen === 'levels' && s !== 'levels') levelsScrollY = scrollY;
             screen = s;
             closeBuildMenu(); closeTowerMenu(); hideTip();
@@ -3130,7 +3183,10 @@ function makeSeededRng(seed) {
             gameResult = null; resultBtnHover = false; endlessBtnHover = false;
             battleStats = { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0,
                             builds: [], upgrades: [], drafts: [],
-                            basePathLength: 0, pathLength: 0 };
+                            basePathLength: 0, pathLength: 0, aiAssisted: false,
+                            baseBreachesByRole: {}, baseBreachesByEnemy: {},
+                            coreStolenByRole: {}, coreStolenByEnemy: {},
+                            coreLossByRole: {}, coreLossByEnemy: {} };
             levelIndex = Math.min(idx, LEVELS.length - 1);
             currentModeKey = modeKey || 'story';
             routeReverse = !!reverse;
@@ -4381,9 +4437,9 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
 
 
                 // ============================================================
-        // AI 自我优化：历史对局学习器
-        //   只统计"赢的局 vs 输的局"的决策分布，用平滑胜率微调 AI 打分权重。
-        //   不触碰战斗逻辑，所有参数带软限幅，永不跑飞。
+        // AI 自我优化：轻量级失败归因学习器
+        //   战斗期间只在敌人突破基地/带走核心时累计计数；局末仅分析本局一次。
+        //   只用 AI 参与的对局训练，按突破敌人的职能微调防御需求权重。
         // ============================================================
         const AI_LEARN_KEY = 'defense_ai_learning_v1';
         const AI_LEARN = (function () {
@@ -4408,6 +4464,8 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                     byLevel: {}               // { "3|story":{ games, wins, avgCleared } }
                 },
                 learnCount: 0,
+                learningUpdates: 0,
+                lastLesson: null,
                 lastLearnAt: 0
             };
 
@@ -4441,6 +4499,8 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                 if (!data.stats.byTower || typeof data.stats.byTower !== 'object') data.stats.byTower = {};
                 if (!data.stats.byDraft || typeof data.stats.byDraft !== 'object') data.stats.byDraft = {};
                 if (!data.stats.byLevel || typeof data.stats.byLevel !== 'object') data.stats.byLevel = {};
+                if (!Number.isFinite(data.learningUpdates)) data.learningUpdates = 0;
+                if (!data.lastLesson || typeof data.lastLesson !== 'object') data.lastLesson = null;
                 return data;
             }
             function getContextMul(key) {
@@ -4473,6 +4533,61 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                 return (wins + priorN * priorRate) / (total + priorN);
             }
 
+            function learnFromGame(snapshot) {
+                // 手动局只做统计，不参与 AI 策略训练，避免把玩家的决策习惯误当成 AI 经验。
+                if (!snapshot || !snapshot.aiAuto) return;
+                const roleNames = {
+                    aoe: '群体清理', jammer: '反干扰', air: '防空',
+                    control: '控制/特殊敌人', heavy: '重甲/首领火力'
+                };
+                const lost = snapshot.coreLossByRole || {};
+                const breaches = snapshot.baseBreachesByRole || {};
+                const roles = Object.keys(roleNames);
+                let pressureTotal = 0;
+                const pressure = {};
+                for (const role of roles) {
+                    // 永久丢失的核心权重最高；被夺取后又成功击杀回收的敌人作为较弱信号。
+                    pressure[role] = Math.max(0, Number(lost[role]) || 0)
+                        + 0.25 * Math.max(0, Number(breaches[role]) || 0);
+                    pressureTotal += pressure[role];
+                }
+
+                const lessonParts = [];
+                if (pressureTotal > 0) {
+                    for (const role of roles) {
+                        if (pressure[role] <= 0) continue;
+                        const share = pressure[role] / pressureTotal;
+                        const lostCores = Math.max(0, Number(lost[role]) || 0);
+                        const bump = clamp(0.006 + share * 0.035 + Math.min(0.02, lostCores * 0.003), 0.006, 0.06);
+                        const current = data.weights.roleNeed[role] == null ? 1 : data.weights.roleNeed[role];
+                        data.weights.roleNeed[role] = clamp(current * (1 + bump), 0.7, 1.4);
+                        const nBreach = Math.max(0, Number(breaches[role]) || 0);
+                        if (lostCores > 0) lessonParts.push(`${roleNames[role]}：永久损失 ${lostCores} 核心`);
+                        else if (nBreach > 0) lessonParts.push(`${roleNames[role]}：曾突破基地 ${nBreach} 次，核心已追回`);
+                    }
+                } else if (snapshot.win) {
+                    // 连续守住核心时，权重缓慢回归中性，避免某种防御需求永久被放大。
+                    for (const role of roles) {
+                        const current = data.weights.roleNeed[role] == null ? 1 : data.weights.roleNeed[role];
+                        data.weights.roleNeed[role] = 1 + (current - 1) * 0.985;
+                    }
+                    lessonParts.push('本局成功守住核心；各职能需求权重轻微回归中性');
+                } else {
+                    lessonParts.push('本局失败，但未记录到核心突破事件；暂不盲目调整炮塔类型');
+                }
+
+                for (const role of roles) {
+                    data.weights.roleNeed[role] = clamp(data.weights.roleNeed[role] == null ? 1 : data.weights.roleNeed[role], 0.7, 1.4);
+                }
+                data.learningUpdates = (data.learningUpdates || 0) + 1;
+                data.learnCount = (data.learnCount || 0) + 1;
+                data.lastLearnAt = Date.now();
+                data.lastLesson = {
+                    ts: data.lastLearnAt,
+                    text: lessonParts.join('；')
+                };
+            }
+
             function recordGame(snapshot) {
                 if (!data) load();
                 data.games.push(snapshot);
@@ -4497,121 +4612,8 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
                     D.picks++; if (snapshot.win) D.wins++;
                 }
 
-                save();
-                if (data.games.length >= 3) learn();
-            }
-
-            function learn() {
-                if (!data) load();
-                const games = data.games;
-                if (games.length < 3) return;
-
-                const recent = games.slice(-40);
-                const total  = recent.length;
-                const wins   = recent.filter(g => g.win).length;
-                const baseRate = smoothedRate(wins, total, 4, 0.5);
-
-                // ① 塔类型偏好
-                const typeAgg = {};
-                for (const g of recent) {
-                    const seen = new Set();
-                    for (const b of (g.builds || [])) {
-                        if (seen.has(b.type)) continue;
-                        seen.add(b.type);
-                        const t = typeAgg[b.type] = typeAgg[b.type] || { n:0, w:0 };
-                        t.n++; if (g.win) t.w++;
-                    }
-                }
-                const LR = 0.10;
-                for (const type in typeAgg) {
-                    const { n, w } = typeAgg[type];
-                    if (n < 3) continue;
-                    const r = smoothedRate(w, n, 3, baseRate);
-                    const cur = data.weights.towerType[type] ?? 1.0;
-                    data.weights.towerType[type] = cur * (1 + (r - baseRate) * LR);
-                }
-                // ①-b 带上下文的塔偏好（真正接近"风格"的那一层）
-const ctxAgg = {};
-for (const g of recent) {
-    for (const b of (g.builds || [])) {
-        const ctx = aiBuildContextKey(g, b);   // ← 见下文
-        if (!ctx) continue;
-        const t = ctxAgg[ctx] = ctxAgg[ctx] || { n:0, w:0 };
-        t.n++; if (g.win) t.w++;
-    }
-}
-for (const k in ctxAgg) {
-    const { n, w } = ctxAgg[k];
-    if (n < 4) continue;                        // 分桶后样本更稀，阈值抬高
-    const r = smoothedRate(w, n, 4, baseRate);
-    const cur = data.weights.towerContext[k] ?? 1.0;
-    data.weights.towerContext[k] = clamp(cur * (1 + (r - baseRate) * 0.08), 0.6, 1.6);
-}
-
-                // ② 选卡偏好（跳过敌人强化）
-                const draftAgg = {};
-                for (const g of recent) {
-                    for (const d of (g.drafts || [])) {
-                        if (d.kind === 'enemy') continue;
-                        const t = draftAgg[d.id] = draftAgg[d.id] || { n:0, w:0 };
-                        t.n++; if (g.win) t.w++;
-                    }
-                }
-                for (const id in draftAgg) {
-                    const { n, w } = draftAgg[id];
-                    if (n < 3) continue;
-                    const r = smoothedRate(w, n, 3, baseRate);
-                    const cur = data.weights.draftBias[id] ?? 1.0;
-                    data.weights.draftBias[id] = cur * (1 + (r - baseRate) * LR);
-                }
-
-                // ③ 建塔 vs 升级倾向
-                const buildPerWave = recent.map(g => (g.towersBuilt || 0) / Math.max(1, g.wavesCleared || 1));
-                const winB  = buildPerWave.filter((_, i) => recent[i].win);
-                const lossB = buildPerWave.filter((_, i) => !recent[i].win);
-                if (winB.length >= 2 && lossB.length >= 2) {
-                    const avgW = winB.reduce((a,b)=>a+b,0) / winB.length;
-                    const avgL = lossB.reduce((a,b)=>a+b,0) / lossB.length;
-                    const gap  = avgL - avgW;                       // >0：赢的局建塔更少
-                    const bump = clamp(gap * 0.08, -0.15, 0.15);
-                    data.weights.upgradeVsBuild *= (1 + bump);
-                    data.weights.buildVsUpgrade  *= (1 - bump);
-                }
-
-                // ④ 迷宫偏好
-                const mazeScore = recent.map(g => (g.pathLength || 0) / Math.max(1, g.basePathLength || 1));
-                const winM  = mazeScore.filter((_, i) => recent[i].win);
-                const lossM = mazeScore.filter((_, i) => !recent[i].win);
-                if (winM.length >= 2 && lossM.length >= 2) {
-                    const avgW = winM.reduce((a,b)=>a+b,0) / winM.length;
-                    const avgL = lossM.reduce((a,b)=>a+b,0) / lossM.length;
-                    data.weights.mazeWeight *= (1 + clamp((avgW - avgL) * 0.05, -0.10, 0.10));
-                }
-
-                // ⑤ 输了且漏怪 → 需求被低估
-                const lossLeak = recent.filter(g => !g.win).map(g => (g.leaked || 0) / Math.max(1, g.totalWaves || 1));
-                if (lossLeak.length >= 2) {
-                    const avgLeak = lossLeak.reduce((a,b)=>a+b,0) / lossLeak.length;
-                    const bump = clamp(avgLeak * 0.25, 0, 0.15);
-                    data.weights.roleNeed.aoe     *= (1 + bump);
-                    data.weights.roleNeed.air     *= (1 + bump * 0.7);
-                    data.weights.roleNeed.jammer  *= (1 + bump * 0.7);
-                }
-
-                // 软限幅
-                for (const k in data.weights.towerType)
-                    data.weights.towerType[k] = clamp(data.weights.towerType[k], 0.55, 1.8);
-                for (const k in data.weights.draftBias)
-                    data.weights.draftBias[k] = clamp(data.weights.draftBias[k], 0.6, 1.6);
-                for (const k in data.weights.roleNeed)
-                    data.weights.roleNeed[k] = clamp(data.weights.roleNeed[k], 0.7, 1.4);
-                data.weights.upgradeVsBuild = clamp(data.weights.upgradeVsBuild, 0.6, 1.6);
-                data.weights.buildVsUpgrade = clamp(data.weights.buildVsUpgrade, 0.6, 1.6);
-                data.weights.mazeWeight     = clamp(data.weights.mazeWeight, 0.6, 1.5);
-                data.weights.coverageWeight = clamp(data.weights.coverageWeight, 0.6, 1.5);
-
-                data.learnCount++;
-                data.lastLearnAt = Date.now();
+                // 每局只处理这局新增的事件计数；不会反复扫描/重复强化最近 40 局。
+                if (snapshot.aiAuto) learnFromGame(snapshot);
                 save();
             }
 
@@ -4622,8 +4624,11 @@ for (const k in ctxAgg) {
                     games: g.length,
                     wins:  g.filter(x => x.win).length,
                     aiGames: g.filter(x => x.aiAuto).length,
+                    aiWins: g.filter(x => x.aiAuto && x.win).length,
                     humanGames: g.filter(x => !x.aiAuto).length,
                     learnCount: data.learnCount,
+                    learningUpdates: data.learningUpdates || 0,
+                    lastLesson: data.lastLesson || null,
                     weights: data.weights,
                     stats: data.stats
                 };
@@ -6266,6 +6271,7 @@ for (const type of bestTypes) {
         }
         function aiToggleAuto(enabled) {
             aiAutoMode = !!enabled;
+            if (aiAutoMode && battleStats) battleStats.aiAssisted = true;
             aiAutoTimer = 0;
             const hint = document.getElementById('aiAutoHint');
             if (hint) hint.textContent = aiAutoMode ? '战斗中建塔升级 · 自动选卡/推进' : '战斗中建塔升级 · 清场后自动推进';
@@ -6548,6 +6554,64 @@ for (const type of bestTypes) {
             if (aiPanelOpen && document.getElementById('aiChatLog').children.length <= 1) aiAnalyzeSituation(false);
         });
         document.getElementById('aiCloseBtn')?.addEventListener('click', () => aiOpenPanel(false));
+
+        // 按住 AI 助手标题栏并拖动，可在屏幕范围内自由调整位置
+        (() => {
+            const panel = document.getElementById('aiAssistant');
+            const handle = panel?.querySelector('.ai-head');
+            if (!panel || !handle) return;
+
+            let dragging = false;
+            let activePointerId = null;
+            let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+            const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
+
+            handle.addEventListener('pointerdown', (e) => {
+                // 只响应鼠标左键；标题栏中的关闭按钮仍保持原有点击行为
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                if (e.target.closest('button, input, textarea, select, a')) return;
+                if (panel.classList.contains('hidden')) return;
+
+                const rect = panel.getBoundingClientRect();
+                dragging = true;
+                activePointerId = e.pointerId;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = rect.left;
+                startTop = rect.top;
+
+                // 改用 left/top 定位，避免同时受 right/bottom 和移动端媒体查询影响
+                panel.style.left = `${rect.left}px`;
+                panel.style.top = `${rect.top}px`;
+                panel.style.right = 'auto';
+                panel.style.bottom = 'auto';
+
+                try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+                e.preventDefault();
+            });
+
+            handle.addEventListener('pointermove', (e) => {
+                if (!dragging || e.pointerId !== activePointerId) return;
+                const rect = panel.getBoundingClientRect();
+                const margin = 8;
+                const maxLeft = window.innerWidth - rect.width - margin;
+                const maxTop = window.innerHeight - rect.height - margin;
+                const left = clamp(startLeft + e.clientX - startX, margin, maxLeft);
+                const top = clamp(startTop + e.clientY - startY, margin, maxTop);
+                panel.style.left = `${left}px`;
+                panel.style.top = `${top}px`;
+            });
+
+            const stopDragging = (e) => {
+                if (!dragging || (e && e.pointerId !== activePointerId)) return;
+                dragging = false;
+                activePointerId = null;
+            };
+            handle.addEventListener('pointerup', stopDragging);
+            handle.addEventListener('pointercancel', stopDragging);
+            handle.addEventListener('lostpointercapture', stopDragging);
+        })();
         document.getElementById('aiAnalyzeBtn')?.addEventListener('click', () => aiAnalyzeSituation(false));
         document.getElementById('aiRecommendBtn')?.addEventListener('click', () => aiRecommendBuild());
         document.getElementById('aiApplyBtn')?.addEventListener('click', () => aiApplyRecommendation());
@@ -6558,28 +6622,22 @@ for (const type of bestTypes) {
             SFX.click();
             const s = AI_LEARN.getSummary();
             if (s.games === 0) {
-                aiAddMessage('还没有任何对局数据。打一局（AI 托管或手动都行）后我就能开始学习了。', 'bot');
+                aiAddMessage('还没有对局数据。开启智能托管完成一局后，我会开始记录失败原因并调整防御职能权重。', 'bot');
                 return;
             }
-            const winRate = s.wins / s.games;
-            const lines = [`📈 学习进度：已累计 ${s.games} 局（AI 托管 ${s.aiGames} · 玩家操作 ${s.humanGames}），整体胜率 ${Math.round(winRate * 100)}%。`];
-
-            const arr = Object.entries(s.stats.byTower)
-                .filter(([, v]) => v.games >= 3)
-                .map(([k, v]) => ({
-                    type: k,
-                    name: (TOWER_TYPES[k] && TOWER_TYPES[k].name) || k,
-                    mul: AI_LEARN.getTowerMul(k)
-                }))
-                .sort((a, b) => b.mul - a.mul);
-            if (arr.length) {
-                const top = arr.slice(0, 3).map(x => `${x.name}×${x.mul.toFixed(2)}`);
-                const low = arr.slice(-3).map(x => `${x.name}×${x.mul.toFixed(2)}`);
-                lines.push(`✅ 我更倾向：${top.join(' / ')}`);
-                lines.push(`⚠ 我更少用：${low.join(' / ')}`);
+            const lines = [
+                `📈 对局记录 ${s.games} 局：AI 参与 ${s.aiGames} 局，纯手动 ${s.humanGames} 局。`,
+                `🧠 AI 学习样本 ${s.aiGames} 局，AI 参与局胜率 ${s.aiGames ? Math.round(s.aiWins / s.aiGames * 100) : 0}%；局末策略更新 ${s.learningUpdates} 次。`
+            ];
+            if (!s.aiGames) {
+                lines.push('目前只有手动对局记录。手动局不会改变 AI 策略；开启智能托管后才会纳入学习。');
             }
-            lines.push(`⚖ 建塔↔升级倾向：${AI_LEARN.getUpgradeVsBuild() > 1 ? '更爱升级' : '更爱铺塔'}（系数 ${AI_LEARN.getUpgradeVsBuild().toFixed(2)}）`);
-            lines.push(`🗺 迷宫权重 ×${AI_LEARN.getMazeWeight().toFixed(2)} · 覆盖权重 ×${AI_LEARN.getCoverageWeight().toFixed(2)}`);
+            const roleNames = { aoe:'群体清理', jammer:'反干扰', air:'防空', control:'控制/特殊敌人', heavy:'重甲/首领火力' };
+            const roleWeights = Object.entries(roleNames)
+                .map(([k, name]) => `${name}×${(s.weights.roleNeed[k] || 1).toFixed(2)}`);
+            lines.push(`🎯 当前防御需求：${roleWeights.join(' · ')}`);
+            if (s.lastLesson && s.lastLesson.text) lines.push(`📚 最近一局学到：${s.lastLesson.text}`);
+            lines.push('学习只在每局结束时更新一次；核心永久丢失的归因权重高于成功追回的突破事件。');
             aiAddMessage(lines.join('\n'), 'bot');
 
         });
@@ -9116,6 +9174,7 @@ if (up.id === 'synBoost' && rogueState) {
             draftQueue = [];
             const st = getEnergyStats();
             const s = battleStats || { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0 };
+            const aiLearnUsed = !!(s.aiAssisted || aiAutoMode);
             const lv = currentLevel;
             const mode = MODES[currentModeKey] || MODES.story;
             let raw = 0;
@@ -9151,7 +9210,7 @@ if (up.id === 'synBoost' && rogueState) {
                 gameResult.showEndless = true;
             }
             msgDisplay.textContent = win ? '🎉 关卡通过！点击确定返回关卡选择' : '💀 核心全部丢失... 点击确定返回关卡选择';
-            if (aiAutoMode) {
+            if (aiLearnUsed) {
                 aiSetStatus(win ? 'AI 已完成本关 · 通关成功' : 'AI 托管结束 · 本关未能守住');
                 aiAddMessage(win ? '🎉 本关所有波次已清除，AI 自动通关成功！' : '本局结束：基地核心已全部丢失。可以重新开始并调整难度。', 'bot');
             }
@@ -9161,7 +9220,7 @@ if (up.id === 'synBoost' && rogueState) {
                     ts: Date.now(),
                     levelIndex, modeKey: currentModeKey,
                     ascension: selectedAscension, rogue: !!rogueState,
-                    aiAuto: !!aiAutoMode,
+                    aiAuto: aiLearnUsed,
                     win,
                     wavesCleared: s.wavesCleared,
                     totalWaves,
@@ -9171,13 +9230,22 @@ if (up.id === 'synBoost' && rogueState) {
                     towersBuilt: s.towersBuilt,
                     kills: s.kills,
                     leaked: st.red || 0,
+                    baseBreachesByRole: { ...(s.baseBreachesByRole || {}) },
+                    baseBreachesByEnemy: { ...(s.baseBreachesByEnemy || {}) },
+                    coreStolenByRole: { ...(s.coreStolenByRole || {}) },
+                    coreStolenByEnemy: { ...(s.coreStolenByEnemy || {}) },
+                    coreLossByRole: { ...(s.coreLossByRole || {}) },
+                    coreLossByEnemy: { ...(s.coreLossByEnemy || {}) },
                     basePathLength: s.basePathLength || 0,
                     pathLength: routes.reduce((sum, r) => sum + Math.max(0, r.pts.length - 1), 0),
                     score: gameResult.score,
                     moneyLeft: Math.floor(money)
                 });
                 const _ls = AI_LEARN.getSummary();
-                aiAddMessage(`📊 本局已记录（${aiAutoMode ? 'AI 托管' : '玩家操作'}）：${win ? '胜' : '负'}。已累计学习 ${_ls.games} 局。`, 'bot');
+                aiAddMessage(`📊 本局已记录（${aiLearnUsed ? 'AI 参与' : '纯手动'}）：${win ? '胜' : '负'}。累计记录 ${_ls.games} 局，AI 学习样本 ${_ls.aiGames} 局。`, 'bot');
+                if (aiLearnUsed && _ls.lastLesson && _ls.lastLesson.text) {
+                    aiAddMessage(`🧠 本局复盘：${_ls.lastLesson.text}`, 'bot');
+                }
             } catch (err) { console.error('学习记录失败', err); }
 
             if (win) SFX.win(); else SFX.lose();
@@ -11081,8 +11149,9 @@ if (up.id === 'synBoost' && rogueState) {
                         } else if (e.state === 'toBase') {
                             const base = bases.find(b => b.c === e.cellC && b.r === e.cellR);
                             if (base) {
+                                const n = base.cores > 0 ? Math.min(e.steal - e.carrying, base.cores) : 0;
+                                aiRecordEnemyBaseBreach(e, n);
                                 if (base.cores > 0) {
-                                    const n = Math.min(e.steal - e.carrying, base.cores);
                                     if (n > 0) {
                                         base.cores -= n;
                                         e.carrying += n;
@@ -11106,6 +11175,7 @@ if (up.id === 'synBoost' && rogueState) {
                             const atExit = exits.some(x => x.c === e.cellC && x.r === e.cellR);
                             if (atExit) {
                                 if (e.carrying > 0) SFX.leak();
+                                aiRecordEnemyCoreLoss(e, e.carrying || 0);
                                 lostCores += e.carrying;
                                 e.carrying = 0;
                                 enemies.splice(i, 1);
@@ -12058,7 +12128,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 canvas.style.cursor = draftPanel.hovered >= 0 ? 'pointer' : 'default';
                 return;
             }
-            if (gameResult) {
+            if (screen === 'game' && gameResult) {
                 const r = getResultBtnRect();
                 resultBtnHover = hitRect(mx, my, r);
                 endlessBtnHover = !!gameResult.showEndless && hitRect(mx, my, getResultEndlessBtnRect());
@@ -12248,7 +12318,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 }
                 return;
             }
-            if (gameResult) {
+            if (screen === 'game' && gameResult) {
                 if (gameResult.showEndless && hitRect(mx, my, getResultEndlessBtnRect())) {
                     SFX.click();
                     gameResult = null;
