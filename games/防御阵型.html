@@ -1149,8 +1149,8 @@ function rollSynergyCount() {
             updateTimeDisplay();
             setScreen('game');
 
-            speedMultiplier = s.speedMultiplier || 1;
-            speedBtn.textContent = `⏩ ${speedMultiplier}x`;
+            // 兼容旧存档：速度档位统一为 1x / 3x，不再恢复已取消的 2x。
+            setGameSpeed(Number(s.speedMultiplier) >= 3 ? 3 : 1);
             paused = !!s.paused;
             pauseBtn.textContent = paused ? '▶ 继续' : '⏸ 暂停';
             pauseBtn.classList.toggle('active', paused);
@@ -3170,7 +3170,7 @@ function makeSeededRng(seed) {
             waveIndex = 0;
             totalWaves = waves.length;
             enemies = []; towers = []; pendingBuilds = []; projectiles = [];
-            selectedTower = null; gameOver = false; speedMultiplier = 1; paused = false;
+            selectedTower = null; gameOver = false; setGameSpeed(1); paused = false;
             looseCores = []; lostCores = 0;
             playTime = 0; lastShownSecond = -1;
             updateTimeDisplay();
@@ -6278,8 +6278,7 @@ for (const type of bestTypes) {
             if (box) box.checked = true;
             aiToggleAuto(true);
             // 全自动通关按钮同时切换到最高游戏速度；玩家仍可用 HUD 速度按钮调整。
-            speedMultiplier = 3;
-            speedBtn.textContent = '⏩ 3x';
+            setGameSpeed(3);
             paused = false;
             pauseBtn.textContent = '⏸ 暂停';
             pauseBtn.classList.remove('active');
@@ -6752,7 +6751,7 @@ for (const type of bestTypes) {
             ['📊', '战绩统计',   '鼠标悬停防御塔可查看击杀数与累计伤害，右键可设置自动升级或出售。'],
             ['🏆', '得分规则',   '最终得分 = 各项战果总和 × 模式倍率 ÷ 建塔总数；用更少的塔通关可获得更高分数。'],
             ['🖱️', '边缘滚屏',   '进入关卡后，把鼠标移出画面边缘，视野会持续向该方向平移。'],
-            ['⏱️', '操作提示',   '空格暂停 · 右键取消 · ⏩ 切换 1x/2x/3x 速度 · 滚轮缩放地图。']
+            ['⏱️', '操作提示',   '空格暂停 · F 切换 1x/3x 加速 · 点击速度按钮也可切换 · 右键取消 · 滚轮缩放地图。']
         ];
 
         function drawIntroCard(x, y, w, h, item) {
@@ -12478,11 +12477,17 @@ nextWaveBtn.addEventListener('click', callNextWave);
 
         sellBtn.addEventListener('click', () => { SFX.click(); if (!selectedTower) return; sellTower(selectedTower); });
         pauseBtn.addEventListener('click', togglePause);
-        speedBtn.addEventListener('click', () => {
-            SFX.click();
-            speedMultiplier = speedMultiplier === 1 ? 2 : (speedMultiplier === 2 ? 3 : 1);
+        // 仅保留 1x 与 3x 两档；任何旧存档中的 2x 都会被归一化为 1x。
+        function setGameSpeed(multiplier) {
+            speedMultiplier = Number(multiplier) >= 3 ? 3 : 1;
             speedBtn.textContent = `⏩ ${speedMultiplier}x`;
-        });
+            speedBtn.title = '点击或按 F 切换 1x / 3x';
+        }
+        function toggleGameSpeed() {
+            setGameSpeed(speedMultiplier === 1 ? 3 : 1);
+            SFX.click();
+        }
+        speedBtn.addEventListener('click', toggleGameSpeed);
 
         window.addEventListener('scroll', hideTip, true);
         window.addEventListener('resize', hideTip);
@@ -12568,6 +12573,13 @@ nextWaveBtn.addEventListener('click', callNextWave);
             }
             if (e.key === 'n' || e.key === 'N') {
                 callNextWave();
+            }
+            // F：在正常速度与 3 倍速之间切换；输入文本时不抢占用户按键。
+            const target = e.target;
+            const isTypingTarget = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ''));
+            if ((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && !isTypingTarget && screen === 'game') {
+                e.preventDefault();
+                toggleGameSpeed();
             }
         });
         // ============================================================
