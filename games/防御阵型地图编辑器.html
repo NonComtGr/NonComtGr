@@ -237,12 +237,12 @@
             <span class="hint">修改后自动保留已有内容</span>
         </div>
 
-        <div class="panel-head"><span>⬛ 空白矩形覆盖</span></div>
+        <div class="panel-head"><span>🎲 混合矩形（o/.）</span></div>
         <div class="opts">
             <label>数量 <input id="rectCountIn" type="number" value="0" min="0" max="20" step="1"></label>
             <label>最小 <input id="rectMinIn" type="number" value="3" min="2" max="20" step="1"></label>
             <label>最大 <input id="rectMaxIn" type="number" value="6" min="2" max="20" step="1"></label>
-            <span class="hint">生成时随机覆盖空白区域</span>
+            <span class="hint">生成由 o 和 . 组成的矩形，不贴边</span>
         </div>
         <div class="panel-head"><span>🎨 岩壁装饰权重</span></div>
 <div class="opts">
@@ -687,37 +687,67 @@ const wDotIn = document.getElementById('wDotIn');
         return logical;
     }
 
+    // 在逻辑迷宫上标记矩形区域（挖空），并返回这些区域在网格坐标系下的范围，
+    // 供后续用 o / . 随机混合填充。
+    // 【修改点】直接在最终的网格坐标系统中圈定矩形，确保实际边长就是随机出的 w 和 h。
     function applyBlankRectanglesToLogical(logical, mW, mH, count, minSize, maxSize) {
-        if (count <= 0) return;
+        const regions = [];
+        if (count <= 0) return regions;
 
         const outH = logical.length;
         const outW = logical[0].length;
 
         for (let i = 0; i < count; i++) {
+            // 直接随机目标网格尺寸
             const w = randInt(minSize, maxSize);
             const h = randInt(minSize, maxSize);
 
-            const maxX = mW - w;
-            const maxY = mH - h;
-            if (maxX < 0 || maxY < 0) continue;
+            // 为了留出 1 格间隙，起点最小为 1，终点最大为 outW-2 / outH-2
+            const minX = 1;
+            const minY = 1;
+            const maxX = outW - 1 - w;
+            const maxY = outH - 1 - h;
 
-            const startX = Math.floor(Math.random() * (maxX + 1));
-            const startY = Math.floor(Math.random() * (maxY + 1));
+            // 如果地图太小放不下，直接跳过
+            if (maxX < minX || maxY < minY) continue;
 
+            const startX = minX + Math.floor(Math.random() * (maxX - minX + 1));
+            const startY = minY + Math.floor(Math.random() * (maxY - minY + 1));
+
+            // 直接在这块矩形范围内挖空
             for (let y = startY; y < startY + h; y++) {
                 for (let x = startX; x < startX + w; x++) {
-                    const py = y * 2 + 1;
-                    const px = x * 2 + 1;
+                    logical[y][x] = true;
+                }
+            }
 
-                    logical[py][px] = true;
+            regions.push({
+                c0: startX,
+                r0: startY,
+                c1: startX + w - 1,
+                r1: startY + h - 1
+            });
+        }
 
-                    if (py - 1 >= 0) logical[py - 1][px] = true;
-                    if (py + 1 < outH) logical[py + 1][px] = true;
-                    if (px - 1 >= 0) logical[py][px - 1] = true;
-                    if (px + 1 < outW) logical[py][px + 1] = true;
+        return regions;
+    }
+
+    // 把矩形区域内的格子随机填成 o 或 .
+    function fillRectRegionsWithMixed(g, regions) {
+        if (!regions || !regions.length) return 0;
+        let filled = 0;
+        for (let i = 0; i < regions.length; i++) {
+            const reg = regions[i];
+            for (let r = reg.r0; r <= reg.r1; r++) {
+                if (r <= 0 || r >= ROWS - 1) continue;
+                for (let c = reg.c0; c <= reg.c1; c++) {
+                    if (c <= 0 || c >= COLS - 1) continue;
+                    g[r][c] = Math.random() < 0.5 ? 'o' : '.';
+                    filled++;
                 }
             }
         }
+        return filled;
     }
 
     function decorateWalls(g) {
@@ -805,7 +835,7 @@ const wDotIn = document.getElementById('wDotIn');
         let rectMax = clampInt(rectMaxIn.value, 2, 20, 6);
         if (rectMax < rectMin) rectMax = rectMin;
 
-        applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
+        const rectRegions = applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
 
         const newGrid = [];
         for (let r = 0; r < ROWS; r++) {
@@ -824,6 +854,7 @@ const wDotIn = document.getElementById('wDotIn');
             }
         }
 
+        fillRectRegionsWithMixed(newGrid, rectRegions);
         decorateWalls(newGrid);
 
         placeRandomMarkers(newGrid, { maxExtraS: 1, maxExtraC: 1, maxExtraE: 1, minExtraE: 0 });
@@ -837,6 +868,7 @@ const wDotIn = document.getElementById('wDotIn');
         resetEditState();
         refreshAll();
         let msg = "🧱 DFS迷宫已生成";
+        if (rectRegions.length) msg += `（添加 ${rectRegions.length} 个 o/. 混合矩形）`;
         if (oCount) msg += `（${oCount} 个通路转为 o）`;
         if (crossCount) msg += `（生成 ${crossCount} 个十字路口 +）`;
         if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
@@ -915,7 +947,7 @@ const wDotIn = document.getElementById('wDotIn');
         let rectMax = clampInt(rectMaxIn.value, 2, 20, 6);
         if (rectMax < rectMin) rectMax = rectMin;
 
-        applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
+        const rectRegions = applyBlankRectanglesToLogical(logicalMaze, mW, mH, rectCount, rectMin, rectMax);
 
         const g = [];
         for (let r = 0; r < ROWS; r++) {
@@ -930,6 +962,7 @@ const wDotIn = document.getElementById('wDotIn');
             }
         }
 
+        fillRectRegionsWithMixed(g, rectRegions);
         decorateWalls(g);
 
         const branchOpen = Math.floor((ROWS * COLS) * 0.015);
@@ -957,6 +990,7 @@ const wDotIn = document.getElementById('wDotIn');
         resetEditState();
         refreshAll();
         let msg = "🔀 融合迷宫地图已生成";
+        if (rectRegions.length) msg += `（添加 ${rectRegions.length} 个 o/. 混合矩形）`;
         if (oCount) msg += `（${oCount} 个通路转为 o）`;
         if (crossCount) msg += `（生成 ${crossCount} 个十字路口 +）`;
         if (connBroken) msg += `（打通 ${connBroken} 面墙以连通区域）`;
@@ -1785,6 +1819,28 @@ const wDotIn = document.getElementById('wDotIn');
         updateStatus();
     });
 });
+
+    // ===== 强化输入限制：保证最小值 <= 最大值 =====
+    rectMinIn.addEventListener('change', () => {
+        let min = clampInt(rectMinIn.value, 2, 20, 3);
+        let max = clampInt(rectMaxIn.value, 2, 20, 6);
+        if (min > max) {
+            max = min;
+            rectMaxIn.value = max;
+        }
+        rectMinIn.value = min;
+    });
+
+    rectMaxIn.addEventListener('change', () => {
+        let min = clampInt(rectMinIn.value, 2, 20, 3);
+        let max = clampInt(rectMaxIn.value, 2, 20, 6);
+        if (max < min) {
+            min = max;
+            rectMinIn.value = min;
+        }
+        rectMaxIn.value = max;
+    });
+    // ==========================================
 
     pathOIn.addEventListener('input', () => {
         pathOPct.textContent = pathOIn.value + '%';
