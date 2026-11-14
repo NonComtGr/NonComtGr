@@ -260,7 +260,7 @@ canvas { touch-action: none; }
         </div>
     </div>
     <div class="info-bar hidden" id="infoBar">
-        <div class="hint">左键空地/炮台墙建造 · 右键塔打开菜单 · 点击塔升级 · 空格暂停 · 滚轮缩放地图 · 鼠标移出画面边缘平移视野</div>
+        <div class="hint">左键空地/炮台墙建造 · 右键塔打开菜单 · 点击塔升级 · 空格下一波 · 滚轮缩放地图 · 鼠标移出画面边缘平移视野</div>
         <div class="msg" id="msgDisplay">保护基地核心！</div>
     </div>
 </div>
@@ -470,7 +470,7 @@ canvas { touch-action: none; }
         // ---------- 模式 ----------
         const MODES = {
             story:     { name: '剧情模式',  desc: '标准体验 · 敌人的常规强度',        hpMul: 1.00, coreHp: 20, waveMode: 'normal', scoreMul: 1.0 },
-            storyPlus: { name: '混乱模式',  desc: '攻击塔之间、辅助塔之间分别随机互换射程、射速、伤害及建造/升级费用', hpMul: 1.00, coreHp: 20, waveMode: 'normal', scoreMul: 1.4 },
+            storyPlus: { name: '混乱模式',  desc: '射程与建造/升级费用全塔互换；伤害、射速按类别互换（射速不含激光塔和棱镜塔）', hpMul: 1.00, coreHp: 20, waveMode: 'normal', scoreMul: 1.4 },
             oneHp:     { name: '一滴血',    desc: '基地仅有 1 枚核心 · 失去即失败',    hpMul: 1.00, coreHp: 1,  waveMode: 'normal', scoreMul: 2.0 },
             grind:     { name: '超级研磨',  desc: '99 波敌军连绵不绝 · 极限考验 · 通过后可进入无尽模式',      hpMul: 1.00, coreHp: 20, waveMode: 'grind',  scoreMul: 2.5 },
             endless:   { name: '无尽模式',  desc: '敌军无休无止 · 生命值指数膨胀 · 生存极限', hpMul: 1.00, coreHp: 20, waveMode: 'endless', scoreMul: 3.0 },
@@ -2557,8 +2557,9 @@ function rollSynergyCount() {
             harvester:{ name: '回收塔', icon: '💠', cost: 140, color: '#ffd966', range: 2.6, damage: 0,   fireRate: 0,    targetsAir: false, harvestBase: 0.30, harvestPerLevel: 0.08, upgradeBase: 130 }
         };
 
-        // 混乱模式：有伤害的攻击塔与无伤害的辅助塔分成两个置换池，分别独立洗牌。
-        // 分组依据使用原始伤害值；因此攻击塔不会变成零伤害塔，辅助塔也不会获得伤害。
+        // 混乱模式：射程、建造费用和升级费用在全部塔之间独立洗牌。
+        // 伤害仍按原始伤害类别分组，避免辅助塔获得伤害或攻击塔变成零伤害。
+        // 射速也按伤害类别分组，但激光塔、棱镜塔不参与射速置换，保持其原始射速。
         // 基准值只保存一次；重新开始时沿用本关已经生成的置换。
         const TOWER_BASELINE = Object.fromEntries(Object.entries(TOWER_TYPES).map(([k, v]) => [k, {...v}]));
         let chaosTowerPermutation = null;
@@ -2581,22 +2582,33 @@ function rollSynergyCount() {
             }
             if (!chaosTowerPermutation || regenerate) {
                 const allTypes = Object.keys(TOWER_BASELINE);
-                const groups = [
+                const damageGroups = [
                     allTypes.filter(type => TOWER_BASELINE[type].damage > 0),
                     allTypes.filter(type => !(TOWER_BASELINE[type].damage > 0))
                 ];
-                const fields = ['range', 'fireRate', 'damage', 'cost'];
+                // 范围、建造费用、升级费用均使用全体塔作为置换池。
+                // 射速和伤害仍分组置换；激光与棱镜塔的 fireRate 固定沿用基准值。
+                const fireRateGroups = damageGroups.map(types =>
+                    types.filter(type => type !== 'laser' && type !== 'prism')
+                );
                 chaosTowerPermutation = Object.fromEntries(allTypes.map(type => [type, {}]));
 
-                // 每个伤害类别分别洗牌，绝不在两组之间交换数值。
-                for (const types of groups) {
-                    for (const field of fields) {
-                        const values = shuffleValues(types.map(type => TOWER_BASELINE[type][field]));
-                        types.forEach((type, i) => { chaosTowerPermutation[type][field] = values[i]; });
-                    }
-                    // 建造费用与升级费用分别置换，但都限制在当前伤害类别内。
-                    const upgradeValues = shuffleValues(types.map(type => TOWER_BASELINE[type].upgradeBase));
-                    types.forEach((type, i) => { chaosTowerPermutation[type].upgradeBase = upgradeValues[i]; });
+                const globalFields = ['range', 'cost', 'upgradeBase'];
+                for (const field of globalFields) {
+                    const values = shuffleValues(allTypes.map(type => TOWER_BASELINE[type][field]));
+                    allTypes.forEach((type, i) => { chaosTowerPermutation[type][field] = values[i]; });
+                }
+
+                // 伤害按有伤害/无伤害类别分别洗牌，保持原有类别边界。
+                for (const types of damageGroups) {
+                    const values = shuffleValues(types.map(type => TOWER_BASELINE[type].damage));
+                    types.forEach((type, i) => { chaosTowerPermutation[type].damage = values[i]; });
+                }
+
+                // 射速不与激光塔、棱镜塔互换；两者将保留各自基准射速。
+                for (const types of fireRateGroups) {
+                    const values = shuffleValues(types.map(type => TOWER_BASELINE[type].fireRate));
+                    types.forEach((type, i) => { chaosTowerPermutation[type].fireRate = values[i]; });
                 }
             }
             for (const [type, base] of Object.entries(TOWER_BASELINE)) {
@@ -13041,23 +13053,30 @@ nextWaveBtn.addEventListener('click', callNextWave);
         window.addEventListener('keydown', unlockAudio);
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.key === ' ') {
+            const target = e.target;
+            const isTypingTarget = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ''));
+            const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+
+            // 空格：恢复为暂停/继续；长按不重复切换，也不干扰文本输入。
+            if (e.code === 'Space' && screen === 'game' && !isTypingTarget && !hasModifier) {
                 e.preventDefault();
-                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-                togglePause();
+                if (!e.repeat) {
+                    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                    togglePause();
+                }
             }
-            if (e.key === 'm' || e.key === 'M') {
+            if ((e.key === 'm' || e.key === 'M') && !isTypingTarget && !hasModifier) {
                 const on = SFX.toggle();
                 updateSoundBtn(on);
                 if (on) SFX.click();
             }
-            if (e.key === 'n' || e.key === 'N') {
+            // D：提前召唤下一波，与“下一波”按钮执行完全相同的逻辑。
+            if ((e.code === 'KeyD' || e.key === 'd' || e.key === 'D') && !e.repeat && !isTypingTarget && !hasModifier && screen === 'game') {
+                e.preventDefault();
                 callNextWave();
             }
             // F：在正常速度与 3 倍速之间切换；输入文本时不抢占用户按键。
-            const target = e.target;
-            const isTypingTarget = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || ''));
-            if ((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && !isTypingTarget && screen === 'game') {
+            if ((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.repeat && !hasModifier && !isTypingTarget && screen === 'game') {
                 e.preventDefault();
                 toggleGameSpeed();
             }
