@@ -2082,26 +2082,33 @@ const SKILL_DEFS = [
       : `每 ${(3.2 - l * 0.3).toFixed(1)} 秒掷出战锤，往返各造成攻击力×${(0.9 + l * 0.5).toFixed(1)}` },
 ];
 
+/* 六种相近的远程/范围攻击改为大型召唤物 */
+const SUMMON_REWORK = {
+  // hpPct 是单只召唤物占玩家最大生命值的比例；伤害倍率以玩家攻击力为基准。
+  fireball:   {name:'熔岩巨兽',ico:'🦖',count:2,hpPct:.22,type:'fire',color:'#ff7848',shape:'beast',r:22,range:52,interval:1.25,ratio:1.35,attackStyle:'pounce'},
+  frostnova:  {name:'寒霜巨熊',ico:'🐻‍❄️',count:1,hpPct:.58,type:'ice',color:'#8ee8ff',shape:'bear',r:25,range:58,interval:1.55,ratio:1.75,slow:1.0,attackStyle:'slam'},
+  chain:      {name:'雷霆猎鹰',ico:'🦅',count:3,hpPct:.12,type:'lightning',color:'#ffe36e',shape:'eagle',r:18,range:46,interval:1.00,ratio:.92,attackStyle:'chain'},
+  meteor:     {name:'陨星魔像',ico:'🪨',count:1,hpPct:.72,type:'physical',color:'#ff9b62',shape:'meteor',r:29,range:62,interval:1.75,ratio:2.35,attackStyle:'meteor'},
+  thunder:    {name:'风暴元素',ico:'🌪️',count:2,hpPct:.24,type:'lightning',color:'#a8c7ff',shape:'elemental',r:23,range:54,interval:1.25,ratio:1.22,attackStyle:'storm'},
+  hammer:     {name:'战争巨灵',ico:'🗿',count:1,hpPct:.78,type:'physical',color:'#c4a6ff',shape:'giant',r:30,range:66,interval:1.9,ratio:2.55,attackStyle:'cleave'}
+};
+for (const [id,c] of Object.entries(SUMMON_REWORK)) {
+  const def = SKILL_DEFS.find(x=>x.id===id);
+  if (def) {
+    def.name = c.name; def.ico = c.ico;
+    def.desc = l => `召唤 ${c.count} 只${c.name}；永久无敌，主动追击并近战攻击；降低攻击伤害与攻速`; 
+  }
+}
+
 /* ---------- 新增技能 13 - 50 ---------- */
 const EXTRA_SKILLS = [
-  { id:'icebolt', name:'冰锥术', ico:'🧊', max:6,
-    desc: l => l >= 6
-      ? '每 0.5 秒射出 6 发巨型冰锥，穿透 3 次并冻结敌人（终极）'
-      : `每 ${(2.2 - l * 0.24).toFixed(2)} 秒射出 ${1 + Math.floor(l / 2)} 发冰锥：攻击力×${(0.8 + l * 0.32).toFixed(1)}`,
-    cd: l => Math.max(0.5, 2.2 - l * 0.24),
-    cast: (l, atk, H) => {
-      const t = H.nearest(720); if (!t) return false;
-      const a0 = Math.atan2(t.y - P.y, t.x - P.x);
-      const n = l >= 6 ? 6 : 1 + Math.floor(l / 2);
-      const dmg = atk * (0.8 + l * 0.32) * (l >= 6 ? 1.8 : 1);
-      for (let i = 0; i < n; i++){
-        const a = a0 + (i - (n - 1) / 2) * 0.16;
-        H.bullet({ x:P.x, y:P.y, vx:Math.cos(a)*720, vy:Math.sin(a)*720,
-          r:6 + l*0.5, life:1.1, type:'ice', dmg,
-          pierce: l >= 6 ? 3 : 1, hit:new Set(), slow:true });
-      }
-    } },
-
+  { id:'icebolt', name:'霜牙狼群', ico:'🐺', max:6,
+    desc: l => `召唤 3 只霜牙狼；快速围攻并使敌人减速，生命与攻击随技能等级成长。全灭后立即重新召唤`,
+    cd: l => Math.max(20, 31 - l * 1.7),
+    cast: (l, atk, H) => H.summon({ skillId:'icebolt', lvl:l, name:'霜牙狼', count:3,
+      hpPct:0.14, type:'ice', color:'#80ddff', shape:'wolf', r:11,
+      speed:P.stats.speed, attackRange:31, attackInterval:1.02, slow:0.65,
+      damageRatio:0.78, attackStyle:'bite', level:l }) },
   { id:'poisondart', name:'毒镖', ico:'🐍', max:6,
     desc: l => l >= 6
       ? '每 0.7 秒射出毒镖，命中处留下大范围剧毒池（终极）'
@@ -2124,57 +2131,24 @@ const EXTRA_SKILLS = [
       });
     } },
 
-  { id:'bonespear', name:'骨矛', ico:'🦴', max:6,
-    desc: l => l >= 6
-      ? '每 0.9 秒射出巨型骨矛，无限穿透（终极）'
-      : `每 ${(2.4 - l * 0.26).toFixed(2)} 秒射出骨矛，穿透 ${2 + l} 个敌人：攻击力×${(1.0 + l * 0.4).toFixed(1)}`,
-    cd: l => Math.max(0.9, 2.4 - l * 0.26),
-    cast: (l, atk, H) => {
-      const t = H.nearest(760); if (!t) return false;
-      const a = Math.atan2(t.y - P.y, t.x - P.x);
-      const ult = l >= 6;
-      H.bullet({ x:P.x, y:P.y, vx:Math.cos(a)*820, vy:Math.sin(a)*820,
-        r:7 + l*0.8, life:1.3, type:'physical',
-        dmg: atk * (1.0 + l * 0.4) * (ult ? 1.8 : 1),
-        pierce: ult ? 99 : 2 + l, hit:new Set() });
-    } },
-
-  { id:'holybolt', name:'圣光弹', ico:'✨', max:6,
-    desc: l => l >= 6
-      ? '每 0.55 秒射出 5 发圣光弹（终极）'
-      : `每 ${(2.1 - l * 0.23).toFixed(2)} 秒射出 ${1 + Math.floor(l / 2)} 发圣光弹：攻击力×${(0.9 + l * 0.34).toFixed(1)}`,
-    cd: l => Math.max(0.55, 2.1 - l * 0.23),
-    cast: (l, atk, H) => {
-      const t = H.nearest(720); if (!t) return false;
-      const a0 = Math.atan2(t.y - P.y, t.x - P.x);
-      const n = l >= 6 ? 5 : 1 + Math.floor(l / 2);
-      const dmg = atk * (0.9 + l * 0.34);
-      for (let i = 0; i < n; i++){
-        const a = a0 + (i - (n - 1) / 2) * 0.13;
-        H.bullet({ x:P.x, y:P.y, vx:Math.cos(a)*700, vy:Math.sin(a)*700,
-          r:6, life:1.0, type:'holy', dmg, hit:new Set() });
-      }
-    } },
-
-  { id:'shadowarrow', name:'暗影箭', ico:'🌑', max:6,
-    desc: l => l >= 6
-      ? '每 0.75 秒射出 3 支巨型暗影箭，穿透 2 次（终极）'
-      : `每 ${(2.3 - l * 0.25).toFixed(2)} 秒射出暗影箭：攻击力×${(1.2 + l * 0.5).toFixed(1)}，穿透 1 次`,
-    cd: l => Math.max(0.75, 2.3 - l * 0.25),
-    cast: (l, atk, H) => {
-      const t = H.nearest(740); if (!t) return false;
-      const a0 = Math.atan2(t.y - P.y, t.x - P.x);
-      const ult = l >= 6;
-      const n = ult ? 3 : 1;
-      const dmg = atk * (1.2 + l * 0.5);
-      for (let i = 0; i < n; i++){
-        const a = a0 + (i - (n - 1) / 2) * 0.2;
-        H.bullet({ x:P.x, y:P.y, vx:Math.cos(a)*780, vy:Math.sin(a)*780,
-          r:6 + l*0.4, life:1.2, type:'shadow', dmg,
-          pierce: 1, hit:new Set() });
-      }
-    } },
-
+  { id:'bonespear', name:'骸骨兵团', ico:'🦴', max:6,
+    desc: l => `召唤 5 名骸骨战士；单体较脆弱，以数量优势持续围攻；永久无敌，攻击伤害与攻速适度降低`,
+    cd: l => Math.max(18, 28 - l * 1.5),
+    cast: (l, atk, H) => H.summon({ skillId:'bonespear', lvl:l, name:'骸骨战士', count:5,
+      hpPct:0.08, type:'physical', color:'#d8d0ba', shape:'bone', r:8.5,
+      speed:P.stats.speed, attackRange:28, attackInterval:0.96, damageRatio:0.48, attackStyle:'swarm', level:l }) },
+  { id:'holybolt', name:'圣光守卫', ico:'🛡️', max:6,
+    desc: l => `召唤 2 名圣光守卫；生命较厚，稳定保护并反击靠近的敌人；永久无敌，攻击伤害与攻速适度降低`,
+    cd: l => Math.max(22, 34 - l * 1.8),
+    cast: (l, atk, H) => H.summon({ skillId:'holybolt', lvl:l, name:'圣光守卫', count:2,
+      hpPct:0.25, type:'holy', color:'#ffe6a3', shape:'guardian', r:12,
+      speed:P.stats.speed, attackRange:38, attackInterval:1.18, damageRatio:1.18, attackStyle:'holy', level:l }) },
+  { id:'shadowarrow', name:'暗影巨像', ico:'🌑', max:6,
+    desc: l => `召唤 1 尊暗影巨像；永久无敌，单次伤害较高但攻击频率较低`,
+    cd: l => Math.max(24, 38 - l * 2),
+    cast: (l, atk, H) => H.summon({ skillId:'shadowarrow', lvl:l, name:'暗影巨像', count:1,
+      hpPct:0.65, type:'shadow', color:'#b47cff', shape:'colossus', r:17,
+      speed:P.stats.speed, attackRange:52, attackInterval:1.55, damageRatio:2.05, attackStyle:'shadow', level:l }) },
   { id:'arcaneorb', name:'奥术球', ico:'🔮', max:6,
     desc: l => l >= 6
       ? `每 1.0 秒投掷巨型奥术球，爆炸半径 ×1.8（终极）`
@@ -2676,22 +2650,22 @@ const EXTRA_SKILLS = [
       G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.6, maxLife:0.6, color:'#7fd8ff' });
     } },
 
-  { id:'phantomstrike', name:'幻影突袭', ico:'👤', max:6,
+  { id:'phantomstrike', name:'暗影突袭', ico:'🌑', max:6,
     desc: l => l >= 6
-      ? '每 1.3 秒瞬移至目标并引爆幻影，攻击力×5.6（终极）'
-      : `每 ${(3.0 - l * 0.28).toFixed(1)} 秒瞬移至最近敌人：攻击力×${(1.5 + l * 0.6).toFixed(1)} 范围伤害`,
+      ? '每 1.3 秒锁定最近敌人，在其位置引爆暗影，攻击力×5.6（终极）'
+      : `每 ${(3.0 - l * 0.28).toFixed(1)} 秒远程锁定最近敌人并引爆暗影：攻击力×${(1.5 + l * 0.6).toFixed(1)} 范围伤害`,
     cd: l => Math.max(1.3, 3.0 - l * 0.28),
     cast: (l, atk, H) => {
       const t = H.nearest(700); if (!t) return false;
-      const a = Math.atan2(P.y - t.y, P.x - t.x);
-      P.x = t.x + Math.cos(a) * 40;
-      P.y = t.y + Math.sin(a) * 40;
-      const r = 90 + l * 10;
-      const dmg = atk * (1.5 + l * 0.6);
+      // 只在目标位置造成暗影爆发，不改变玩家坐标
+      const tx = t.x, ty = t.y;
+      const ult = l >= 6;
+      const r = (90 + l * 10) * (ult ? 1.35 : 1);
+      const dmg = atk * (ult ? 5.6 : 1.5 + l * 0.6);
       for (const e of G.enemies){
-        if (d2(e.x, e.y, P.x, P.y) < (r + e.r) * (r + e.r)) skillHit(e, dmg, 'shadow');
+        if (d2(e.x, e.y, tx, ty) < (r + e.r) * (r + e.r)) skillHit(e, dmg, 'shadow', 'phantomstrike');
       }
-      G.effects.push({ kind:'ring', x:P.x, y:P.y, r, life:0.4, maxLife:0.4, color:'#b47cff' });
+      G.effects.push({ kind:'ring', x:tx, y:ty, r, life:0.4, maxLife:0.4, color:'#b47cff' });
     } },
 
   { id:'deathray', name:'死亡射线', ico:'☠️', max:6,
@@ -2764,7 +2738,37 @@ const SKILL_HELPERS = {
   hit: (e, dmg, type) => skillHit(e, dmg, type, G.curCastSkill),
   bullet: (o) => { if (!o.skillId) o.skillId = G.curCastSkill; G.bullets.push(o); },
   effect: (o) => { if (!o.skillId) o.skillId = G.curCastSkill; G.effects.push(o); },
+  summon: (o) => spawnSummonGroup(o),
 };
+
+/* 召唤物生命按玩家最大生命值的一定比例生成；同一技能组必须全灭后才能重召 */
+function spawnSummonGroup(cfg){
+  if (!P || !cfg || !cfg.skillId) return false;
+  const oldGroup = G.summonGroups[cfg.skillId];
+  if (oldGroup && oldGroup.active) return false;
+
+  const count = Math.max(1, cfg.count | 0);
+  const groupId = ++G.summonSerial;
+  G.summonGroups[cfg.skillId] = { active:true, groupId, count };
+  for (let i = 0; i < count; i++){
+    const a = (Math.PI * 2 * i / count) + (count > 1 ? 0.13 : 0);
+    const summonHpPct = cfg.hpPct;
+    const hp = Math.max(1, P.stats.maxHp * summonHpPct);
+    G.summons.push({
+      id: uid++, groupId, skillId:cfg.skillId, name:cfg.name,
+      x:P.x + Math.cos(a) * (34 + (i % 2) * 8),
+      y:P.y + Math.sin(a) * (34 + (i % 2) * 8),
+      hp:1, maxHp:1, hpPct:summonHpPct, invulnerable:true, r:cfg.r * (cfg.sizeMul || 1.28),
+      speed:P.stats.speed, attackRange:cfg.attackRange,
+      attackInterval:cfg.attackInterval * 1.28, attackCd:rand(0.05, cfg.attackInterval * 1.28),
+      type:cfg.type, color:cfg.color, shape:cfg.shape, attackStyle:cfg.attackStyle || 'bite',
+      slow:cfg.slow || 0, damageRatio:cfg.damageRatio * 0.72, level:cfg.level || 1,
+      slot:i, groupCount:count, hitFlash:0,
+    });
+  }
+  addFloat(P.x, P.y - 58, `${cfg.name} ×${count}`, cfg.color);
+  return true;
+}
 
 const MAX_SKILLS = 5;
 
@@ -2933,7 +2937,8 @@ const G = {
   timeLeft: 300,
   time: 0,
   levelTime: 0,
-  enemies: [], bullets: [], eBullets: [], orbs: [], drops: [],
+  enemies: [], bullets: [], eBullets: [], orbs: [], drops: [], summons: [],
+  summonGroups: {}, summonSerial: 0,
   particles: [], floats: [], effects: [],
   cam: { x: 0, y: 0 },
   kills: 0,
@@ -2982,6 +2987,14 @@ addEventListener('keydown', e => {
   if (k === 'e') speedUp();
   if (k === 't') cycleSpeed();
     if (k === 'r') toggleAI();
+  if (k === 'f' && !e.repeat) {
+    const target = e.target;
+    const typing = target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+    if (!typing) {
+      e.preventDefault();
+      toggleAutoPickEnhance();
+    }
+  }
 });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -3527,6 +3540,8 @@ function resetWorld(){
   G.enemies.length = 0;
   G.bullets.length = 0;
   G.eBullets.length = 0;
+  G.summons.length = 0;
+  G.summonGroups = {};
   G.orbs.length = 0;
   G.drops.length = 0;
   G.particles.length = 0;
@@ -4256,9 +4271,22 @@ function updateSkills(dt){
   const CD = v => v * P.stats.cdMul;
   for (const k in P.cd) if (P.cd[k] > 0) P.cd[k] -= dt;
 
+  for (const [id,c] of Object.entries(SUMMON_REWORK)) {
+    const lv = L(id);
+    if (!lv || (G.summonGroups[id] && G.summonGroups[id].active) || P.cd[id] > 0) continue;
+    const hasTarget = nearestEnemy(P.x, P.y, 760);
+    if (!hasTarget) continue;
+    spawnSummonGroup({skillId:id,lvl:lv,level:lv,name:c.name,count:c.count,hpPct:c.hpPct,
+      type:c.type,color:c.color,shape:c.shape,r:c.r,speed:P.stats.speed,
+      attackRange:c.range,attackInterval:c.interval,damageRatio:c.ratio,attackStyle:c.attackStyle,
+      slow:c.slow||0,sizeMul:1.38});
+    P.cd[id] = 0;
+    SFX.play.skill();
+  }
+
   /* 火球术 */
   let l = L('fireball');
-  if (l > 0 && P.cd.fireball <= 0){
+  if (false && l > 0 && P.cd.fireball <= 0){ /* 已改为召唤物 */
     const t = nearestEnemy(P.x, P.y, 720);
     if (t){
       const atk = ATK('fireball');
@@ -4277,7 +4305,7 @@ function updateSkills(dt){
 
   /* 冰霜新星 */
   l = L('frostnova');
-  if (l > 0 && P.cd.frostnova <= 0){
+  if (false && l > 0 && P.cd.frostnova <= 0){ /* 已改为召唤物 */
     const ult = l >= 6;
     const hasTarget = nearestEnemy(P.x, P.y, 260);
     if (hasTarget){
@@ -4308,7 +4336,7 @@ function updateSkills(dt){
 
   /* 闪电链 */
   l = L('chain');
-  if (l > 0 && P.cd.chain <= 0){
+  if (false && l > 0 && P.cd.chain <= 0){ /* 已改为召唤物 */
     const first = nearestEnemy(P.x, P.y, 520);
     if (first){
       const atk = ATK('chain');
@@ -4357,7 +4385,7 @@ function updateSkills(dt){
 
   /* 陨石坠落 */
   l = L('meteor');
-  if (l > 0 && P.cd.meteor <= 0){
+  if (false && l > 0 && P.cd.meteor <= 0){ /* 已改为召唤物 */
     const t = nearestEnemy(P.x, P.y, 650);
     if (t){
       const atk = ATK('meteor');
@@ -4509,7 +4537,7 @@ function updateSkills(dt){
 
   /* 雷霆天降 */
   l = L('thunder');
-  if (l > 0 && P.cd.thunder <= 0){
+  if (false && l > 0 && P.cd.thunder <= 0){ /* 已改为召唤物 */
     const cands = G.enemies.filter(e => d2(e.x, e.y, P.x, P.y) < 560 * 560);
     if (cands.length){
       const atk = ATK('thunder');
@@ -4540,7 +4568,7 @@ function updateSkills(dt){
 
   /* 回旋战锤 */
   l = L('hammer');
-  if (l > 0 && P.cd.hammer <= 0){
+  if (false && l > 0 && P.cd.hammer <= 0){ /* 已改为召唤物 */
     const t = nearestEnemy(P.x, P.y, 620);
     if (t){
       const atk = ATK('hammer');
@@ -4566,10 +4594,119 @@ function updateSkills(dt){
     if (!s.cast) continue;
     const lv = L(s.id);
     if (lv <= 0 || P.cd[s.id] > 0) continue;
+    if (G.summonGroups[s.id] && G.summonGroups[s.id].active) continue;
     G.curCastSkill = s.id;
     const ok = s.cast(lv, ATK(s.id), SKILL_HELPERS);
     G.curCastSkill = null;
-    if (ok !== false){ P.cd[s.id] = CD(s.cd(lv)); SFX.play.skill(); }
+    if (ok !== false){ P.cd[s.id] = (G.summonGroups[s.id] && G.summonGroups[s.id].active) ? 0 : CD(s.cd(lv)); SFX.play.skill(); }
+  }
+}
+
+/* 召唤物主动索敌、贴近攻击；它们不会规避弹幕，也不会使用玩家的移动输入 */
+function updateSummons(dt){
+  if (!P) return;
+  const sb = P.stats.skillBonus || {};
+
+  for (let i = G.summons.length - 1; i >= 0; i--){
+    const s = G.summons[i];
+    s.speed = P.stats.speed;
+    // 召唤物为永久存在的无敌单位：不再计算生命值、受伤或死亡。
+    s.invulnerable = true;
+    s.hp = s.maxHp = 1; // 保留兼容字段，避免其他界面/逻辑访问空值
+    s.hitFlash = Math.max(0, s.hitFlash - dt * 4);
+    s.attackCd = Math.max(0, s.attackCd - dt);
+
+    let target = null, best = 760 * 760;
+    for (const e of G.enemies){
+      if (e.hp <= 0) continue;
+      const dd = d2(s.x, s.y, e.x, e.y);
+      if (dd < best){ best = dd; target = e; }
+    }
+
+    if (target){
+      const dx = target.x - s.x, dy = target.y - s.y;
+      const dd = Math.sqrt(best) || 1;
+      const reach = s.attackRange + target.r;
+      if (dd > reach){
+        const step = Math.min(s.speed * dt, dd - reach * 0.72);
+        s.x += dx / dd * step;
+        s.y += dy / dd * step;
+      } else if (s.attackCd <= 0){
+        const skillBonus = 1 + (sb.all || 0) + (sb[s.skillId] || 0);
+        const levelScale = 1 + Math.max(0, (s.level || 1) - 1) * 0.12;
+        const dmg = P.stats.atk * (P.stats.skillDmgMul || 1) * s.damageRatio * levelScale * skillBonus;
+        const style = s.attackStyle || 'bite';
+        const hitOne = (enemy, amount, slow = true) => {
+          if (!enemy || enemy.hp <= 0) return;
+          skillHit(enemy, amount, s.type, s.skillId);
+          if (slow && s.slow > 0) enemy.slowT = Math.max(enemy.slowT || 0, s.slow);
+          G.effects.push({ kind:'bolt', x1:s.x, y1:s.y, x2:enemy.x, y2:enemy.y,
+            life:0.14, maxLife:0.14, color:s.color });
+        };
+        const nearby = (radius, exclude = target) => G.enemies
+          .filter(e => e !== exclude && e.hp > 0 && d2(e.x,e.y,target.x,target.y) <= (radius + e.r) * (radius + e.r))
+          .sort((a,b) => d2(a.x,a.y,target.x,target.y) - d2(b.x,b.y,target.x,target.y));
+
+        // 各类召唤物拥有独立攻击动作；群体攻击会分摊单体伤害，避免总输出失控。
+        if (style === 'slam') {                    // 寒霜巨熊：大范围冰霜震地
+          hitOne(target, dmg * 0.82);
+          for (const e of nearby(88).slice(0,4)) hitOne(e, dmg * 0.42);
+          G.effects.push({kind:'ring',x:target.x,y:target.y,r:88,life:0.38,maxLife:0.38,color:s.color});
+        } else if (style === 'chain' || style === 'storm') { // 猎鹰/元素：闪电连锁
+          hitOne(target, dmg * (style === 'chain' ? 0.88 : 0.78));
+          const limit = style === 'chain' ? 2 : 4;
+          const factor = style === 'chain' ? 0.58 : 0.48;
+          for (const e of nearby(190).slice(0,limit)) hitOne(e, dmg * factor, false);
+        } else if (style === 'meteor') {           // 陨星魔像：重型陨击
+          hitOne(target, dmg * 0.92);
+          for (const e of nearby(112).slice(0,5)) hitOne(e, dmg * 0.52);
+          G.effects.push({kind:'ring',x:target.x,y:target.y,r:112,life:0.48,maxLife:0.48,color:s.color});
+        } else if (style === 'cleave' || style === 'shadow') { // 巨灵/暗影巨像：扇形重击近似为近身横扫
+          hitOne(target, dmg * 0.92);
+          for (const e of nearby(style === 'cleave' ? 96 : 72).slice(0,3)) hitOne(e, dmg * 0.58, false);
+          G.effects.push({kind:'ring',x:target.x,y:target.y,r:style === 'cleave' ? 96 : 72,life:0.32,maxLife:0.32,color:s.color});
+        } else if (style === 'holy') {             // 圣光守卫：圣光脉冲
+          hitOne(target, dmg * 0.82);
+          for (const e of nearby(76).slice(0,3)) hitOne(e, dmg * 0.46, false);
+          G.effects.push({kind:'ring',x:s.x,y:s.y,r:76,life:0.34,maxLife:0.34,color:s.color});
+        } else if (style === 'swarm') {            // 骸骨战士：快速连续刺击
+          hitOne(target, dmg * 0.78);
+          if (Math.random() < 0.28) hitOne(target, dmg * 0.34, false);
+        } else if (style === 'pounce') {           // 熔岩巨兽：扑击并溅射
+          hitOne(target, dmg * 0.90);
+          for (const e of nearby(58).slice(0,2)) hitOne(e, dmg * 0.38, false);
+        } else {                                  // 霜牙狼：快速撕咬
+          hitOne(target, dmg);
+        }
+        s.attackCd = s.attackInterval;
+      }
+    } else {
+      /* 无目标时回到玩家附近，避免召唤物脱队 */
+      const a = (Math.PI * 2 * s.slot / Math.max(1, s.groupCount)) + G.time * 0.12;
+      const tx = P.x + Math.cos(a) * 48;
+      const ty = P.y + Math.sin(a) * 48;
+      const dx = tx - s.x, dy = ty - s.y;
+      const dd = Math.hypot(dx, dy);
+      if (dd > 26){
+        const step = Math.min(s.speed * dt, dd);
+        s.x += dx / dd * step;
+        s.y += dy / dd * step;
+      }
+    }
+  }
+
+  /* 只有某一技能组最后一名成员死亡时，才启动该组完整重召冷却 */
+  for (const sid of Object.keys(G.summonGroups)){
+    const group = G.summonGroups[sid];
+    if (!group || !group.active) continue;
+    let alive = false;
+    for (const s of G.summons){ if (s.skillId === sid){ alive = true; break; } }
+    if (!alive){
+      group.active = false;
+      const def = SKILL_DEFS.find(x => x.id === sid);
+      P.cd[sid] = 0;
+      addFloat(P.x, P.y - 72, `${def ? def.name : '召唤物'}全灭 · 立即重召`, '#c6a4ff');
+    }
   }
 }
 
@@ -4682,8 +4819,18 @@ function updateAutoEnhBtn(){
   b.textContent = autoPickEnhance ? '⚡自动：开' : '⚡自动：关';
   b.classList.toggle('on', autoPickEnhance);
   b.title = autoPickEnhance
-    ? '已开启：升级时自动选取评分最高的一项（技能 / 属性均生效），点击关闭'
-    : '点击开启：升级时自动选取评分最高的一项';
+    ? '已开启：升级时自动选取评分最高的一项（技能 / 属性均生效）；按 F 或点击关闭'
+    : '点击开启或按 F：升级时自动选取评分最高的一项';
+}
+
+function toggleAutoPickEnhance(){
+  autoPickEnhance = !autoPickEnhance;
+  try { localStorage.setItem(AUTO_ENH_KEY, autoPickEnhance ? '1' : '0'); } catch(e){}
+  updateAutoEnhBtn();
+  if (autoPickEnhance && G.state === 'levelup' && !G.aiMode) scheduleAutoPick();
+  if (P && (G.state === 'playing' || G.state === 'levelup')) {
+    addFloat(P.x, P.y - 58, autoPickEnhance ? '⚡自动选择已开启' : '⚡自动选择已关闭', autoPickEnhance ? '#57d9a3' : '#ff8a9a');
+  }
 }
 
 
@@ -5011,6 +5158,18 @@ function update(dt){
       e.y += (dy / dd) * e.spd * spdMul * dt;
     }
 
+    e.summonTouchCd = Math.max(0, (e.summonTouchCd || 0) - dt);
+    if (e.summonTouchCd <= 0){
+      for (const s of G.summons){
+        const sr = e.r + s.r;
+        if (d2(e.x, e.y, s.x, s.y) < sr * sr){
+          // 无敌召唤物不受接触伤害。
+          e.summonTouchCd = e.isBoss ? 0.55 : 0.8;
+          break;
+        }
+      }
+    }
+
     if (dd < e.r + P.r && e.touchCd <= 0){
       e.touchCd = 0.75;
       hurtPlayer(e.dmg, e.type);
@@ -5026,6 +5185,8 @@ function update(dt){
       killEnemy(e, i);
     }
   }
+
+  updateSummons(dt);
 
   /* 玩家子弹 */
   for (let i = G.bullets.length - 1; i >= 0; i--){
@@ -5132,6 +5293,17 @@ function update(dt){
     b.y += b.vy * dt;
     b.life -= dt;
     if (b.life <= 0){ G.eBullets.splice(i, 1); continue; }
+    let intercepted = false;
+    for (const s of G.summons){
+      const sr = s.r + b.r;
+      if (d2(b.x, b.y, s.x, s.y) < sr * sr){
+        // 召唤物可以拦截敌方弹幕，但不会受到伤害。
+        G.eBullets.splice(i, 1);
+        intercepted = true;
+        break;
+      }
+    }
+    if (intercepted) continue;
     const rr = P.r + b.r;
     if (d2(b.x, b.y, P.x, P.y) < rr * rr){
       hurtPlayer(b.dmg, b.type);
@@ -5888,6 +6060,94 @@ function render(){
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  for (const s of G.summons){
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.shadowBlur = s.hitFlash > 0 ? 18 : 11;
+    ctx.shadowColor = s.color;
+    ctx.fillStyle = s.hitFlash > 0 ? '#ffffff' : s.color;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    if (s.shape === 'wolf'){
+      ctx.beginPath();
+      ctx.moveTo(-s.r * 1.15, -s.r * 0.25);
+      ctx.lineTo(-s.r * 0.55, -s.r * 1.05);
+      ctx.lineTo(-s.r * 0.12, -s.r * 0.48);
+      ctx.lineTo(s.r * 0.5, -s.r * 0.9);
+      ctx.lineTo(s.r * 1.18, 0);
+      ctx.lineTo(s.r * 0.45, s.r * 0.82);
+      ctx.lineTo(-s.r * 0.62, s.r * 0.72);
+      ctx.closePath();
+      ctx.fill();
+    } else if (s.shape === 'guardian'){
+      ctx.beginPath();
+      ctx.moveTo(0, -s.r * 1.25); ctx.lineTo(s.r * 0.82, -s.r * 0.25);
+      ctx.lineTo(s.r * 0.58, s.r * 0.9); ctx.lineTo(0, s.r * 1.18);
+      ctx.lineTo(-s.r * 0.58, s.r * 0.9); ctx.lineTo(-s.r * 0.82, -s.r * 0.25);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(0, 0, s.r * 0.38, 0, Math.PI * 2); ctx.stroke();
+    } else if (s.shape === 'colossus'){
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++){
+        const a = -Math.PI / 2 + k * Math.PI / 4;
+        const rr = k % 2 === 0 ? s.r * 1.18 : s.r * 0.82;
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1a1028'; ctx.beginPath(); ctx.arc(0, 0, s.r * 0.32, 0, Math.PI * 2); ctx.fill();
+    } else if (s.shape === 'bear' || s.shape === 'beast'){
+      // 大型兽类：躯干、头部与四肢，轮廓明显大于普通召唤物
+      ctx.beginPath(); ctx.ellipse(0, s.r * 0.12, s.r * 1.02, s.r * 0.76, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s.r * 0.72, -s.r * 0.48, s.r * 0.48, 0, Math.PI * 2); ctx.fill();
+      for (const x of [-0.62, 0.48]){
+        ctx.beginPath(); ctx.arc(x * s.r, s.r * 0.68, s.r * 0.25, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#241b18'; ctx.beginPath(); ctx.arc(s.r * 0.9, -s.r * 0.58, s.r * 0.09, 0, Math.PI * 2); ctx.fill();
+    } else if (s.shape === 'eagle'){
+      // 雷霆猎鹰：展开双翼
+      ctx.beginPath(); ctx.moveTo(0, -s.r * 0.9);
+      ctx.lineTo(s.r * 1.65, -s.r * 0.18); ctx.lineTo(s.r * 0.62, s.r * 0.08);
+      ctx.lineTo(0, s.r * 0.92); ctx.lineTo(-s.r * 0.62, s.r * 0.08);
+      ctx.lineTo(-s.r * 1.65, -s.r * 0.18); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s.r * 0.12, -s.r * 0.38); ctx.lineTo(s.r * 0.78, -s.r * 0.52);
+      ctx.lineTo(s.r * 0.42, -s.r * 0.08); ctx.closePath(); ctx.fill();
+    } else if (s.shape === 'meteor'){
+      // 陨星魔像：不规则巨石外壳与熔岩核心
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++){
+        const a = -Math.PI / 2 + k * Math.PI * 2 / 10;
+        const rr = s.r * (k % 2 ? 0.78 : 1.18);
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        if (!k) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffcf83'; ctx.beginPath(); ctx.arc(0, 0, s.r * 0.38, 0, Math.PI * 2); ctx.fill();
+    } else if (s.shape === 'elemental'){
+      // 风暴元素：多层旋转风暴环
+      ctx.beginPath(); ctx.arc(0, 0, s.r * 0.92, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.9; ctx.lineWidth = Math.max(3, s.r * 0.18);
+      ctx.beginPath(); ctx.arc(0, 0, s.r * 1.28, -0.8, 2.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, s.r * 0.62, 2.2, 5.4); ctx.stroke();
+      ctx.fillStyle = '#18243b'; ctx.beginPath(); ctx.arc(0, 0, s.r * 0.22, 0, Math.PI * 2); ctx.fill();
+    } else if (s.shape === 'giant'){
+      // 战争巨灵：宽肩重甲轮廓
+      ctx.beginPath(); ctx.moveTo(-s.r * 0.72, -s.r * 0.88);
+      ctx.lineTo(s.r * 0.72, -s.r * 0.88); ctx.lineTo(s.r * 1.12, -s.r * 0.1);
+      ctx.lineTo(s.r * 0.78, s.r * 0.92); ctx.lineTo(-s.r * 0.78, s.r * 0.92);
+      ctx.lineTo(-s.r * 1.12, -s.r * 0.1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#211a35'; ctx.fillRect(-s.r * 0.42, -s.r * 0.42, s.r * 0.84, s.r * 0.3);
+      ctx.fillStyle = '#e6d8ff'; ctx.fillRect(-s.r * 0.22, -s.r * 0.32, s.r * 0.12, s.r * 0.08);
+      ctx.fillRect(s.r * 0.1, -s.r * 0.32, s.r * 0.12, s.r * 0.08);
+    } else {
+      ctx.save(); ctx.rotate(Math.PI / 4); ctx.fillRect(-s.r * 0.72, -s.r * 0.72, s.r * 1.44, s.r * 1.44); ctx.restore();
+      ctx.beginPath(); ctx.moveTo(-s.r * 1.3, 0); ctx.lineTo(s.r * 1.3, 0); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
   }
 
   for (const e of G.enemies){
@@ -7248,12 +7508,7 @@ if (topbar){
     /* ★ 自动选择按钮（音量旁边） */
   const autoBtn = document.createElement('div');
   autoBtn.id = 'autoPickBtn';
-  autoBtn.onclick = () => {
-    autoPickEnhance = !autoPickEnhance;
-    try { localStorage.setItem(AUTO_ENH_KEY, autoPickEnhance ? '1' : '0'); } catch(e){}
-    updateAutoEnhBtn();
-    if (autoPickEnhance && G.state === 'levelup' && !G.aiMode) scheduleAutoPick();
-  };
+  autoBtn.onclick = () => toggleAutoPickEnhance();
   if (sfxBtn.parentNode){
     sfxBtn.parentNode.insertBefore(autoBtn, sfxBtn.nextSibling);
   } else {
