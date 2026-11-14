@@ -260,7 +260,7 @@ canvas { touch-action: none; }
         </div>
     </div>
     <div class="info-bar hidden" id="infoBar">
-        <div class="hint">左键空地/炮台墙建造 · 右键塔打开菜单 · 点击塔升级 · 空格下一波 · 滚轮缩放地图 · 鼠标移出画面边缘平移视野</div>
+        <div class="hint">左键空地/炮台墙建造 · 右键塔打开菜单 · 点击塔升级 · D 下一波 · 空格暂停 · 滚轮缩放地图 · 鼠标移出画面边缘平移视野</div>
         <div class="msg" id="msgDisplay">保护基地核心！</div>
     </div>
 </div>
@@ -6467,6 +6467,9 @@ for (const type of bestTypes) {
         }
         function aiToggleAuto(enabled) {
             aiAutoMode = !!enabled;
+            // 开启智能托管时自动切换到 3 倍速；关闭时恢复 1 倍速。
+            // F 键和速度按钮仍可在托管期间手动调整速度。
+            setGameSpeed(aiAutoMode ? 3 : 1);
             if (aiAutoMode && battleStats) battleStats.aiAssisted = true;
             aiAutoTimer = 0;
             const hint = document.getElementById('aiAutoHint');
