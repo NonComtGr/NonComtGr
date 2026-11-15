@@ -539,13 +539,11 @@ canvas { touch-action: none; }
             const key = levelIdx + ':' + modeKey;
             const old = modeMedalRecords[key];
             const rank = { copper: 1, silver: 2, gold: 3 };
+            // 只按「奖牌等级 > 分数」整条更新：奖牌、分数、难度、塔数永远是同一局的成绩，
+            // 不做「只改难度标签」的部分更新，避免出现难度与塔数/分数不属于同一局。
             if (!old || rank[medal] > rank[old.medal] ||
                 (rank[medal] === rank[old.medal] && score > (old.score || 0))) {
                 modeMedalRecords[key] = { medal, score, difficulty, towersBuilt: Math.max(0, Number(towersBuilt) || 0), ts: Date.now() };
-                try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
-            } else if (old && difficulty > (old.difficulty || 0) && medal === old.medal) {
-                old.difficulty = difficulty;
-                if (old.towersBuilt == null) old.towersBuilt = Math.max(0, Number(towersBuilt) || 0);
                 try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
             }
         }
