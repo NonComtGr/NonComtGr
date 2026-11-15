@@ -477,6 +477,71 @@ canvas { touch-action: none; }
             rogue:     { name: 'Roguelike', desc: '随机词条开局 · 构筑极限组合', hpMul: 1.00, coreHp: 20, waveMode: 'normal', scoreMul: 4.0 }
         };
         const MODE_KEYS = ['story', 'storyPlus', 'oneHp', 'grind'];
+        // ---------- 模式奖牌记录 ----------
+        const MODE_MEDAL_STORAGE_KEY = 'defenseArrayModeMedals_v1';
+        function loadModeMedals() {
+            try { return JSON.parse(localStorage.getItem(MODE_MEDAL_STORAGE_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        let modeMedalRecords = loadModeMedals();
+        function getMapMedalCellCount(level) {
+            if (!level || !Array.isArray(level.map)) return 1;
+            let n = 0;
+            for (const row of level.map) {
+                for (const ch of String(row || '')) if (ch === 'o' || ch === '.') n++;
+            }
+            return Math.max(1, n);
+        }
+        function getModeMedalThresholds(level, modeKey, difficulty, rogueActive, waveCount) {
+            const cells = getMapMedalCellCount(level);
+            const mode = MODES[modeKey] || MODES.story;
+            // 分数本身会乘以模式、Roguelike、进阶难度和地图尺寸倍率，
+            // 奖牌门槛同步这些倍率，避免单纯靠倍率轻易拿到高等级奖牌。
+            const modeScoreMul = Math.max(1, Number(mode.scoreMul) || 1);
+            const rogueScoreMul = rogueActive ? (MODES.rogue.scoreMul || 1) : 1;
+            const ascensionScoreMul = 1 + Math.max(0, Number(difficulty) || 0) * 0.1;
+            const mapScoreMul = Math.max(0.5, (COLS * ROWS) / 100);
+
+            // 长波次模式会产生更多击杀与波次基础分，因此按波数增长，
+            // 但采用 0.55 次幂，避免 99 波模式的门槛机械地变成普通模式数倍。
+            const normalWaves = Math.max(20, storyWaveCount(levelIndex));
+            const actualWaves = Math.max(1, Number(waveCount) || normalWaves);
+            let modeChallengeMul = 1;
+            if (modeKey === 'storyPlus') modeChallengeMul = 1.08; // 随机置换增加布阵难度
+            else if (modeKey === 'oneHp') modeChallengeMul = 1.12; // 仅一枚核心，容错极低
+            else if (modeKey === 'grind') modeChallengeMul = 1.10 * Math.pow(actualWaves / normalWaves, 0.55);
+            else if (modeKey === 'rogue' || rogueActive) modeChallengeMul = 1.10; // 随机构筑与敌方词条带来额外波动
+
+            const scoreScale = modeScoreMul * rogueScoreMul * ascensionScoreMul * mapScoreMul * modeChallengeMul;
+            return {
+                // 金牌改为高标准：要求明显优于常规通关的综合表现；银牌也适度提高。
+                gold: Math.round(cells * 95 * scoreScale),
+                silver: Math.round(cells * 60 * scoreScale),
+                cells, scoreScale, modeChallengeMul
+            };
+        }
+        function getModeMedalRecord(levelIdx, modeKey) {
+            return modeMedalRecords[levelIdx + ':' + modeKey] || null;
+        }
+        function saveModeMedalResult(levelIdx, modeKey, medal, score, difficulty) {
+            if (!medal) return;
+            const key = levelIdx + ':' + modeKey;
+            const old = modeMedalRecords[key];
+            const rank = { copper: 1, silver: 2, gold: 3 };
+            if (!old || rank[medal] > rank[old.medal] ||
+                (rank[medal] === rank[old.medal] && score > (old.score || 0))) {
+                modeMedalRecords[key] = { medal, score, difficulty, ts: Date.now() };
+                try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
+            } else if (old && difficulty > (old.difficulty || 0) && medal === old.medal) {
+                old.difficulty = difficulty;
+                try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
+            }
+        }
+        function getMedalLabel(medal) {
+            return medal === 'gold' ? '🥇 金牌' : medal === 'silver' ? '🥈 银牌' :
+                   medal === 'copper' ? '🥉 铜牌' : '未获牌';
+        }
+
 
         // ---------- 进阶难度 ----------
         const ASCENSION_MODIFIERS = [
@@ -1244,7 +1309,8 @@ function rollSynergyCount() {
                     : '已有存档';
             }
         }
-        function initEndlessUnlock() { endlessUnlocked = false; MODE_KEYS_ACTIVE = MODE_KEYS.slice(); }
+        let endlessEntryMedalSnapshot = null;
+        function initEndlessUnlock() { endlessUnlocked = false; MODE_KEYS_ACTIVE = MODE_KEYS.slice(); endlessEntryMedalSnapshot = null; }
         function unlockEndless() {
             // 无尽模式不再加入模式选择列表，只能通过通关结算面板进入
             endlessUnlocked = true;
@@ -8377,6 +8443,16 @@ function drawRogueToggle() {
                 ctx.font = 'bold 18px "Microsoft YaHei"';
                 ctx.fillStyle = hov ? '#ffffff' : (isRogue ? '#d8b0ff' : '#c0dcff');
                 ctx.fillText(m.name, r.x + 22, r.y + 22);
+                const medalRec = getModeMedalRecord(pendingLevel, key);
+                const medalText = medalRec ? getMedalLabel(medalRec.medal) : '未获牌';
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 12px "Microsoft YaHei"';
+                ctx.fillStyle = medalRec ? (medalRec.medal === 'gold' ? '#ffd966' : medalRec.medal === 'silver' ? '#d8e3ef' : '#d99a65') : '#71839a';
+                ctx.fillText(medalText, r.x + r.w - 16, r.y + 20);
+                ctx.font = '11px "Microsoft YaHei"';
+                ctx.fillStyle = '#8fa9c5';
+                ctx.fillText('难度 ' + (medalRec ? medalRec.difficulty : selectedAscension), r.x + r.w - 16, r.y + 43);
+                ctx.textAlign = 'left';
                 ctx.font = '12px "Microsoft YaHei"';
                 ctx.fillStyle = hov ? '#9fc4e8' : '#7a9ac0';
                 const descX = r.x + 22;
@@ -9573,22 +9649,41 @@ if (up.id === 'synBoost' && rogueState) {
             const aiLearnUsed = !!(s.aiAssisted || aiAutoMode);
             const lv = currentLevel;
             const mode = MODES[currentModeKey] || MODES.story;
+            // 基础分：优先奖励推进波数、击杀效率、保全核心与合理的资金结余。
+            // 塔数不再直接作为除数，改为温和的防御效率系数：塔越少且完成同等战果，得分越高。
             let raw = 0;
-            raw += s.wavesCleared * 150;
-            raw += s.kills * 10;
-            raw += (st.green + st.yellow) * 100;
-            raw += Math.floor(money);
-            raw -= st.red * 150;
-            raw += (levelDifficulty(lv) + 1) * 150;
-            if (!win) raw = Math.floor(raw * 0.5);
+            raw += s.wavesCleared * 180;
+            raw += s.kills * 12;
+            raw += (st.green + st.yellow) * 180;
+            raw += Math.floor(money) * 0.35;
+            raw -= st.red * 300;
+            raw += (levelDifficulty(lv) + 1) * 180;
+            if (win) raw += Math.max(500, totalWaves * 100); // 完整通关奖励
+            else raw = Math.floor(raw * 0.5); // 失败分数折半
             const towerCount = Math.max(1, s.towersBuilt);
+            // 少塔仍有优势，但限制极少量建塔带来的过高倍率，避免单靠塔数冲金。
+            const towerEfficiencyMul = Math.max(0.75, Math.min(1.35, Math.sqrt(10 / towerCount)));
             const rogueMul = rogueState ? (MODES.rogue.scoreMul || 1) : 1;
             const ascensionMul = 1 + selectedAscension * 0.1;
-            // ★ 地图越大，得分越高：格子数 / 100
-            const mapScoreMul = (COLS * ROWS) / 100;
-            const score = Math.max(0, Math.round(raw * ((mode.scoreMul || 1) * rogueMul * ascensionMul * mapScoreMul / towerCount)));
+            // 与奖牌门槛使用完全一致的地图尺寸倍率。
+            const mapScoreMul = Math.max(0.5, (COLS * ROWS) / 100);
+            const score = Math.max(0, Math.round(raw * towerEfficiencyMul * (mode.scoreMul || 1) * rogueMul * ascensionMul * mapScoreMul));
+            const medalThresholds = getModeMedalThresholds(
+                lv, currentModeKey, selectedAscension, !!rogueState, totalWaves
+            );
+            // 任何核心永久丢失都直接判铜牌；未丢核心时按本模式校准后的分数门槛判定。
+            const calculatedMedal = st.red > 0 ? 'copper' :
+                (score >= medalThresholds.gold ? 'gold' :
+                (score >= medalThresholds.silver ? 'silver' : 'copper'));
+            // 无尽模式的奖牌以进入无尽前的超级研磨结算为准；无尽中的失败不降级。
+            const useGrindEntryMedal = currentModeKey === 'endless' && !!endlessEntryMedalSnapshot;
+            const medal = useGrindEntryMedal ? endlessEntryMedalSnapshot.medal : calculatedMedal;
+            const medalBasisScore = useGrindEntryMedal ? endlessEntryMedalSnapshot.score : score;
+            const medalDifficulty = useGrindEntryMedal ? endlessEntryMedalSnapshot.difficulty : selectedAscension;
+            const medalBasisThresholds = useGrindEntryMedal ? endlessEntryMedalSnapshot.medalThresholds : medalThresholds;
+            saveModeMedalResult(levelIndex, currentModeKey, medal, medalBasisScore, medalDifficulty);
             gameResult = {
-                win, score,
+                win, score, medal, medalBasisScore, medalThresholds: medalBasisThresholds, difficulty: medalDifficulty,
                 kills: s.kills, leaked: st.red, wavesCleared: s.wavesCleared,
                 totalWaves: totalWaves,
                 endless: currentModeKey === 'endless',
@@ -9654,6 +9749,15 @@ if (up.id === 'synBoost' && rogueState) {
 
             const keepRogue = !!rogueState;
             const fromGrind = currentModeKey === 'grind';
+            // 保存开启无尽前的超级研磨（或 Roguelike 结算）奖牌，供无尽失败/结束时沿用。
+            if (gameResult) {
+                endlessEntryMedalSnapshot = {
+                    medal: gameResult.medal || 'copper',
+                    score: Number(gameResult.score) || 0,
+                    difficulty: Number(gameResult.difficulty) || 0,
+                    medalThresholds: gameResult.medalThresholds || null
+                };
+            }
 
             currentModeKey = 'endless';
             rogueEnabled = keepRogue;
@@ -9743,11 +9847,16 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 14px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
             ctx.fillText('本场得分', L.x + 68, boxY + 28);
+            // 分数与本局奖牌、进阶难度并排显示
             ctx.textAlign = 'right';
-            ctx.font = 'bold 30px "Microsoft YaHei"';
-            ctx.fillStyle = '#ffd966'; ctx.shadowColor = '#aa7722'; ctx.shadowBlur = 14;
-            ctx.fillText(String(r.score), L.x + L.w - 68, boxY + 29);
+            ctx.font = 'bold 27px "Microsoft YaHei"';
+            ctx.fillStyle = '#ffd966'; ctx.shadowColor = '#aa7722'; ctx.shadowBlur = 12;
+            ctx.fillText(String(r.score), L.x + L.w - 190, boxY + 29);
             ctx.shadowBlur = 0;
+            const medalColors = { gold: '#ffd966', silver: '#d8e3ef', copper: '#d99a65' };
+            ctx.font = 'bold 15px "Microsoft YaHei"';
+            ctx.fillStyle = medalColors[r.medal] || '#d99a65';
+            ctx.fillText(getMedalLabel(r.medal) + ' · 难度 ' + (r.difficulty || 0), L.x + L.w - 62, boxY + 29);
             if (r.showEndless) {
                 const eb = getResultEndlessBtnRect();
                 ctx.fillStyle = endlessBtnHover ? '#2f7a5a' : '#173a2e';
