@@ -534,17 +534,18 @@ canvas { touch-action: none; }
         function getModeMedalRecord(levelIdx, modeKey) {
             return modeMedalRecords[levelIdx + ':' + modeKey] || null;
         }
-        function saveModeMedalResult(levelIdx, modeKey, medal, score, difficulty) {
+        function saveModeMedalResult(levelIdx, modeKey, medal, score, difficulty, towersBuilt) {
             if (!medal) return;
             const key = levelIdx + ':' + modeKey;
             const old = modeMedalRecords[key];
             const rank = { copper: 1, silver: 2, gold: 3 };
             if (!old || rank[medal] > rank[old.medal] ||
                 (rank[medal] === rank[old.medal] && score > (old.score || 0))) {
-                modeMedalRecords[key] = { medal, score, difficulty, ts: Date.now() };
+                modeMedalRecords[key] = { medal, score, difficulty, towersBuilt: Math.max(0, Number(towersBuilt) || 0), ts: Date.now() };
                 try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
             } else if (old && difficulty > (old.difficulty || 0) && medal === old.medal) {
                 old.difficulty = difficulty;
+                if (old.towersBuilt == null) old.towersBuilt = Math.max(0, Number(towersBuilt) || 0);
                 try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
             }
         }
@@ -8209,7 +8210,8 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
         }
 
         // 面板：加宽加高（右侧预留奖牌要求框的位置）
-        const MODE_PANEL_PAD = 24, MODE_CARD_W = 392, MODE_BOX_W = 292, MODE_ROW_H = 96, MODE_CARD_H = 88;
+        const MODE_PANEL_PAD = 24, MODE_CARD_W = 392, MODE_BOX_W = 292, MODE_ROW_H = 124, MODE_CARD_H = 88;
+        const MODE_BOX_H = 88, MODE_REC_H = 24, MODE_REC_GAP = 4;
         function getModePanelLayout() {
             const w = MODE_PANEL_PAD * 2 + MODE_CARD_W + 16 + MODE_BOX_W;
             const h = 96 + MODE_KEYS_ACTIVE.length * MODE_ROW_H + 10 + 64 + 10 + 64 + 16;
@@ -8223,7 +8225,12 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
         // 模式右侧的奖牌要求框
         function getModeMedalBoxRect(i) {
             const L = getModePanelLayout();
-            return { x: L.x + MODE_PANEL_PAD + MODE_CARD_W + 16, y: L.y + 96 + i * MODE_ROW_H, w: MODE_BOX_W, h: MODE_CARD_H };
+            return { x: L.x + MODE_PANEL_PAD + MODE_CARD_W + 16, y: L.y + 96 + i * MODE_ROW_H, w: MODE_BOX_W, h: MODE_BOX_H };
+        }
+        // 奖牌框下方的玩家记录条（塔数 / 分数）
+        function getModeRecordRect(i) {
+            const b = getModeMedalBoxRect(i);
+            return { x: b.x, y: b.y + b.h + MODE_REC_GAP, w: b.w, h: MODE_REC_H };
         }
         function getReverseToggleRect() {
             const L = getModePanelLayout();
@@ -8488,6 +8495,35 @@ function drawRogueToggle() {
             ctx.restore();
         }
 
+        // 奖牌框下方：玩家在本关该模式的最佳记录（塔数 + 分数）
+        function drawModeRecordBar(r, key) {
+            const rec = getModeMedalRecord(pendingLevel, key);
+            ctx.save();
+            ctx.fillStyle = rec ? 'rgba(18, 30, 48, 0.92)' : 'rgba(13, 20, 33, 0.7)';
+            ctx.strokeStyle = rec ? '#2a4157' : '#22334a';
+            ctx.lineWidth = 1;
+            roundRect(ctx, r.x, r.y, r.w, r.h, 8); ctx.fill(); ctx.stroke();
+
+            ctx.textBaseline = 'middle';
+            ctx.font = '11.5px "Microsoft YaHei"';
+            if (!rec) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#5b7189';
+                ctx.fillText('暂无记录', r.x + r.w / 2, r.y + r.h / 2);
+            } else {
+                // 旧存档没有塔数字段，显示占位符而不是误报 0
+                const hasTowers = rec.towersBuilt != null && Number.isFinite(Number(rec.towersBuilt));
+                const towersText = hasTowers ? String(Math.max(0, Number(rec.towersBuilt))) : '—';
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#7a9ac0';
+                ctx.fillText(`塔数 ${towersText}`, r.x + 14, r.y + r.h / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffd966';
+                ctx.fillText(`${Number(rec.score) || 0} 分`, r.x + r.w - 14, r.y + r.h / 2);
+            }
+            ctx.restore();
+        }
+
         function drawModeSelector() {
             ctx.fillStyle = 'rgba(4, 8, 16, 0.78)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -8543,6 +8579,8 @@ function drawRogueToggle() {
                 }
                 // 右侧：该模式的奖牌要求（核数 + 分数）
                 drawModeMedalBox(getModeMedalBoxRect(i), key, hov);
+                // 奖牌要求框下方：玩家的塔数与分数记录
+                drawModeRecordBar(getModeRecordRect(i), key);
             }
             drawReverseToggle();
             drawRogueToggle();
@@ -9760,7 +9798,11 @@ if (up.id === 'synBoost' && rogueState) {
             const medalBasisScore = useGrindEntryMedal ? endlessEntryMedalSnapshot.score : score;
             const medalDifficulty = useGrindEntryMedal ? endlessEntryMedalSnapshot.difficulty : selectedAscension;
             const medalBasisThresholds = useGrindEntryMedal ? endlessEntryMedalSnapshot.medalThresholds : medalThresholds;
-            saveModeMedalResult(levelIndex, currentModeKey, medal, medalBasisScore, medalDifficulty);
+            // 塔数跟随同一次成绩：沿用无尽入口时的快照，否则用本局建塔数
+            const medalBasisTowers = useGrindEntryMedal
+                ? (Number(endlessEntryMedalSnapshot.towersBuilt) || 0)
+                : (Number(s.towersBuilt) || 0);
+            saveModeMedalResult(levelIndex, currentModeKey, medal, medalBasisScore, medalDifficulty, medalBasisTowers);
             gameResult = {
                 win, score, medal, medalBasisScore, medalThresholds: medalBasisThresholds, difficulty: medalDifficulty,
                 kills: s.kills, leaked: st.red, wavesCleared: s.wavesCleared,
@@ -9834,6 +9876,7 @@ if (up.id === 'synBoost' && rogueState) {
                     medal: gameResult.medal || 'copper',
                     score: Number(gameResult.score) || 0,
                     difficulty: Number(gameResult.difficulty) || 0,
+                    towersBuilt: Number(gameResult.towersBuilt) || 0,
                     medalThresholds: gameResult.medalThresholds || null
                 };
             }
