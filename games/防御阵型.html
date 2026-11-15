@@ -492,7 +492,14 @@ canvas { touch-action: none; }
             }
             return Math.max(1, n);
         }
-        function getModeMedalThresholds(level, modeKey, difficulty, rogueActive, waveCount) {
+        // 关卡地图的行列数（与载入时 computeLayoutForMap 写入的 COLS/ROWS 一致）
+        function getLevelMapDims(level) {
+            const map = (level && Array.isArray(level.map)) ? level.map : [];
+            let cols = 1;
+            for (const row of map) cols = Math.max(cols, String(row || '').length);
+            return { cols: Math.max(1, cols), rows: Math.max(1, map.length) };
+        }
+        function getModeMedalThresholds(level, modeKey, difficulty, rogueActive, waveCount, levelIdx) {
             const cells = getMapMedalCellCount(level);
             const mode = MODES[modeKey] || MODES.story;
             // 分数本身会乘以模式、Roguelike、进阶难度和地图尺寸倍率，
@@ -500,11 +507,15 @@ canvas { touch-action: none; }
             const modeScoreMul = Math.max(1, Number(mode.scoreMul) || 1);
             const rogueScoreMul = rogueActive ? (MODES.rogue.scoreMul || 1) : 1;
             const ascensionScoreMul = 1 + Math.max(0, Number(difficulty) || 0) * 0.1;
-            const mapScoreMul = Math.max(0.5, (COLS * ROWS) / 100);
+            // 地图尺寸倍率按本关地图的行列计算（与载入时的 COLS/ROWS 完全一致），
+            // 这样模式面板的预览门槛与结算判定不会出现偏差。
+            const dims = getLevelMapDims(level);
+            const mapScoreMul = Math.max(0.5, (dims.cols * dims.rows) / 100);
 
             // 长波次模式会产生更多击杀与波次基础分，因此按波数增长，
             // 但采用 0.55 次幂，避免 99 波模式的门槛机械地变成普通模式数倍。
-            const normalWaves = Math.max(20, storyWaveCount(levelIndex));
+            const idx = (typeof levelIdx === 'number') ? levelIdx : levelIndex;
+            const normalWaves = Math.max(20, storyWaveCount(idx));
             const actualWaves = Math.max(1, Number(waveCount) || normalWaves);
             let modeChallengeMul = 1;
             if (modeKey === 'storyPlus') modeChallengeMul = 1.08; // 随机置换增加布阵难度
@@ -8197,27 +8208,32 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             }
         }
 
-        // 面板：加宽加高
+        // 面板：加宽加高（右侧预留奖牌要求框的位置）
+        const MODE_PANEL_PAD = 24, MODE_CARD_W = 392, MODE_BOX_W = 292, MODE_ROW_H = 96, MODE_CARD_H = 88;
         function getModePanelLayout() {
-            const w = 520;
-            const h = 96 + MODE_KEYS_ACTIVE.length * 74 + 10 + 64 + 10 + 64 + 16;
+            const w = MODE_PANEL_PAD * 2 + MODE_CARD_W + 16 + MODE_BOX_W;
+            const h = 96 + MODE_KEYS_ACTIVE.length * MODE_ROW_H + 10 + 64 + 10 + 64 + 16;
             return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
         }
         // 模式条目：更高、内边距更大
         function getModeRect(i) {
             const L = getModePanelLayout();
-            const bw = L.w - 48, bh = 64;
-            return { x: L.x + 24, y: L.y + 96 + i * 74, w: bw, h: bh };
+            return { x: L.x + MODE_PANEL_PAD, y: L.y + 96 + i * MODE_ROW_H, w: MODE_CARD_W, h: MODE_CARD_H };
+        }
+        // 模式右侧的奖牌要求框
+        function getModeMedalBoxRect(i) {
+            const L = getModePanelLayout();
+            return { x: L.x + MODE_PANEL_PAD + MODE_CARD_W + 16, y: L.y + 96 + i * MODE_ROW_H, w: MODE_BOX_W, h: MODE_CARD_H };
         }
         function getReverseToggleRect() {
             const L = getModePanelLayout();
-            const y = L.y + 96 + MODE_KEYS_ACTIVE.length * 74 + 10;
+            const y = L.y + 96 + MODE_KEYS_ACTIVE.length * MODE_ROW_H + 10;
             return { x: L.x + 24, y, w: L.w - 48, h: 64 };
         }
         // Roguelike 开关
         function getRogueToggleRect() {
             const L = getModePanelLayout();
-            const y = L.y + 96 + MODE_KEYS_ACTIVE.length * 74 + 10 + 64 + 10;
+            const y = L.y + 96 + MODE_KEYS_ACTIVE.length * MODE_ROW_H + 10 + 64 + 10;
             return { x: L.x + 24, y, w: L.w - 48, h: 64 };
         }
 
@@ -8408,6 +8424,70 @@ function drawRogueToggle() {
             return lines;
         }
 
+        // 奖牌要求预览：门槛与结算判定同源，并给出各档牌需要的核心数与分数
+        function getModeMedalPreview(levelIdx, modeKey) {
+            const lv = LEVELS[levelIdx];
+            if (!lv) return null;
+            const mode = MODES[modeKey] || MODES.story;
+            const normalWaves = Math.max(20, storyWaveCount(levelIdx));
+            const waveCount = (mode.waveMode === 'grind') ? 99 : normalWaves;
+            const t = getModeMedalThresholds(
+                lv, modeKey, selectedAscension || 0, !!pendingRogue, waveCount, levelIdx
+            );
+            const fullCores = Math.max(1, Number(mode.coreHp) || 20);
+            return {
+                copper: 100,            // 铜牌基准分
+                copperCores: 1,         // 铜牌：允许丢核，只要还有 1 枚核心
+                silver: t.silver,
+                gold: t.gold,
+                fullCores               // 银牌 / 金牌：核心必须全数保留
+            };
+        }
+
+        // 每种模式右侧的矩形框：列出铜 / 银 / 金三档牌所需的核数与分数
+        function drawModeMedalBox(r, key, hov) {
+            const info = getModeMedalPreview(pendingLevel, key);
+            if (!info) return;
+            ctx.save();
+            ctx.fillStyle = 'rgba(12, 20, 33, 0.92)';
+            ctx.strokeStyle = hov ? '#4a86c0' : '#2e4a6e';
+            ctx.lineWidth = hov ? 1.8 : 1.2;
+            roundRect(ctx, r.x, r.y, r.w, r.h, 10); ctx.fill(); ctx.stroke();
+
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 11.5px "Microsoft YaHei"';
+            ctx.fillStyle = '#7ec8ff';
+            ctx.fillText('奖牌要求', r.x + 14, r.y + 14);
+            ctx.strokeStyle = 'rgba(58, 106, 154, 0.55)'; ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(r.x + 14, r.y + 23);
+            ctx.lineTo(r.x + r.w - 14, r.y + 23);
+            ctx.stroke();
+
+            const rows = [
+                ['铜牌', '#d99a65', info.copperCores, info.copper, '#ffb877'],
+                ['银牌', '#d8e3ef', info.fullCores,   info.silver, '#e6eff8'],
+                ['金牌', '#ffd966', info.fullCores,   info.gold,   '#ffe08a']
+            ];
+            const labelX = r.x + 14, coreX = r.x + 66;
+            for (let i = 0; i < rows.length; i++) {
+                const y = r.y + 39 + i * 20;
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 12px "Microsoft YaHei"';
+                ctx.fillStyle = rows[i][1];
+                ctx.fillText(rows[i][0], labelX, y);
+                ctx.font = '11.5px "Microsoft YaHei"';
+                ctx.fillStyle = '#8fb4d8';
+                ctx.fillText(`核心≥${rows[i][2]}`, coreX, y);
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 12px "Microsoft YaHei"';
+                ctx.fillStyle = rows[i][4];
+                ctx.fillText(`${rows[i][3]} 分`, r.x + r.w - 14, y);
+            }
+            ctx.restore();
+        }
+
         function drawModeSelector() {
             ctx.fillStyle = 'rgba(4, 8, 16, 0.78)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -8432,7 +8512,7 @@ function drawRogueToggle() {
                 ctx.fillStyle = hov ? '#243654' : '#1a2536';
                 ctx.strokeStyle = hov ? '#7ec8ff' : (isRogue ? '#5a3a8a' : '#2e4a6e');
                 ctx.lineWidth = hov ? 2 : 1.5;
-                const cardH = 68;
+                const cardH = MODE_CARD_H;
                 roundRect(ctx, r.x, r.y, r.w, cardH, 10); ctx.fill(); ctx.stroke();
                 if (hov) {
                     ctx.shadowColor = '#3a8fd4'; ctx.shadowBlur = 12;
@@ -8442,16 +8522,13 @@ function drawRogueToggle() {
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                 ctx.font = 'bold 18px "Microsoft YaHei"';
                 ctx.fillStyle = hov ? '#ffffff' : (isRogue ? '#d8b0ff' : '#c0dcff');
-                ctx.fillText(m.name, r.x + 22, r.y + 22);
+                ctx.fillText(m.name, r.x + 22, r.y + 26);
                 const medalRec = getModeMedalRecord(pendingLevel, key);
                 const medalText = medalRec ? getMedalLabel(medalRec.medal) : '未获牌';
                 ctx.textAlign = 'right';
                 ctx.font = 'bold 12px "Microsoft YaHei"';
                 ctx.fillStyle = medalRec ? (medalRec.medal === 'gold' ? '#ffd966' : medalRec.medal === 'silver' ? '#d8e3ef' : '#d99a65') : '#71839a';
-                ctx.fillText(medalText, r.x + r.w - 16, r.y + 20);
-                ctx.font = '11px "Microsoft YaHei"';
-                ctx.fillStyle = '#8fa9c5';
-                ctx.fillText('难度 ' + (medalRec ? medalRec.difficulty : selectedAscension), r.x + r.w - 16, r.y + 43);
+                ctx.fillText(`${medalText} · 难度 ${medalRec ? medalRec.difficulty : selectedAscension}`, r.x + r.w - 16, r.y + 26);
                 ctx.textAlign = 'left';
                 ctx.font = '12px "Microsoft YaHei"';
                 ctx.fillStyle = hov ? '#9fc4e8' : '#7a9ac0';
@@ -8459,11 +8536,13 @@ function drawRogueToggle() {
                 const descMaxWidth = r.w - 44;
                 const descLines = wrapModeDescription(m.desc, descMaxWidth);
                 if (descLines.length > 1) {
-                    ctx.fillText(descLines[0], descX, r.y + 43, descMaxWidth);
-                    ctx.fillText(descLines[1], descX, r.y + 58, descMaxWidth);
+                    ctx.fillText(descLines[0], descX, r.y + 54, descMaxWidth);
+                    ctx.fillText(descLines[1], descX, r.y + 70, descMaxWidth);
                 } else {
-                    ctx.fillText(descLines[0] || '', descX, r.y + 50, descMaxWidth);
+                    ctx.fillText(descLines[0] || '', descX, r.y + 62, descMaxWidth);
                 }
+                // 右侧：该模式的奖牌要求（核数 + 分数）
+                drawModeMedalBox(getModeMedalBoxRect(i), key, hov);
             }
             drawReverseToggle();
             drawRogueToggle();
