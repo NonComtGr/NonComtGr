@@ -2452,6 +2452,79 @@ function rollSynergyCount() {
     ]
 },
 {
+    name: '钢铁哨站', startMoney: 1500,
+    cols: 16, rows: 19,
+    map: [
+        "################",
+        "###S..ooo#######",
+        "###.##ooo...C###",
+        "#oooo#ooo###.###",
+        "#oooo.ooo..ooo##",
+        "#oooo##.#.#ooo##",
+        "#oooo##.#.#.####",
+        "##.####.#.#.####",
+        "##......ooo.####",
+        "##.#####ooo#####",
+        "##......ooo#####",
+        "##.####.#.######",
+        "#oooo##.....####",
+        "#oooo##.###oooo#",
+        "#oooo.ooo..oooo#",
+        "######ooo##oooo#",
+        "######ooo..oooo#",
+        "######ooo##oooo#",
+        "################"
+    ]
+},
+{
+    name: '浮空秘境', startMoney: 1500,
+    cols: 17, rows: 17,
+    map: [
+        "#################",
+        "#ooo###ooo###ooo#",
+        "#ooo...ooo...ooo#",
+        "#ooo#.#ooo#.#ooo#",
+        "##.#ooo#.#ooo#.##",
+        "##..ooo.+.ooo..##",
+        "##.#ooo#.#ooo#.##",
+        "#ooo#.#ooo#.#ooo#",
+        "#ooo.S.ooo.C.ooo#",
+        "#ooo#.#ooo#.#ooo#",
+        "##.#ooo#.#ooo#.##",
+        "##..ooo.+.ooo..##",
+        "##.#ooo#.#ooo#.##",
+        "#ooo#.#ooo#.#ooo#",
+        "#ooo...ooo...ooo#",
+        "#ooo###ooo###ooo#",
+        "#################"
+    ]
+},
+{
+    name: '废墟车站', startMoney: 1500,
+    cols: 19, rows: 19,
+    map: [
+        "###################",
+        "#o.o.o.o.oo..ooooo#",
+        "#ooXXoooo#X#ooooX.#",
+        "#.o.#oooo.o.ooo.o.#",
+        "#.Xo#.o.o.#.ooX..o#",
+        "#o....ooo..o#o.oo.#",
+        "#oXoooooo.ooXoXo.o#",
+        "#oooo...ooooCo#o..#",
+        "###o..#.###.X.o#o.#",
+        "#oo.o.Xo.oX..o.ooo#",
+        "#o#o#...o.X.o##XXo#",
+        "#.o.o.Xo#.X.o.Xoo.#",
+        "#.XX#.X.#.#.Xo#o#.#",
+        "#.X.S.XoXooo#.ooXo#",
+        "#.#.Xo#.oXX.X.#X#o#",
+        "#.oo#.o.o..oX....o#",
+        "#o..#o#.X.#oXo.#Xo#",
+        "#.o.ooooX.o.ooo.oo#",
+        "###################"
+    ]
+},
+{
     name: '毒沼峡谷', startMoney: 1500,
     cols: 29, rows: 29,
     map: [
@@ -2557,6 +2630,37 @@ function rollSynergyCount() {
     ]
 }
         ];
+
+        // ============================================================
+        // 地图排序系统
+        //   规则①：按地图里 'o' 与 '.' 的数量之和对地图排序（少 → 多）；
+        //   规则②：数量相同时按地图名称排序（中文按拼音，英文按字母）。
+        //   每次载入页面都会重新排一遍，所以在 LEVELS 里新加的地图会自动排到对应位置，
+        //   不需要再手动调整先后顺序。
+        //   （想要反过来「多 → 少」，把 compareMapSortOrder 里的 ca - cb 改成 cb - ca 即可。）
+        // ============================================================
+        function countMapSortCells(lv) {
+            if (!lv || !Array.isArray(lv.map)) return 0;
+            let n = 0;
+            for (const row of lv.map) {
+                const cells = String(row || '');
+                for (let c = 0; c < cells.length; c++) {
+                    const ch = cells[c];
+                    if (ch === 'o' || ch === '.') n++;
+                }
+            }
+            return n;
+        }
+        function compareMapSortOrder(a, b) {
+            const ca = countMapSortCells(a);
+            const cb = countMapSortCells(b);
+            if (ca !== cb) return ca - cb;   // ① o + . 的总数：少 → 多
+            // ② 总数相同：按名称。中文用 zh-Hans-CN 排序规则，即拼音顺序；英文按字母。
+            return String((a && a.name) || '').localeCompare(String((b && b.name) || ''), 'zh-Hans-CN');
+        }
+        // 排序之前的书写顺序：旧存档里的关卡下标以它为准，供下面迁移索引使用
+        const LEVELS_SOURCE_ORDER = LEVELS.slice();
+        LEVELS.sort(compareMapSortOrder);
 
 
         function levelDifficulty(lv) {
@@ -4969,6 +5073,182 @@ function aiBuildContextKey(gameOrNull, buildOrPos, typeOverride, waveOverride) {
             return { load, save, recordGame, getTowerMul, getContextMul, getDraftBias,
                      getUpgradeVsBuild, getBuildVsUpgrade, getMazeWeight, getCoverageWeight,
                      getRoleNeed, getBestHumanLayout, countHumanLayouts, getSummary, reset };
+        })();
+
+        // ============================================================
+        // 地图排序后的旧存档索引迁移
+        //   奖牌记录 / 通关统计 / AI 学习样本 / 单局存档都是按「关卡下标」保存的，
+        //   地图重新排序后同一张图的下标会变。这里按「地图名称」把旧下标的数据
+        //   搬到新下标，保证历史成绩仍然挂在自己那张地图上。
+        //   每次载入都会对比上一次记录的名称顺序，所以以后再增删地图、或改动地图
+        //   布局导致顺序变化，也会自动迁移一次；首次迁移前会把原始数据留一份备份。
+        // ============================================================
+        const MAP_ORDER_STORAGE_KEY = 'defense_map_order_names_v1';
+
+        function levelNameList(list) {
+            return (Array.isArray(list) ? list : []).map(lv => String((lv && lv.name) || '').trim());
+        }
+        // 旧下标 -> 新下标。按「名称 + 第几次出现」配对，重名地图也不会串位。
+        function buildLevelIndexRemap(oldNames, newNames) {
+            const slots = new Map();
+            for (let i = 0; i < newNames.length; i++) {
+                const name = newNames[i];
+                if (!slots.has(name)) slots.set(name, []);
+                slots.get(name).push(i);
+            }
+            const remap = new Map();
+            for (let oldIdx = 0; oldIdx < oldNames.length; oldIdx++) {
+                const queue = slots.get(oldNames[oldIdx]);
+                // 找不到同名地图（地图被删除或改名）时记为 -1，旧记录直接作废，避免挂到别的图上
+                remap.set(oldIdx, (queue && queue.length) ? queue.shift() : -1);
+            }
+            return remap;
+        }
+        // 把 "3:story:..." / "3|story" 这类以关卡下标开头的键，换成新的下标
+        function remapLevelKey(key, remap, sep) {
+            const parts = String(key).split(sep);
+            if (!/^\d+$/.test(parts[0])) return key;
+            const oldIdx = parseInt(parts[0], 10);
+            if (!remap.has(oldIdx)) return key;
+            const newIdx = remap.get(oldIdx);
+            if (newIdx < 0) return null;   // 对应地图已不存在，这个键作废
+            parts[0] = String(newIdx);
+            return parts.join(sep);
+        }
+        function backupStorageBeforeRemap(key) {
+            try {
+                const backupKey = key + '_backup_before_map_sort';
+                if (localStorage.getItem(backupKey) !== null) return; // 只保留最早的一份原始数据
+                const raw = localStorage.getItem(key);
+                if (raw !== null) localStorage.setItem(backupKey, raw);
+            } catch (e) {}
+        }
+        function remapModeMedalRecords(remap) {
+            const next = {};
+            let touched = false;
+            for (const [key, value] of Object.entries(modeMedalRecords || {})) {
+                const newKey = remapLevelKey(key, remap, ':');
+                if (newKey === null) { touched = true; continue; }
+                if (newKey !== key) touched = true;
+                next[newKey] = value;
+            }
+            if (!touched) return;
+            modeMedalRecords = next;
+            try { localStorage.setItem(MODE_MEDAL_STORAGE_KEY, JSON.stringify(modeMedalRecords)); } catch (e) {}
+        }
+        function remapSavedGameLevel(remap) {
+            let raw = null;
+            try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
+            if (!raw) return;
+            let s = null;
+            try { s = JSON.parse(raw); } catch (e) { return; }
+            if (!s || typeof s !== 'object') return;
+            let touched = false;
+            if (typeof s.levelIndex === 'number' && remap.has(s.levelIndex)) {
+                const newIdx = remap.get(s.levelIndex);
+                if (newIdx < 0) {
+                    // 存档所在的这张图已经不存在了，整条存档作废
+                    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+                    return;
+                }
+                s.levelIndex = newIdx;
+                touched = true;
+            }
+            // 碾压模式的「锁定敌人等级」也记的是关卡下标
+            if (typeof s.millEnemyLevelIdx === 'number' && remap.has(s.millEnemyLevelIdx)) {
+                const newMillIdx = remap.get(s.millEnemyLevelIdx);
+                s.millEnemyLevelIdx = newMillIdx < 0 ? -1 : newMillIdx;
+                touched = true;
+            }
+            if (!touched) return;
+            try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) {}
+        }
+        function remapGameStatsLevels(remap) {
+            const d = GAME_STATS.getData();
+            const levels = (d && d.levels) || {};
+            let touched = false;
+            const next = {};
+            for (const [key, value] of Object.entries(levels)) {
+                const newKey = remapLevelKey(key, remap, '|');
+                if (newKey === null) { touched = true; continue; }
+                if (newKey !== key) touched = true;
+                next[newKey] = value;
+            }
+            if (!touched) return;
+            d.levels = next;
+            try { localStorage.setItem(GAME_STATS_KEY, JSON.stringify(d)); } catch (e) {}
+        }
+        function remapAiLearningLevels(remap) {
+            const d = AI_LEARN.load();
+            let touched = false;
+            if (d.stats && d.stats.byLevel) {
+                const next = {};
+                for (const [key, value] of Object.entries(d.stats.byLevel)) {
+                    const newKey = remapLevelKey(key, remap, '|');
+                    if (newKey === null) { touched = true; continue; }
+                    if (newKey !== key) touched = true;
+                    next[newKey] = value;
+                }
+                d.stats.byLevel = next;
+            }
+            if (d.humanLayouts) {
+                const next = {};
+                for (const [key, value] of Object.entries(d.humanLayouts)) {
+                    const newKey = remapLevelKey(key, remap, '|');
+                    if (newKey === null) { touched = true; continue; }
+                    if (newKey !== key) touched = true;
+                    next[newKey] = value;
+                }
+                d.humanLayouts = next;
+            }
+            if (Array.isArray(d.games)) {
+                const kept = [];
+                for (const g of d.games) {
+                    if (!g || typeof g !== 'object') { kept.push(g); continue; }
+                    if (typeof g.levelIndex === 'number' && remap.has(g.levelIndex)) {
+                        const newIdx = remap.get(g.levelIndex);
+                        if (newIdx < 0) { touched = true; continue; }   // 该地图已不存在，样本作废
+                        g.levelIndex = newIdx;
+                        if (typeof g.levelNum === 'number') g.levelNum = newIdx + 1;
+                        touched = true;
+                    }
+                    kept.push(g);
+                }
+                if (kept.length !== d.games.length) d.games = kept;
+            }
+            if (!touched) return;
+            AI_LEARN.save();
+        }
+
+        (function migrateLevelIndexRecords() {
+            try {
+                const newNames = levelNameList(LEVELS);
+                let oldNames = null;
+                try {
+                    const raw = localStorage.getItem(MAP_ORDER_STORAGE_KEY);
+                    if (raw) oldNames = JSON.parse(raw);
+                } catch (e) { oldNames = null; }
+                // 第一次运行（还没有记录名称顺序）：改动之前，界面顺序就是 LEVELS 的书写顺序
+                if (!Array.isArray(oldNames)) oldNames = levelNameList(LEVELS_SOURCE_ORDER);
+
+                const remap = buildLevelIndexRemap(oldNames, newNames);
+                let changed = false;
+                remap.forEach((newIdx, oldIdx) => { if (newIdx !== oldIdx) changed = true; });
+
+                if (changed) {
+                    backupStorageBeforeRemap(MODE_MEDAL_STORAGE_KEY);
+                    backupStorageBeforeRemap(SAVE_KEY);
+                    backupStorageBeforeRemap(GAME_STATS_KEY);
+                    backupStorageBeforeRemap(AI_LEARN_KEY);
+                    remapModeMedalRecords(remap);
+                    remapSavedGameLevel(remap);
+                    remapGameStatsLevels(remap);
+                    remapAiLearningLevels(remap);
+                }
+                try { localStorage.setItem(MAP_ORDER_STORAGE_KEY, JSON.stringify(newNames)); } catch (e) {}
+            } catch (e) {
+                console.warn('地图排序索引迁移失败', e);
+            }
         })();
 
         let aiPanelOpen = false;
