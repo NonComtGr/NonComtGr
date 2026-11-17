@@ -611,7 +611,7 @@ canvas { touch-action: none; }
             { id: 14, name: '暗影迷雾',   desc: '隐形怪移动速度 +20%；防御塔对隐形单位的侦测半径缩减 30%，但不会小于自身射程的 35%。' },
             { id: 15, name: '最终审判',   desc: '最后一波必定出现双倍数量的终极首领，且所有怪物每秒恢复 1% 最大生命值。' },
             { id: 16, name: '武器过热',   desc: '所有防御塔连续攻击 5 秒后会过热停机 1 秒。' },
-            { id: 17, name: '建筑限额',   desc: '造塔次数不能超过 20 座（无尽模式不受此限制）。' },
+            { id: 17, name: '建筑限额',   desc: '造塔次数有上限：最小地图 10 座，最大地图 40 座，按地图大小线性递增。无尽模式不受此限制。' },
             { id: 18, name: '绝对制空',   desc: '飞行怪只会被防空塔攻击。' },
             { id: 19, name: '死亡沉默',   desc: '隐形怪被击杀时，会使周围 2.5 格内的防御塔失效 1 秒。' },
             { id: 20, name: '火力衰减',   desc: '随着波次推进，所有防御塔的伤害每 10 波降低 10%（最多衰减 50%）。' }
@@ -1957,6 +1957,37 @@ function rollSynergyCount() {
         ]
     },
     {
+    name: '寒冰裂谷', startMoney: 1500,
+    cols: 29, rows: 25,
+    map: [
+        "#############################",
+        "#.o.oo#S.o....o.#..oooo.ooo.#",
+        "#.X##oX.#X..o.o.Xo.ooo.o.#Xo#",
+        "#oo.#o.oooooo...X.oo.oo.o..o#",
+        "#.Xo#o#.o.X#oXX.#oo.ooo.oo..#",
+        "#oo.#o..ooo.ooXoooooo...o.#.#",
+        "#XXo#.##..#.XoX.XXXooooo.o#o#",
+        "#oooo.o.....#o.+...oooo.X..o#",
+        "#.Xoo.X.ooooXo#.Xo##X##.XX#o#",
+        "#.ooo...X..o..X.Xoooo...o.oo#",
+        "#.#X.o#XXoo#X.#o#XXo#oo.o.oo#",
+        "#.oo...oo.oooo.o..Xoo..ooooo#",
+        "#.#.XoooXX.o..#oooooX#oooooo#",
+        "#o#.oo#o.oX.X.X.#o.o...ooooo#",
+        "#.#.#X###.X.o.#.ooXo#.oo.ooo#",
+        "#oo...#oo.X.o...#.oooooooooo#",
+        "#Xo#XoX.o#XX#o..oXooooCoo.oX#",
+        "#.o..o#.Xo.o#..oo..oooo.o.oo#",
+        "#..#Xo#.#o#oXo.o#oXo.oooo.#.#",
+        "#o..o.#o.oX.#.oo..Xoooooo.#o#",
+        "#ooooo#X.Xo.######Xooooooooo#",
+        "#..o..X.oo..ooE.....X.oooo#.#",
+        "#o.X...o##oXoo#XXXXXX.X.oo#o#",
+        "#.o.o..o.........o....oo..oo#",
+        "#############################"
+    ]
+},
+    {
         name: 'Onslaught', startMoney: 1600, waveInterval: makeWaveInterval(11),
         cols: 23, rows: 23,
         map: [
@@ -2681,6 +2712,29 @@ function rollSynergyCount() {
         "#ooo#oXoo.Xo#XooooXX#oX##.X.#o#",
         "#...oooo..X.....o.o...o....ooo#",
         "###############################"
+    ]
+},
+{
+    name: '潮汐祭坛', startMoney: 1500,
+    cols: 25, rows: 17,
+    map: [
+        "#########################",
+        "#.ooo.#..o....Xooo.o.ooo#",
+        "#.o#..#o#.#X#.Xooo##oo#.#",
+        "#o.oooooXoo.o...#.X.o.o.#",
+        "#XX.#.ooo.o#XX#SoooooX#.#",
+        "#..oX....oXo.oo.o...ooXo#",
+        "#oo##o##o#o.X..oXo#.oooo#",
+        "#o....oo..o.XoX.Xoooooo.#",
+        "#.X.oo#oo.o.o.#.X.#ooooo#",
+        "#ooC#..o..ooo.#o.oXooooo#",
+        "#X.#oooXoX.oooXoX.Xooooo#",
+        "#ooo.o..ooooo.o.o+oo..o.#",
+        "#.Xoo..ooooooXXX#oXX#.X.#",
+        "#.ooooo..ooo.o.o.ooo..o.#",
+        "#..Xo.oXoo#.X.XoXX..ooXo#",
+        "#.ooo.o..S..o.oooo...o..#",
+        "#########################"
     ]
 },
 {
@@ -3923,7 +3977,7 @@ function makeSeededRng(seed) {
                 shadowFog: selectedAscension >= 14,
                 finalJudgment: selectedAscension >= 15,
                 overheat: selectedAscension >= 16,
-                limitTowers: selectedAscension >= 17 ? 20 : 999,
+                limitTowers: selectedAscension >= 17,
                 airOnlyFlak: selectedAscension >= 18,
                 stealthDeathSilence: selectedAscension >= 19,
                 fireDecay: selectedAscension >= 20
@@ -5056,6 +5110,29 @@ function pickSummonType(selfType, waveId) {
             if (startCountdown !== false && !waveCountdownStarted) waveCountdownStarted = true;
         }
 
+        // 建筑限额（进阶 17）：额度随地图大小线性递增
+        // 最小图（觉醒 13×5 = 65 格）10 座 → 最大图（地下防线 39×29 = 1131 格）40 座
+        const BUILD_LIMIT_BASE = 10;
+        const BUILD_LIMIT_CAP = 40;
+        const BUILD_LIMIT_MIN_CELLS = 65;
+        const BUILD_LIMIT_MAX_CELLS = 1131;
+        function buildLimitForCells(cells) {
+            const c = Math.max(1, cells || 0);
+            if (c <= BUILD_LIMIT_MIN_CELLS) return BUILD_LIMIT_BASE;
+            if (c >= BUILD_LIMIT_MAX_CELLS) return BUILD_LIMIT_CAP;
+            const t = (c - BUILD_LIMIT_MIN_CELLS) / (BUILD_LIMIT_MAX_CELLS - BUILD_LIMIT_MIN_CELLS);
+            return Math.round(BUILD_LIMIT_BASE + t * (BUILD_LIMIT_CAP - BUILD_LIMIT_BASE));
+        }
+        // 按某关地图数据现算限额（选关页悬停预览用，不动全局 COLS/ROWS）
+        function buildLimitForLevelData(lv) {
+            const m = (lv && lv.map) || [];
+            const cells = m.length && m[0] ? m[0].length * m.length : 0;
+            return buildLimitForCells(cells);
+        }
+        function buildLimitForMap() {
+            return buildLimitForCells((COLS || 0) * (ROWS || 0));
+        }
+
         function processPendingBuilds() {
             if (pendingBuilds.length === 0) return;
             let changed = false;
@@ -5064,6 +5141,14 @@ function pickSummonType(selfType, waveId) {
                 const d = TOWER_TYPES[order.type];
                 if (!d) { pendingBuilds.splice(i, 1); continue; }
                 const cost = getBuildCost(order.type);
+                // 到达建筑限额后，预定建造也要停手，否则可以绕过限额
+                if (ascensionState && ascensionState.limitTowers && currentModeKey !== 'endless'
+                    && battleStats.towersBuilt >= buildLimitForMap()) {
+                    msgDisplay.textContent = `进阶难度限制：造塔数量已达上限（${buildLimitForMap()}）`;
+                    pendingBuilds.splice(i, 1);
+                    changed = true;
+                    continue;
+                }
                 if (money < cost) { i++; continue; }
                 if (!canBuildAt(order.col, order.row)) { i++; continue; }
                 addTower(order.col, order.row, order.type);
@@ -5077,9 +5162,9 @@ function pickSummonType(selfType, waveId) {
         function tryBuild(col, row, type) {
             const d = TOWER_TYPES[type];
             const cost = getBuildCost(type);
-            if (ascensionState && ascensionState.limitTowers && battleStats.towersBuilt >= ascensionState.limitTowers && currentModeKey !== 'endless') {
+            if (ascensionState && ascensionState.limitTowers && battleStats.towersBuilt >= buildLimitForMap() && currentModeKey !== 'endless') {
                 closeBuildMenu();
-                msgDisplay.textContent = `进阶难度限制：造塔数量已达上限（${ascensionState.limitTowers}）`;
+                msgDisplay.textContent = `进阶难度限制：造塔数量已达上限（${buildLimitForMap()}）`;
                 SFX.error();
                 return;
             }
@@ -5121,7 +5206,7 @@ function pickSummonType(selfType, waveId) {
             reflect: true, coreNoReturn: true, ecoNerf: true, bloodFury: true,
             shamanBuff: true, inflation: true, elite: true, coreDestroy: true,
             shadowFog: true, finalJudgment: true, overheat: true,
-            limitTowers: 20, airOnlyFlak: true,
+            limitTowers: true, airOnlyFlak: true,
             stealthDeathSilence: true, fireDecay: true
         };
 
@@ -6470,7 +6555,7 @@ function aiConsumePlanPositionIfFromPlan(rec) {
             const corePct = Math.round(energy.green / total * 100);
             const carrierCores = enemies.reduce((sum, e) => sum + Math.max(0, e.carrying || 0), 0);
             const lines = [
-                `（AI 按进阶难度 20 的机制评估：绝对制空 / 暗影迷雾 / 弹药限制 / 建筑限额 20 / 火力衰减等）`,
+                `（AI 按进阶难度 20 的机制评估：绝对制空 / 暗影迷雾 / 弹药限制 / 建筑限额（10~40 座，按地图大小） / 火力衰减等）`,
                 `${p.sourceLabel} · 敌人规模约 ${p.total} 只。`,
                 ...aiDescribeThreat(p).map(x => '• ' + x),
                 `安全核心：${energy.green}/${total}（${corePct}%）；敌人携带 ${carrierCores} 枚、地面待回收 ${looseCores.length} 枚，已永久失去 ${energy.red} 枚。`,
@@ -6725,8 +6810,8 @@ function aiConsumePlanPositionIfFromPlan(rec) {
 function aiFindBuildRecommendation(openingOnly) {
     if (screen !== 'game' || gameOver) return null;
     if (!TOWER_TYPES || !routes.length) return null;
-        // ★ 按进阶20的建筑限额（20 座）自我约束：达到上限后只推荐升级
-    if (AI_ASCENSION_STATE.limitTowers && battleStats && battleStats.towersBuilt >= AI_ASCENSION_STATE.limitTowers && currentModeKey !== 'endless') return null;
+        // ★ 按进阶20的建筑限额（10~40 座，按地图大小线性递增）自我约束：达到上限后只推荐升级
+    if (AI_ASCENSION_STATE.limitTowers && battleStats && battleStats.towersBuilt >= buildLimitForMap() && currentModeKey !== 'endless') return null;
 
     const profile = aiPlanningEnemyProfile();
     const energy = getEnergyStats();
@@ -8772,6 +8857,21 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             ctx.fillStyle = '#7a9ac0';
             ctx.fillText(`💰 ${getMapStartMoney(lv)}`, r.x + 16, r.y + 184);
             ctx.fillText(`🌊 ${storyWaveCount(i)} 波`, r.x + 150, r.y + 184);
+
+            // 悬停时补充：本关的建筑限额（进阶 17 生效）与该关地图尺寸
+            if (isHover) {
+                const limitN = buildLimitForLevelData(lv);
+                const applies = selectedAscension >= 17;
+                ctx.font = '12px "Microsoft YaHei"';
+                ctx.textAlign = 'left';
+                ctx.fillStyle = applies ? '#ffb86b' : '#5f7a99';
+                ctx.fillText(applies ? `🏰 建筑限额 ${limitN} 座` : `🏰 建筑限额 ${limitN} 座（进阶17）`, r.x + 16, r.y + 202);
+                const m = lv.map || [];
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#5a7fa8';
+                ctx.fillText(`${m[0] ? m[0].length : '-'}×${m.length}`, r.x + r.w - 14, r.y + 202);
+                ctx.textAlign = 'left';
+            }
         }
 
 
@@ -8951,8 +9051,28 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             return idx;
         }
 
-        function ascTipHTML(mod) {
+        // inGame=true 时提示框显示本关实时额度与已建造数；否则（选关页）只说明机制
+        function ascTipHTML(mod, inGame) {
+            let extra = '';
+            if (mod && mod.id === 17) {
+                if (inGame) {
+                    const limitN = buildLimitForMap();
+                    const built = (battleStats && typeof battleStats.towersBuilt === 'number') ? battleStats.towersBuilt : 0;
+                    const endless = currentModeKey === 'endless';
+                    extra = `<div class="rogue-note" style="color:#ffb86b;font-size:16px;line-height:1.7;">`
+                        + `本关建筑限额 ${limitN} 座　已建造 ${built} / ${limitN}`
+                        + (endless ? '（无尽模式不受此限制）' : '')
+                        + `</div>`;
+                    return `<div class="tt-title" style="font-size:17px;padding-bottom:7px;">【${mod.id}】${mod.name}</div>` + extra;
+                } else {
+                    extra = `<div class="rogue-note" style="color:#a8c8e8;max-width:320px;font-size:15px;line-height:1.65;">`
+                        + `造塔次数有上限，无尽模式无此限制`
+                        + `</div>`;
+                    return `<div class="tt-title" style="font-size:17px;padding-bottom:7px;">【${mod.id}】${mod.name}</div>` + extra;
+                }
+            }
             return `<div class="tt-title" style="font-size:17px;padding-bottom:7px;">【${mod.id}】${mod.name}</div>`
+                + extra
                 + `<div class="rogue-note" style="color:#a8c8e8;max-width:320px;font-size:15px;line-height:1.65;">${mod.desc}</div>`;
         }
 
@@ -15230,7 +15350,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             const gai = gameAscItemAt(mx, my);
             gameAscHover = gai;
             if (gai >= 0) {
-                showTipHTML(e.clientX, e.clientY, ascTipHTML(ASCENSION_MODIFIERS[gai]));
+                showTipHTML(e.clientX, e.clientY, ascTipHTML(ASCENSION_MODIFIERS[gai], true));
                 canvas.style.cursor = 'default';
                 return;
             }
