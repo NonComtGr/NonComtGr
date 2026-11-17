@@ -1423,23 +1423,59 @@ function rollSynergyCount() {
         function getPriceMul() {
             return (rogueState && rogueState.bonus && typeof rogueState.bonus.priceMul === 'number') ? rogueState.bonus.priceMul : 1;
         }
-        function getBuildCost(type) {
+        // 回收塔「议价」增强：返回该格可享受的造价 / 升级费折扣（多座取最优，不叠加）
+        function harvesterDiscountAt(col, row) {
+            const out = { build: 1, upgrade: 1 };
+            if (col === undefined || col === null || row === undefined || row === null) return out;
+            let bm = null, um = null;
+            try {
+                bm = enhancementMod('harvester', 'discountBuild');
+                um = enhancementMod('harvester', 'discountUpgrade');
+            } catch (e) { return out; }
+            if (!bm && !um) return out;
+            let trs = [];
+            try { trs = towers; } catch (e) { return out; }
+            if (!trs || !trs.length) return out;
+            const px = cellCenterX(col), py = cellCenterY(row);
+            for (const t of trs) {
+                if (t.type !== 'harvester') continue;
+                const st = towerStatsAt('harvester', t.level);
+                if (!st || !st.range) continue;
+                const d = Math.hypot(cellCenterX(t.col) - px, cellCenterY(t.row) - py);
+                if (d > st.range * CELL) continue;
+                if (bm) out.build = Math.min(out.build, bm);
+                if (um) out.upgrade = Math.min(out.upgrade, um);
+            }
+            return out;
+        }
+
+        function getBuildCost(type, col, row) {
             const d = TOWER_TYPES[type];
             if (!d) return 0;
             let inflation = 0;
             if (ascensionState && ascensionState.inflation) {
                 inflation = Math.min(100, Math.floor(waveIndex / 10) * 20);
             }
-            return Math.max(1, Math.round(d.cost * getPriceMul()) + inflation);
+            let cost = Math.max(1, Math.round(d.cost * getPriceMul()) + inflation);
+            if (col !== undefined && col !== null && row !== undefined && row !== null) {
+                const disc = harvesterDiscountAt(col, row);
+                if (disc.build < 1) cost = Math.max(1, Math.round(cost * disc.build));
+            }
+            return cost;
         }
-        function getUpgradeCostEffective(type, curLevel) {
+        function getUpgradeCostEffective(type, curLevel, col, row) {
             const base = getUpgradeCost(type, curLevel);
             if (base === null) return null;
             let inflation = 0;
             if (ascensionState && ascensionState.inflation) {
                 inflation = Math.min(100, Math.floor(waveIndex / 10) * 20);
             }
-            return Math.max(1, Math.round(base * getPriceMul()) + inflation);
+            let cost = Math.max(1, Math.round(base * getPriceMul()) + inflation);
+            if (col !== undefined && col !== null && row !== undefined && row !== null) {
+                const disc = harvesterDiscountAt(col, row);
+                if (disc.upgrade < 1) cost = Math.max(1, Math.round(cost * disc.upgrade));
+            }
+            return cost;
         }
         function getCoreDelayStacks() {
             return (rogueState && rogueState.enemyMods && rogueState.enemyMods.coreDelayStacks) || 0;
@@ -2838,6 +2874,101 @@ function rollSynergyCount() {
     ]
 },
 {
+    name: '虚空港口', startMoney: 1500,
+    cols: 13, rows: 29,
+    map: [
+        "#############",
+        "#o..Xo...ooo#",
+        "#o#oo.Xo#.#o#",
+        "#.ooX.o.XoXo#",
+        "#oX.#oo.#.oo#",
+        "#..o#o#o.o#o#",
+        "#o##X.#oX.#.#",
+        "#oooXo.o#.Xo#",
+        "##XoXoX.ooX.#",
+        "#oooXoo.XoXo#",
+        "#oXooX#o#o..#",
+        "#ooooSoo#oXo#",
+        "#.#Xo.XoXo#o#",
+        "#ooo..oo#oo.#",
+        "##X#o.oX#oX##",
+        "#oo.#ooo#.oo#",
+        "#o#oX.ooo.Xo#",
+        "#oo+..ooooXo#",
+        "#.Xo#ooo#oXo#",
+        "#.Xoooo.X...#",
+        "#.####.oX#oo#",
+        "#.oo..X.oooo#",
+        "#o#XX.oX#X#o#",
+        "#...o..o#o..#",
+        "##o.#XX.#.oX#",
+        "#oooooX..ooo#",
+        "#.##ooXo#XX.#",
+        "#ooo.o.EooC.#",
+        "#############"
+    ]
+},
+{
+    name: '血色空港', startMoney: 1500,
+    cols: 21, rows: 29,
+    map: [
+        "#####################",
+        "#oo.o.o..o.oo..o.oo.#",
+        "#o#ooooo#X#.XooC#oX.#",
+        "#oo..oooXo.+oooooooo#",
+        "#Xoo#oX.oo#.##..XoXo#",
+        "#o.oo+ooXo#o.o#ooo..#",
+        "#oX##o#.#.XXo.oo#Xo##",
+        "#.o...ooXooooooo.oo.#",
+        "#o.oooX####oo.o#.#X.#",
+        "#oX.Xooo.o.oooX.oo#o#",
+        "#...#Xoo#.XX.o#oXo#.#",
+        "#.#...o.#oooo..+oooo#",
+        "#.ooXXoX#o#oX#X.XoXo#",
+        "#oo.#..o#oooXoooo.X.#",
+        "#.#oXoo.X.#.#oXo.#Xo#",
+        "#o#ooo#ooo.o.ooo.oXo#",
+        "#oXX#o.#X#X.oX#ooo#o#",
+        "#oooo.o.o.ooX..o#..o#",
+        "###.#XoX#oo.#o.oXooo#",
+        "#.o.#.ooXooooooo#...#",
+        "#o.ooo#.#.oX..o.#.XX#",
+        "#o#o.o#.X..oX..o#ooo#",
+        "#oXo#X#ooXX.X#oo#X#o#",
+        "#.ooo.ooo.o.oo#...oo#",
+        "#.ooX.X.#oXXoo#o###X#",
+        "#ooooooooS.o#o#..ooo#",
+        "#oo.#.o.Xo.oXoXo#o#.#",
+        "#ooo#o..o.#oooo.....#",
+        "#####################"
+    ]
+},
+{
+    name: '青锋深井', startMoney: 1500,
+    cols: 11, rows: 19,
+    map: [
+        "###########",
+        "#...Xooooo#",
+        "#.X.#ooXoo#",
+        "#oXo.oooSo#",
+        "#.#X###o#o#",
+        "#Co.....#.#",
+        "#o#Xo#..oo#",
+        "#oooooo.oo#",
+        "#.oo#oX##.#",
+        "#..o#oo.oo#",
+        "#ooX#o.oo.#",
+        "#ooo#...Xo#",
+        "#X#.XXXo#.#",
+        "#..o#.o+oo#",
+        "#.XoX.#o#o#",
+        "#o#o..X.oE#",
+        "#.X##oo.o.#",
+        "#oo.ooo.o.#",
+        "###########"
+    ]
+},
+{
     name: '赤岩之渊', startMoney: 1500,
     cols: 29, rows: 29,
     map: [
@@ -3362,6 +3493,380 @@ function rollSynergyCount() {
         window.addEventListener('pagehide', () => GAME_STATS.flush());
         window.addEventListener('beforeunload', () => GAME_STATS.flush());
 
+        // ============================================================
+        // 防御塔增强：每种塔 10 个增强选项；同一关同一模式的「首次金牌」随机解锁一个（重复金牌不再解锁）
+        // mods 中：dmg/rate/range 等为倍率，targets/dur/burn/poisonDur/stacks 为固定加值
+        // ============================================================
+        const ENHANCEMENT_STORAGE_KEY = 'defenseTowerEnhancements_v1';
+        const ENHANCEMENT_NONE = -1;
+        const ENHANCEMENT_COUNT_PER_TOWER = 10;
+        const TOWER_ENHANCEMENTS = {
+            gun: [
+                { name: '双鼓速供',      mods: { rate: 1.35, dmg: 0.90 } },
+                { name: '加厚弹芯',      mods: { dmg: 1.40 } },
+                { name: '加长枪架',      mods: { range: 1.25 } },
+                { name: '双联枪管',      mods: { dmg: 1.05, multiChance: 0.25 } },
+                { name: '精准瞄具',      mods: { range: 1.20, dmg: 1.10, rate: 0.92 } },
+                { name: '速射改造',      mods: { rate: 1.55, dmg: 0.80 } },
+                { name: '重弹链',        mods: { dmg: 1.60, rate: 0.85 } },
+                { name: '长管套件',      mods: { range: 1.40, dmg: 0.90 } },
+                { name: '枪管套件',      mods: { range: 1.30, rate: 0.90 } },
+                { name: '破盾弹头',      mods: { shieldBonus: 2, dmg: 0.92 } }
+            ],
+            cannon: [
+                { name: '加农装药',      mods: { dmg: 1.45 } },
+                { name: '快速装填机',    mods: { rate: 1.30 } },
+                { name: '测距仪',        mods: { range: 1.20 } },
+                { name: '攻城炮弹',      mods: { dmg: 1.70, rate: 0.85 } },
+                { name: '速装炮闩',      mods: { rate: 1.45, range: 0.85 } },
+                { name: '长身管',        mods: { range: 1.45, rate: 0.85 } },
+                { name: '破片榴弹',      mods: { splashAdd: 1, splashRatio: 0.65, dmg: 0.95 } },
+                { name: '震荡装药',      mods: { hitStun: 0.30, hitStunChance: 0.35, dmg: 0.95 } },
+                { name: '三连装填',      mods: { rate: 1.30, dmg: 1.10, range: 0.92 } },
+                { name: '致命装药',      mods: { critChance: 0.30, critMult: 2.00, range: 0.85 } }
+            ],
+            missile: [
+                { name: '高爆战斗部',    mods: { dmg: 1.30, splashAdd: 0.20 } },
+                { name: '快装发射架',    mods: { rate: 1.30 } },
+                { name: '雷达制导',      mods: { range: 1.25 } },
+                { name: '齐射模块',      mods: { dmg: 0.90, multiChance: 0.30 } },
+                { name: '硬芯战斗部',    mods: { dmg: 1.60, rate: 0.90 } },
+                { name: '增程燃料',      mods: { range: 1.40, dmg: 0.90 } },
+                { name: '凝固燃料',      mods: { hitSlow: 0.60, hitSlowDur: 1.40, dmg: 0.95 } },
+                { name: '双发挂架',      mods: { dmg: 1.15, rate: 1.20, range: 0.95 } },
+                { name: '远程引导',      mods: { range: 1.45, rate: 0.85 } },
+                { name: '战术平衡',      mods: { dmg: 1.20, rate: 1.05, range: 0.90 } }
+            ],
+            temporal: [
+                { name: '低温冷凝',      mods: { slow: 1.35, dur: 0.20 } },
+                { name: '长效磁场',      mods: { dur: 1 } },
+                { name: '广域扩散',      mods: { range: 1.30 } },
+                { name: '深冻核心',      mods: { slow: 1.50, dur: 0.30, range: 0.85 } },
+                { name: '高频脉冲',      mods: { rate: 1.30 } },
+                { name: '冰晶阵列',      mods: { slow: 1.15, dur: 0.80 } },
+                { name: '极限冻结',      mods: { slow: 1.70, range: 0.80 } },
+                { name: '长时滞留',      mods: { dur: 1.50, slow: 0.90 } },
+                { name: '冰霜扩场',      mods: { range: 1.40, slow: 0.90 } },
+                { name: '冻结脉冲',      mods: { hitStun: 0.25, hitStunChance: 0.35 } }
+            ],
+            laser: [
+                { name: '光路聚焦',      mods: { dmg: 1.35 } },
+                { name: '灼烧强化',      mods: { burn: 1.80, range: 0.95 } },
+                { name: '光学增程',      mods: { range: 1.25 } },
+                { name: '超载光泵',      mods: { dmg: 1.60, range: 0.90 } },
+                { name: '持续照射',      mods: { burn: 2.50, dmg: 0.90 } },
+                { name: '双频激光',      mods: { dmg: 1.20, burn: 0.80 } },
+                { name: '精准光斑',      mods: { dmg: 1.15, range: 1.15 } },
+                { name: '聚能透镜',      mods: { dmg: 1.50, range: 0.88, burn: 0.40 } },
+                { name: '广域散光',      mods: { range: 1.45, dmg: 0.88, burn: 0.20 } },
+                { name: '稳定共振',      mods: { dmg: 1.15, burn: 1, range: 0.92 } }
+            ],
+            shock: [
+                { name: '高压电容',      mods: { dmg: 1.40 } },
+                { name: '快速放电',      mods: { rate: 1.30 } },
+                { name: '加长导体',      mods: { range: 1.30 } },
+                { name: '过载放电',      mods: { dmg: 1.60, rate: 0.85 } },
+                { name: '高频震荡',      mods: { rate: 1.50, dmg: 0.85 } },
+                { name: '电弧延伸',      mods: { range: 1.45, dmg: 0.90 } },
+                { name: '高压电弧',      mods: { dmg: 1.30, range: 1.15, rate: 0.92 } },
+                { name: '双极线圈',      mods: { dmg: 1.20, rate: 1.10, range: 0.90 } },
+                { name: '稳压模块',      mods: { dmg: 1.10, rate: 1.20 } },
+                { name: '均衡电弧',      mods: { dmg: 1.15, range: 1.10 } }
+            ],
+            chain: [
+                { name: '高压链流',      mods: { dmg: 1.40 } },
+                { name: '快速充能',      mods: { rate: 1.30 } },
+                { name: '长距跳链',      mods: { jumpRange: 0.90, rate: 0.95 } },
+                { name: '狂暴电弧',      mods: { dmg: 1.60, rate: 0.90 } },
+                { name: '过载加压',      mods: { rate: 1.40, dmg: 0.90 } },
+                { name: '远程传导',      mods: { range: 1.45, jumpRange: 0.40, rate: 0.88 } },
+                { name: '重载电球',      mods: { dmg: 1.25, rate: 1.10 } },
+                { name: '扩大跳幅',      mods: { jumpRange: 1.50, dmg: 0.92, rate: 1.05 } },
+                { name: '精密电极',      mods: { dmg: 1.20, range: 1.10 } },
+                { name: '麻痹电弧',      mods: { hitStun: 0.18, hitStunChance: 0.30, rate: 0.95 } }
+            ],
+            sniper: [
+                { name: '重弹狙击',      mods: { dmg: 1.50 } },
+                { name: '快速上膛',      mods: { rate: 1.30 } },
+                { name: '超视距镜',      mods: { range: 1.20 } },
+                { name: '反器材弹',      mods: { dmg: 1.80, rate: 0.80 } },
+                { name: '速射枪机',      mods: { rate: 1.55, dmg: 0.82 } },
+                { name: '极限射程',      mods: { range: 1.35, dmg: 0.90 } },
+                { name: '致命瞄准',      mods: { critChance: 0.35, critMult: 2.20, rate: 0.92 } },
+                { name: '稳固三脚架',    mods: { range: 1.25, rate: 1.05, dmg: 0.92 } },
+                { name: '穿盾重弹',      mods: { shieldBonus: 2.50 } },
+                { name: '要害锁定',      mods: { preferHighHp: 1, dmg: 1.05 } }
+            ],
+            amplifier: [
+                { name: '增益核心',      mods: { boostDmg: 1.30 } },
+                { name: '加速线圈',      mods: { boostRate: 1.30 } },
+                { name: '扩幅天线',      mods: { boostRange: 1.35 } },
+                { name: '全面增幅',      mods: { boostDmg: 1.15, boostRate: 1.15, boostRange: 1.20, range: 0.95 } },
+                { name: '强效增幅',      mods: { boostDmg: 1.55, boostRate: 0.90 } },
+                { name: '高速共振',      mods: { boostRate: 1.45, boostDmg: 0.95 } },
+                { name: '广域覆盖',      mods: { boostRange: 1.60, boostDmg: 0.85 } },
+                { name: '增幅光环',      mods: { boostDmg: 1.20, range: 1.15 } },
+                { name: '天线阵列',      mods: { range: 1.30, boostRange: 1.10 } },
+                { name: '均衡增幅',      mods: { boostDmg: 1.15, boostRate: 1.15, boostRange: 1.05 } }
+            ],
+            railgun: [
+                { name: '电容增压',      mods: { dmg: 1.45 } },
+                { name: '快速充磁',      mods: { rate: 1.30 } },
+                { name: '长导轨',        mods: { range: 1.25 } },
+                { name: '超导线圈',      mods: { dmg: 1.65, rate: 0.90 } },
+                { name: '高频发射',      mods: { rate: 1.45, dmg: 0.90 } },
+                { name: '远程轨道',      mods: { range: 1.45, dmg: 0.88 } },
+                { name: '合金弹芯',      mods: { dmg: 1.25, rate: 1.10 } },
+                { name: '稳定轨道',      mods: { range: 1.25, dmg: 1.10, rate: 0.92 } },
+                { name: '磁力聚焦',      mods: { dmg: 1.35, range: 1.10, rate: 0.90 } },
+                { name: '钨芯穿盾',      mods: { shieldBonus: 2.40 } }
+            ],
+            venom: [
+                { name: '剧毒配方',      mods: { poison: 1.45, poisonDur: 1 } },
+                { name: '长效毒素',      mods: { poisonDur: 2 } },
+                { name: '多层渗透',      mods: { stacks: 2 } },
+                { name: '快速喷注',      mods: { rate: 1.30 } },
+                { name: '浓缩毒液',      mods: { poison: 1.60, poisonDur: 0.50 } },
+                { name: '黏滞毒液',      mods: { hitSlow: 0.55, hitSlowDur: 1.80, dmg: 0.95 } },
+                { name: '腐蚀标记',      mods: { vuln: 0.30, vulnDur: 4.00 } },
+                { name: '持续浸润',      mods: { poisonDur: 2.50, poison: 0.90 } },
+                { name: '深度叠毒',      mods: { stacks: 3, poison: 0.85 } },
+                { name: '均衡毒理',      mods: { poison: 1.15, poisonDur: 1, range: 1.10 } }
+            ],
+            flak: [
+                { name: '高爆破片',      mods: { dmg: 1.25, splashAdd: 0.25 } },
+                { name: '快速供弹',      mods: { rate: 1.35 } },
+                { name: '远程警戒',      mods: { range: 1.30, rate: 0.92 } },
+                { name: '齐射炮组',      mods: { dmg: 0.95, multiChance: 0.30 } },
+                { name: '重型拦截弹',    mods: { dmg: 1.70, rate: 0.85 } },
+                { name: '广域拦截',      mods: { range: 1.40, dmg: 0.90 } },
+                { name: '高初速弹',      mods: { dmg: 1.30, range: 1.10, rate: 0.92 } },
+                { name: '稳定炮座',      mods: { range: 1.20, rate: 1.05, dmg: 0.95 } },
+                { name: '密集火力',      mods: { dmg: 1.15, rate: 1.20, range: 0.90 } },
+                { name: '破片扩散',      mods: { splashAdd: 0.60, dmg: 0.95 } }
+            ],
+            prism: [
+                { name: '多棱折射',      mods: { targets: 1 } },
+                { name: '光束聚焦',      mods: { dmg: 1.40 } },
+                { name: '光谱增程',      mods: { range: 1.25 } },
+                { name: '分裂棱镜',      mods: { targets: 2, dmg: 0.90 } },
+                { name: '高能光束',      mods: { dmg: 1.60, range: 0.90 } },
+                { name: '全域照射',      mods: { range: 1.40, dmg: 0.90 } },
+                { name: '双棱并联',      mods: { targets: 1, dmg: 1.10, range: 0.92 } },
+                { name: '灼刻棱面',      mods: { vuln: 0.20, vulnDur: 3.00 } },
+                { name: '棱镜阵列',      mods: { targets: 2, range: 1.15, dmg: 0.85 } },
+                { name: '优先照射',      mods: { preferHighHp: 1 } }
+            ],
+            emp: [
+                { name: '强脉冲',        mods: { stun: 1.40 } },
+                { name: '快速充能',      mods: { rate: 1.30 } },
+                { name: '广域电磁',      mods: { range: 1.30 } },
+                { name: '瘫痪力场',      mods: { stun: 1.70, rate: 0.90 } },
+                { name: '高频脉冲',      mods: { rate: 1.50, dmg: 0.90 } },
+                { name: '深空磁暴',      mods: { range: 1.40, stun: 0.95 } },
+                { name: '过载放电',      mods: { dmg: 1.55, stun: 1.10, rate: 0.92 } },
+                { name: '稳定线圈',      mods: { dmg: 1.10, rate: 1.15 } },
+                { name: '长时瘫痪',      mods: { stun: 1.55, dmg: 0.85, range: 0.95 } },
+                { name: '均衡干扰',      mods: { dmg: 1.10, stun: 1.25, range: 1.10 } }
+            ],
+            harvester: [
+                { name: '高频收割',      mods: { harvest: 1.35, range: 0.95 } },
+                { name: '广域光环',      mods: { range: 1.30, harvest: 0.95 } },
+                { name: '精细回收',      mods: { harvest: 1.55, range: 0.90 } },
+                { name: '议价合约',      mods: { discountBuild: 0.85, discountUpgrade: 0.90, harvest: 0.85 } },
+                { name: '节能采掘',      mods: { harvest: 1.15, range: 1.15 } },
+                { name: '深层提取',      mods: { harvest: 1.70, range: 0.85 } },
+                { name: '扩场天线',      mods: { range: 1.45, harvest: 0.85 } },
+                { name: '精密提纯',      mods: { harvest: 1.40, range: 0.92 } },
+                { name: '批量采购',      mods: { discountBuild: 0.70, harvest: 0.78 } },
+                { name: '精算调度',      mods: { discountUpgrade: 0.72, range: 1.05, harvest: 0.85 } }
+            ]
+        };
+
+        // 把 mods 翻译成中文效果描述（界面与悬浮提示共用，保证与实际生效数值一致）
+        function enhancementModDesc(mods, type) {
+            const parts = [];
+            const pct = (v) => {
+                const p = Math.round((v - 1) * 100);
+                return (p >= 0 ? '+' : '') + p + '%';
+            };
+            if (!mods) return '无';
+            if (mods.dmg) parts.push('伤害 ' + pct(mods.dmg));
+            if (mods.rate) parts.push('射速 ' + pct(mods.rate));
+            if (mods.range) parts.push('射程 ' + pct(mods.range));
+            if (mods.targets) parts.push('同时目标 +' + mods.targets);
+            if (mods.stun) parts.push('眩晕时长 ' + pct(mods.stun));
+            if (mods.slow) parts.push('减速强度 ' + pct(mods.slow));
+            if (mods.dur) parts.push('减速持续 +' + mods.dur + ' 秒');
+            if (mods.burn) parts.push('灼烧持续 +' + mods.burn + ' 秒');
+            if (mods.poison) parts.push('毒伤 ' + pct(mods.poison));
+            if (mods.poisonDur) parts.push('毒持续 +' + mods.poisonDur + ' 秒');
+            if (mods.stacks) parts.push('毒层上限 +' + mods.stacks);
+            if (mods.harvest) parts.push('回收效率 ' + pct(mods.harvest));
+            if (mods.boostDmg) parts.push('增幅伤害 ' + pct(mods.boostDmg));
+            if (mods.boostRate) parts.push('增幅射速 ' + pct(mods.boostRate));
+            if (mods.boostRange) parts.push('增幅射程 ' + pct(mods.boostRange));
+            if (mods.shieldBonus) parts.push('对护盾伤害 ×' + mods.shieldBonus);
+            if (mods.hitSlow) parts.push('命中减速 ' + Math.round((1 - mods.hitSlow) * 100) + '% · 持续 ' + (mods.hitSlowDur || 1) + ' 秒');
+            if (mods.hitStun) parts.push('命中眩晕 ' + mods.hitStun + ' 秒（' + Math.round((mods.hitStunChance == null ? 1 : mods.hitStunChance) * 100) + '% 概率）');
+            if (mods.splashAdd) {
+                // 自带溅射的塔（导弹/防空）伤害比率由塔的固定值决定，增强只加半径
+                const baseRatio = (type && TOWER_TYPES[type] && TOWER_TYPES[type].splash)
+                    ? (TOWER_TYPES[type].splashRatio || 0.5)
+                    : (mods.splashRatio == null ? 0.6 : mods.splashRatio);
+                parts.push('溅射半径 +' + mods.splashAdd + ' 格 · ' + Math.round(baseRatio * 100) + '% 伤害');
+            }
+            if (mods.preferHighHp) parts.push('优先攻击血量最高的目标');
+            if (mods.jumpRange) parts.push('跳链半径 +' + mods.jumpRange + ' 格');
+            if (mods.vuln) parts.push('命中后目标受伤 +' + Math.round(mods.vuln * 100) + '%，持续 ' + (mods.vulnDur || 3) + ' 秒');
+            if (mods.critChance) parts.push('暴击 ' + Math.round(mods.critChance * 100) + '% 概率 ×' + (mods.critMult || 2));
+            if (mods.multiChance) parts.push(Math.round(mods.multiChance * 100) + '% 概率额外一发（' + Math.round((mods.splitRatio || 0.75) * 100) + '% 伤害，打另一个目标）');
+            if (mods.discountBuild) parts.push('范围内建塔降价 ' + Math.round((1 - mods.discountBuild) * 100) + '%（多塔取最优）');
+            if (mods.discountUpgrade) parts.push('范围内升级降价 ' + Math.round((1 - mods.discountUpgrade) * 100) + '%（多塔取最优）');
+            return parts.join(' · ') || '无';
+        }
+
+        function enhancementTowerNames() { return Object.keys(TOWER_ENHANCEMENTS); }
+        function enhancementTotalCount() { return enhancementTowerNames().length * ENHANCEMENT_COUNT_PER_TOWER; }
+
+        function saveEnhancementState(state) {
+            const st = state || enhancementState;
+            try { localStorage.setItem(ENHANCEMENT_STORAGE_KEY, JSON.stringify(st)); } catch (e) {}
+        }
+
+        const ENHANCEMENT_DATA_VERSION = 4;
+
+        function loadEnhancementState() {
+            let raw = null;
+            try { raw = JSON.parse(localStorage.getItem(ENHANCEMENT_STORAGE_KEY) || 'null'); } catch (e) { raw = null; }
+            const fresh = !(raw && typeof raw === 'object');
+            // 增强内容改版后序号含义会变：旧存档保留解锁进度，但清空「已启用」选择，避免效果被悄悄换掉
+            const sameVersion = !fresh && Number(raw.ver) === ENHANCEMENT_DATA_VERSION;
+            const state = { goldCount: fresh ? 0 : (Number(raw.goldCount) || 0), unlocked: {}, selected: {}, ver: ENHANCEMENT_DATA_VERSION };
+            for (const type of enhancementTowerNames()) {
+                const u = (!fresh && raw.unlocked && Array.isArray(raw.unlocked[type])) ? raw.unlocked[type] : [];
+                state.unlocked[type] = Array.from(new Set(u.filter(i => Number.isInteger(i) && i >= 0 && i < ENHANCEMENT_COUNT_PER_TOWER))).sort((a, b) => a - b);
+                const s = (sameVersion && raw.selected) ? raw.selected[type] : null;
+                state.selected[type] = (Number.isInteger(s) && s >= 0 && s < ENHANCEMENT_COUNT_PER_TOWER && state.unlocked[type].indexOf(s) >= 0)
+                    ? s : ENHANCEMENT_NONE;
+            }
+            state._fresh = fresh;
+            return state;
+        }
+
+        let enhancementState = loadEnhancementState();
+
+        // 从尚未解锁的增强里随机取一个（返回 {type, idx}，全部解锁后返回 null）
+        function grantEnhancementUnlock() {
+            const pool = [];
+            for (const type of enhancementTowerNames()) {
+                const list = enhancementState.unlocked[type] || (enhancementState.unlocked[type] = []);
+                for (let i = 0; i < ENHANCEMENT_COUNT_PER_TOWER; i++) if (list.indexOf(i) < 0) pool.push({ type: type, idx: i });
+            }
+            if (!pool.length) return null;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            enhancementState.unlocked[pick.type].push(pick.idx);
+            enhancementState.unlocked[pick.type].sort((a, b) => a - b);
+            saveEnhancementState();
+            if (towerStatsAt._cache) towerStatsAt._cache.clear();
+            return pick;
+        }
+
+        // 首次拿到该关该模式的金牌：计数 +1，并随机解锁一个增强
+        function awardGoldMedalEnhancement() {
+            enhancementState.goldCount = (Number(enhancementState.goldCount) || 0) + 1;
+            const got = grantEnhancementUnlock();
+            if (!got) saveEnhancementState();
+            return got;
+        }
+
+        // 首次启用该功能时，把历史已经拿到的金牌一次性折算成随机解锁
+        (function migrateEnhancementState() {
+            if (!enhancementState._fresh) return;
+            const golds = Object.values(modeMedalRecords).filter(r => r && r.medal === 'gold').length;
+            enhancementState.goldCount = golds;
+            for (let i = 0; i < golds; i++) grantEnhancementUnlock();
+            delete enhancementState._fresh;
+            saveEnhancementState();
+        })();
+
+        function enhancementUnlockedTotal() {
+            let n = 0;
+            for (const type of enhancementTowerNames()) n += (enhancementState.unlocked[type] || []).length;
+            return n;
+        }
+        function enhancementIsUnlocked(type, idx) {
+            return (enhancementState.unlocked[type] || []).indexOf(idx) >= 0;
+        }
+        function enhancementSelectedIndex(type) {
+            const s = enhancementState.selected[type];
+            return (s == null) ? ENHANCEMENT_NONE : s;
+        }
+        function enhancementSelected(type) {
+            const idx = enhancementSelectedIndex(type);
+            if (idx === ENHANCEMENT_NONE) return null;
+            return (TOWER_ENHANCEMENTS[type] || [])[idx] || null;
+        }
+
+        // 读取当前选中增强里的「机制型」字段（减速 / 眩晕 / 溅射 / 优先高血量 / 破盾）
+        // 未启用或该项没有该字段时返回 null（战斗逻辑里用 if (v) 判定即可）
+        function enhancementMod(type, key) {
+            const idx = enhancementSelectedIndex(type);
+            if (idx === ENHANCEMENT_NONE) return null;
+            const enh = (TOWER_ENHANCEMENTS[type] || [])[idx];
+            if (!enh || !enh.mods) return null;
+            const v = enh.mods[key];
+            return (v === undefined || v === null) ? null : v;
+        }
+
+        // 「优先攻击血量高的目标」的排序值：最大血量为主键，当前血量为次键（越大越优先）
+        function enhancementHpPriority(e) {
+            const pool = (e.maxHp > 0 ? e.maxHp : e.hp) + (e.shield || 0);
+            return pool * 1000 + Math.max(0, e.hp);
+        }
+        function selectTowerEnhancement(type, idx) {
+            if (idx !== ENHANCEMENT_NONE && !enhancementIsUnlocked(type, idx)) return false;
+            enhancementState.selected[type] = idx;
+            saveEnhancementState();
+            if (towerStatsAt._cache) towerStatsAt._cache.clear();
+            return true;
+        }
+
+        // 把已选中的增强套到基础属性上（只改数值字段，倍率对 0 值字段自动跳过）
+        function applyTowerEnhancement(type, base) {
+            const idx = enhancementSelectedIndex(type);
+            if (idx === ENHANCEMENT_NONE) return base;
+            const enh = (TOWER_ENHANCEMENTS[type] || [])[idx];
+            if (!enh || !enh.mods) return base;
+            const m = enh.mods;
+            const out = Object.assign({}, base);
+            if (m.dmg) {
+                if (out.damage) out.damage *= m.dmg;
+                if (out.dps) out.dps *= m.dmg;
+                if (out.burnDps) out.burnDps *= m.dmg;
+            }
+            if (m.rate && out.cooldown > 0) out.cooldown /= m.rate;
+            if (m.range && out.range) out.range *= m.range;
+            if (m.targets && typeof out.targets === 'number') out.targets += m.targets;
+            if (m.stun && out.stun != null) out.stun *= m.stun;
+            // slow 存的是「敌人速度倍率」，越小越强 → 增强里的 slow 是「减速强度倍率」，要做除法
+            if (m.slow != null && out.slow != null) out.slow = Math.max(0.06, out.slow / m.slow);
+            if (m.dur && typeof out.duration === 'number') out.duration += m.dur;
+            if (m.burn && typeof out.burnDur === 'number' && out.burnDur < 1e6) out.burnDur += m.burn;
+            if (m.poison && out.poisonDps) out.poisonDps *= m.poison;
+            if (m.poisonDur && typeof out.poisonDur === 'number') out.poisonDur += m.poisonDur;
+            if (m.stacks && out.maxStacks != null) out.maxStacks = (out.maxStacks === Infinity) ? Infinity : out.maxStacks + m.stacks;
+            if (m.harvest && out.harvest != null) out.harvest *= m.harvest;
+            if (out.boost) {
+                const b = Object.assign({}, out.boost);
+                if (m.boostDmg) b.dmg *= m.boostDmg;
+                if (m.boostRate) b.rate *= m.boostRate;
+                if (m.boostRange) b.range *= m.boostRange;
+                out.boost = b;
+            }
+            return out;
+        }
+
         const MAX_LEVEL_FEATURES = {
             gun:      '🔫 满级特性：同时攻击最多 5 个目标',
             cannon:   '💣 满级特性：命中目标眩晕 0.25 秒',
@@ -3375,7 +3880,7 @@ function rollSynergyCount() {
             railgun:  '⚡ 满级特性：光束宽度翻倍',
             venom:    '🧪 满级特性：毒层无上限 · 毒持续时间 +2 秒 · 毒弹命中后 1 格内扩散叠毒',
             flak:     '🎆 满级特性：对空中目标 25% 概率造成 3 倍伤害',
-            prism:    (() => { const n = towerStatsAt('prism', MAX_LEVEL).targets; return `🔮 满级特性：同时照射目标数 ${n} 个`; })(),
+            prism:    (() => { const n = computeTowerStats('prism', MAX_LEVEL).targets; return `🔮 满级特性：同时照射目标数 ${n} 个`; })(),
             emp:      '🌀 满级特性：对机械单位伤害 +50%，眩晕时长提升（封顶冷却 90%）',
             harvester:'💠 满级特性：光环射程翻倍'
         };
@@ -3448,14 +3953,15 @@ function computeTowerStats(type, lv) {
     return { damage: d.damage * (1 + (lv - 1) * GROW.damage), cooldown: d.fireRate / (1 + (lv - 1) * GROW.rate), range };
 }
 
-// 带缓存的包装：key = type|lv|pb(仅毒液塔需要)
+// 带缓存的包装：key = type|lv|pb(仅毒液塔需要)|已选增强
 function towerStatsAt(type, lv) {
     const pb = (type === 'venom' && rogueState && rogueState.bonus && rogueState.bonus.poisonBoost) ? 1 : 0;
+    const enhIdx = enhancementSelectedIndex(type);
     const cache = towerStatsAt._cache || (towerStatsAt._cache = new Map());
-    const key = type + '|' + lv + '|' + pb;
+    const key = type + '|' + lv + '|' + pb + '|e' + enhIdx;
     let res = cache.get(key);
     if (res) return res;
-    res = computeTowerStats(type, lv);
+    res = applyTowerEnhancement(type, computeTowerStats(type, lv));
     cache.set(key, res);
     return res;
 }
@@ -3507,12 +4013,17 @@ function makeSeededRng(seed) {
             const waveCount = isEndless ? 9999 : ((isGrind || isMill) ? 99 : storyWaveCount(levelIdx));
             const baseHp = (26 + difficulty * 8) * hpMul * 8.0;     //怪物血量
             const baseSpeed = 1.04 + difficulty * 0.032;
-            const GRIND_GROWTH = 1.020;              // 研磨 / 超级研磨：血量每波 +2%，指数增长
+            const GRIND_GROWTH = 1.045;              // 研磨 / 超级研磨：血量每波 +4.5%，指数增长
             const GRIND_SPEED_GROWTH = 1.010;        // 研磨 / 超级研磨：移速每波 +1%，指数增长
             const GRIND_WAVES = 99;
-            const ENDLESS_WARMUP_GROWTH = 1.020;     // 无尽模式前 99 波沿用原节奏，不被研磨的数值牵连
-            const ENDLESS_GROWTH = 1.020;
+            const ENDLESS_WARMUP_GROWTH = 1.045;     // 无尽模式前 99 波沿用原节奏，不被研磨的数值牵连
+            const ENDLESS_GROWTH = 1.055;            // 无尽模式 99 波之后血量增速进一步放大
             const hpGrowth = (isGrind || isMill) ? GRIND_GROWTH : 1.090;
+            // —— 研磨 / 超级研磨 / 无尽：数量整体收紧，且波次带来的数量增长放缓 ——
+            const GRIND_COUNT_SCALE = 0.62;          // 每波数量整体乘以此系数
+            const GRIND_COUNT_GROWTH_DAMP = 0.55;    // 数量公式里的波次按此折算，增长更平缓
+            const ENDLESS_MAX_PER_TYPE = 16;         // 无尽模式：每波每种怪物数量上限
+            const GRIND_FAMILY = isGrind || isMill || isEndless;
             function waveScale(w) {
                 if (isEndless) {
                     if (w <= GRIND_WAVES - 1) return Math.pow(ENDLESS_WARMUP_GROWTH, w);
@@ -3530,10 +4041,14 @@ function makeSeededRng(seed) {
                 const groups = [];
                 const mapMul = getEnemyCountMapMul();                    // ★ 新增
                 const maxPerGroup = Math.max(1, Math.round(60 * mapMul)); // ★ 每个 group 上限随地图放大
+                const countWave = GRIND_FAMILY ? w * GRIND_COUNT_GROWTH_DAMP : w; // 数量的波次增长折算
                 const add = (type, count, hpFactor, spdFactor) => {
+                    let groupCount = Math.round(count * ENEMY_COUNT_MUL * 1.55 * mapMul * (GRIND_FAMILY ? GRIND_COUNT_SCALE : 1));
+                    groupCount = Math.max(1, Math.min(maxPerGroup, groupCount));
+                    if (isEndless) groupCount = Math.min(groupCount, ENDLESS_MAX_PER_TYPE);
                     groups.push({
                         type,
-                        count: Math.max(1, Math.min(maxPerGroup, Math.round(count * ENEMY_COUNT_MUL * 1.55 * mapMul))),
+                        count: groupCount,
                         hp: Math.max(8, Math.round(baseHp * scale * hpFactor)),
                         speed: baseSpeed * spdFactor * speedScale,
                         hpF: hpFactor,          // 记录基准系数，供混乱模式置换时换算
@@ -3547,8 +4062,8 @@ function makeSeededRng(seed) {
                         millEnemyLevelIdx = levelIdx;
                     }
                     const millRule = RANDOM_WAVE_RULES.find(r => r.type === millEnemyType) || RANDOM_WAVE_RULES[0];
-                    // 单怪模式没有其它敌种分摊，按 ~4 组混编的量级补齐
-                    add(millRule.type, millRule.count(w, difficulty) * 4, millRule.hp, millRule.spd);
+                    // 单怪模式没有其它敌种分摊，按 ~2 组混编的量级补齐（原为 4 组，已随需求下调）
+                    add(millRule.type, millRule.count(countWave, difficulty) * 2, millRule.hp, millRule.spd);
                     waves.push({ groups });
                 } else if (isGrind || isEndless) {
                     // 随机模式：每波 3~8 种（规则表提至 IIFE 顶层 RANDOM_WAVE_RULES）
@@ -3572,7 +4087,7 @@ function makeSeededRng(seed) {
 
                     for (let i = 0; i < pickN && i < shuffled.length; i++) {
                         const r = shuffled[i];
-                        add(r.type, r.count(w, difficulty), r.hp, r.spd);
+                        add(r.type, r.count(countWave, difficulty), r.hp, r.spd);
                     }
 
                     if (bossWave) add('boss', 1, 5.0, 0.7);
@@ -3611,6 +4126,7 @@ function makeSeededRng(seed) {
         let hoveredLevel = -1, pendingLevel = -1, pendingReverse = false, pendingRogue = false, pendingChaos = false;
         let hoveredMode = -1, hoveredReverse = false, hoveredRogue = false, hoveredChaos = false;
         let hoveredMainBtn = -1, hoveredBackBtn = false, hoveredRandomBtn = false;
+        let selectedEnhTower = 0, hoveredEnhTower = -1, hoveredEnhCard = -1;
         let statsTab = 'overview', hoveredStatsTab = -1;
         let scrollY = 0, maxScroll = 0, levelsScrollY = 0;
 
@@ -3841,6 +4357,7 @@ function makeSeededRng(seed) {
             gameTitle.classList.toggle('hidden', !isGame);
             resultBtnHover = false; endlessBtnHover = false;
             hoveredMainBtn = -1; hoveredBackBtn = false; hoveredRandomBtn = false; hoveredStatsTab = -1;
+            hoveredEnhTower = -1; hoveredEnhCard = -1;
             hoveredLevel = -1; hoveredMode = -1; hoveredReverse = false; hoveredRogue = false; hoveredChaos = false;
             hoveredAscUp = false; hoveredAscDown = false;
             ascPanelHover = -1; gameAscHover = -1;
@@ -4569,9 +5086,17 @@ function pickSummonType(selfType, waveId) {
             return `<div class="tt-note rogue-note" style="color:#ff88cc;border-top:none;padding-top:2px;margin-top:2px;">🧬 全局强化：${parts.join(' · ')}</div>`;
         }
 
+        // 建造/详情提示里展示当前启用的增强
+        function enhancementTipHTML(type) {
+            const enh = enhancementSelected(type);
+            if (!enh) return '';
+            return `<div class="tt-note" style="color:#8fffd8;">🧩 增强 · ${enh.name}：${enhancementModDesc(enh.mods, type)}</div>`;
+        }
+
         function buildTipHTML(type) {
             const d = TOWER_TYPES[type];
-            const buildCost = getBuildCost(type);
+            // 建造菜单开在某格上时，价格按该格计算（含回收塔议价折扣）
+            const buildCost = getBuildCost(type, buildMenu ? buildMenu.col : null, buildMenu ? buildMenu.row : null);
             const isSlow = type === 'temporal';
             const isLaser = type === 'laser';
             const isPrism = type === 'prism';
@@ -4582,7 +5107,7 @@ function pickSummonType(selfType, waveId) {
                 html += '<table><tr><th>Lv</th><th>伤害+</th><th>射速+</th><th>射程+</th><th>范围</th><th>升级费</th></tr>';
                 for (let lv = 1; lv <= MAX_LEVEL; lv++) {
                     const s = towerStatsAt('amplifier', lv);
-                    const up = getUpgradeCostEffective('amplifier', lv);
+                    const up = getUpgradeCostEffective('amplifier', lv, buildMenu ? buildMenu.col : null, buildMenu ? buildMenu.row : null);
                     html += `<tr${lv === 1 ? ' class="cur"' : ''}><td class="lv" style="color:${LEVEL_COLORS[lv - 1]};">${lv}</td>`
                          +  `<td>+${Math.round(s.boost.dmg * 100)}%</td><td>+${Math.round(s.boost.rate * 100)}%</td>`
                          +  `<td>+${Math.round(s.boost.range * 100)}%</td><td>${s.range.toFixed(1)}</td>`
@@ -4591,6 +5116,7 @@ function pickSummonType(selfType, waveId) {
                 html += '</table>';
                 html += '<div class="tt-note">📡 光环辅助 · 多塔不叠加（取最高）</div>';
                 html += `<div class="tt-note" style="color:#ffb86b;border-top:none;padding-top:2px;margin-top:2px;">${MAX_LEVEL_FEATURES[type]}</div>`;
+                html += enhancementTipHTML(type);
                 html += getRogueBonusHTML();
                 if (money < buildCost) html += `<div class="tt-note" style="color:#ff9a8a;border-top:none;padding-top:2px;margin-top:2px;">⚠ 资金不足 · 点击将预定建造，资金足够后自动落地</div>`;
                 return html;
@@ -4605,7 +5131,7 @@ function pickSummonType(selfType, waveId) {
             html += '<th>升级费</th></tr>';
             for (let lv = 1; lv <= MAX_LEVEL; lv++) {
                 const s = towerStatsAt(type, lv);
-                const up = getUpgradeCostEffective(type, lv);
+                const up = getUpgradeCostEffective(type, lv, buildMenu ? buildMenu.col : null, buildMenu ? buildMenu.row : null);
                 html += `<tr${lv === 1 ? ' class="cur"' : ''}><td class="lv" style="color:${LEVEL_COLORS[lv - 1]};">${lv}</td>`;
                 if (isLaser) html += `<td>${s.dps.toFixed(1)}</td><td>${lv >= MAX_LEVEL ? '永久' : s.burnDur.toFixed(1) + 's'}</td><td>${s.range.toFixed(1)}</td>`;
                 else if (isSlow) html += `<td>${Math.round(s.slow * 100)}%</td><td>${s.duration.toFixed(1)}s</td><td>${s.range.toFixed(1)}</td>`;
@@ -4637,6 +5163,7 @@ function pickSummonType(selfType, waveId) {
             if (type === 'temporal') {
                 html += `<div class="tt-note" style="color:#4affd0;">👁 满级特性：揭示射程内所有隐形单位</div>`;
             }
+            html += enhancementTipHTML(type);
             html += getRogueBonusHTML();
             if (money < buildCost) html += `<div class="tt-note" style="color:#ff9a8a;border-top:none;padding-top:2px;margin-top:2px;">⚠ 资金不足 · 点击将预定建造，资金足够后自动落地</div>`;
             return html;
@@ -4677,12 +5204,13 @@ function pickSummonType(selfType, waveId) {
                 html += '<table><tr><th>伤害+</th><th>射速+</th><th>射程+</th><th>光环范围</th></tr>';
                 html += `<tr class="cur"><td>+${Math.round(s.boost.dmg * 100)}%${extra}</td><td>+${Math.round(s.boost.rate * 100)}%</td><td>+${Math.round(s.boost.range * 100)}%</td><td>${s.range.toFixed(1)} 格</td></tr></table>`;
                                 html += `<div class="tt-note" style="color:#ffb86b;">${MAX_LEVEL_FEATURES.amplifier}</div>`;
+                html += enhancementTipHTML(t.type);
                 if (hasSyn && syn.range > 0) {
                     html += `<div class="tt-note" style="color:#d8b0ff;border-top:none;padding-top:2px;margin-top:2px;white-space:normal;">🔗 联动加成：光环范围 +${Math.round(syn.range * 100)}%（实际 ${(s.range * synRange).toFixed(1)} 格）</div>`;
                 }
                 html += getRogueBonusHTML();
                 const sellVal = getSellValue(t);
-                html += `<div class="tt-note tt-foot"><span>${t.level < MAX_LEVEL ? `升级 <span class="tt-kv">${getUpgradeCostEffective(t.type, t.level)}</span> → Lv.${t.level + 1}` : '已满级'}</span><span class="tt-kv">出售 +${sellVal}</span></div>`;
+                html += `<div class="tt-note tt-foot"><span>${t.level < MAX_LEVEL ? `升级 <span class="tt-kv">${getUpgradeCostEffective(t.type, t.level, t.col, t.row)}</span> → Lv.${t.level + 1}` : '已满级'}</span><span class="tt-kv">出售 +${sellVal}</span></div>`;
                 html += '</div>';
                 return html;
             }
@@ -4762,9 +5290,10 @@ function pickSummonType(selfType, waveId) {
             }
 
 
+            html += enhancementTipHTML(t.type);
             html += getRogueBonusHTML();
             const sellVal = getSellValue(t);
-            html += `<div class="tt-note tt-foot"><span>${t.level < MAX_LEVEL ? `升级 <span class="tt-kv">${getUpgradeCostEffective(t.type, t.level)}</span> → Lv.${t.level + 1}` : '已满级'}</span><span class="tt-kv">出售 +${sellVal}</span></div>`;
+            html += `<div class="tt-note tt-foot"><span>${t.level < MAX_LEVEL ? `升级 <span class="tt-kv">${getUpgradeCostEffective(t.type, t.level, t.col, t.row)}</span> → Lv.${t.level + 1}` : '已满级'}</span><span class="tt-kv">出售 +${sellVal}</span></div>`;
             html += `<div class="tt-note" style="border-top:none;padding-top:2px;margin-top:0;color:#62789a;font-size:10.5px;text-align:left;">右键打开炮塔菜单</div>`;
             html += '</div>';
             return html;
@@ -4802,6 +5331,7 @@ function pickSummonType(selfType, waveId) {
             if (e.burnTimer > 0) status.push(`<span style="color:#ff6e3c;">灼烧</span>`);
             if (e.poison && e.poison.length) status.push(`<span style="color:#7aff4a;">中毒 ×${e.poison.length}</span>`);
             if (e.charmed) status.push(`<span style="color:#ff88dd;">魅惑</span>`);
+            if (e.vulnTimer > 0) status.push(`<span style="color:#c88cff;">受伤 +${Math.round((e.vulnAmount || 0) * 100)}% ${e.vulnTimer.toFixed(1)}s</span>`);
             if (status.length) html += `<div class="tt-note">状态：${status.join(' · ')}</div>`;
 
             if (def.stealth && !enemyRevealed(e)) {
@@ -4915,7 +5445,7 @@ function pickSummonType(selfType, waveId) {
                 }
             }
             const radius = baseStats.range * CELL * rangeMul;
-            const affordable = money >= getBuildCost(type);
+            const affordable = money >= getBuildCost(type, buildMenu.col, buildMenu.row);
             const hue = affordable ? '126, 200, 255' : '255, 120, 120';
             ctx.save();
             ctx.beginPath(); ctx.arc(px, py, radius, 0, Math.PI * 2);
@@ -5039,7 +5569,7 @@ function pickSummonType(selfType, waveId) {
                 ctx.fillStyle = '#5a7fa8';
                 ctx.fillText('已满级', TOWER_MENU_W - 12, cr.y + cr.h / 2 + 1);
             } else {
-                const up = getUpgradeCostEffective(t.type, t.level);
+                const up = getUpgradeCostEffective(t.type, t.level, t.col, t.row);
                 ctx.fillStyle = money >= up ? '#ffd966' : '#ff6666';
                 ctx.fillText(`${up}💰`, TOWER_MENU_W - 12, cr.y + cr.h / 2 + 1);
             }
@@ -5059,14 +5589,14 @@ function pickSummonType(selfType, waveId) {
         function updateAutoUpgrade() {
             let reserved = 0;
             for (const order of pendingBuilds) {
-                reserved += getBuildCost(order.type);
+                reserved += getBuildCost(order.type, order.col, order.row);
             }
             let changed = false;
             for (const t of towers) {
                 if (!t.autoUpgrade) continue;
                 let guard = 0;
                 while (t.level < MAX_LEVEL && guard++ < MAX_LEVEL) {
-                    const cost = getUpgradeCostEffective(t.type, t.level);
+                    const cost = getUpgradeCostEffective(t.type, t.level, t.col, t.row);
                     if (cost === null) break;
                     if (money - cost < reserved) break;
                     money -= cost; t.level++; t.invested += cost; changed = true;
@@ -5089,7 +5619,7 @@ function pickSummonType(selfType, waveId) {
 
         function addTower(col, row, type, startCountdown) {
             const d = TOWER_TYPES[type];
-            const cost = getBuildCost(type);
+            const cost = getBuildCost(type, col, row);
             money -= cost;
             towers.push({
                 col, row, type, level: 1, cooldown: 0, invested: cost,
@@ -5140,7 +5670,7 @@ function pickSummonType(selfType, waveId) {
                 const order = pendingBuilds[i];
                 const d = TOWER_TYPES[order.type];
                 if (!d) { pendingBuilds.splice(i, 1); continue; }
-                const cost = getBuildCost(order.type);
+                const cost = getBuildCost(order.type, order.col, order.row);
                 // 到达建筑限额后，预定建造也要停手，否则可以绕过限额
                 if (ascensionState && ascensionState.limitTowers && currentModeKey !== 'endless'
                     && battleStats.towersBuilt >= buildLimitForMap()) {
@@ -5161,7 +5691,7 @@ function pickSummonType(selfType, waveId) {
 
         function tryBuild(col, row, type) {
             const d = TOWER_TYPES[type];
-            const cost = getBuildCost(type);
+            const cost = getBuildCost(type, col, row);
             if (ascensionState && ascensionState.limitTowers && battleStats.towersBuilt >= buildLimitForMap() && currentModeKey !== 'endless') {
                 closeBuildMenu();
                 msgDisplay.textContent = `进阶难度限制：造塔数量已达上限（${buildLimitForMap()}）`;
@@ -7021,7 +7551,7 @@ for (const type of bestTypes) {
             if (inRange <= 0) continue;
 
             const power = aiTowerPower(type, 1, profile, cell.c, cell.r);
-            const cost = getBuildCost(type);
+            const cost = getBuildCost(type, cell.c, cell.r);
             const overlap = towers.filter(t => t.type === type && Math.hypot(t.col - cell.c, t.row - cell.r) < Math.max(2.4, range * 0.65)).length;
             const nearbyTowers = towers.filter(t => Math.hypot(t.col - cell.c, t.row - cell.r) <= 2.5).length;
             const stealthSilencePenalty = profile.stealth > 0
@@ -7126,7 +7656,7 @@ for (const type of bestTypes) {
             let best = null;
             for (const t of towers) {
                 if (!TOWER_TYPES[t.type] || t.level >= MAX_LEVEL) continue;
-                const cost = getUpgradeCostEffective(t.type, t.level);
+                const cost = getUpgradeCostEffective(t.type, t.level, t.col, t.row);
                 if (cost == null || money < cost) continue;
                 const current = aiTowerPower(t.type, t.level, profile, t.col, t.row);
                 const next = aiTowerPower(t.type, t.level + 1, profile, t.col, t.row);
@@ -7266,12 +7796,12 @@ for (const type of bestTypes) {
             if (!aiLastRecommendation || screen !== 'game' || gameOver) return;
             const rec = aiLastRecommendation;
             if (rec.action === 'build') {
-                if (money < getBuildCost(rec.type) || !canBuildAt(rec.col, rec.row)) {
+                if (money < getBuildCost(rec.type, rec.col, rec.row) || !canBuildAt(rec.col, rec.row)) {
                     aiAddMessage('推荐点的条件已经变化，我正在重新计算。', 'bot');
                     aiRecommendBuild();
                     return;
                 }
-                const cost = getBuildCost(rec.type);
+                const cost = getBuildCost(rec.type, rec.col, rec.row);
                 if (money < cost) { aiAddMessage('资金不足，暂时不能执行。', 'bot'); return; }
                 closeBuildMenu(); closeTowerMenu();
                 addTower(rec.col, rec.row, rec.type);
@@ -7284,7 +7814,7 @@ for (const type of bestTypes) {
                 aiLastRecommendation = null; aiSetApplyEnabled(false);
             } else if (rec.action === 'upgrade') {
                 const t = rec.tower;
-                const cost = getUpgradeCostEffective(t.type, t.level);
+                const cost = getUpgradeCostEffective(t.type, t.level, t.col, t.row);
                 if (!towers.includes(t) || cost == null || money < cost) {
                     aiAddMessage('该升级方案已失效或资金不足，请重新分析。', 'bot');
                     aiLastRecommendation = null; aiSetApplyEnabled(false); return;
@@ -7438,7 +7968,7 @@ for (const type of bestTypes) {
                     aiSetStatus('正在寻找可用的初始建塔位置');
                     return;
                 }
-                if (money < getBuildCost(opening.type) || !canBuildAt(opening.col, opening.row)) return;
+                if (money < getBuildCost(opening.type, opening.col, opening.row) || !canBuildAt(opening.col, opening.row)) return;
                 closeBuildMenu(); closeTowerMenu();
                 addTower(opening.col, opening.row, opening.type);
                 rebuildPaths(); updateUI();
@@ -7584,7 +8114,7 @@ for (const type of bestTypes) {
                 const roleNow = aiDifficulty20RoleState(prof);
                 const aoeCnt = roleNow.aoe;
                 if (gp >= 0.48 && aoeCnt < Math.min(2.0, roleNow.aoeNeed)) {
-                    const cost0 = getBuildCost(build.type);
+                    const cost0 = getBuildCost(build.type, build.col, build.row);
                     if (money >= cost0 + (aiDifficulty20AmmoReserve() * 0.5) && canBuildAt(build.col, build.row)) {
                         closeBuildMenu(); closeTowerMenu();
                         addTower(build.col, build.row, build.type);
@@ -7614,7 +8144,7 @@ for (const type of bestTypes) {
 
             if (chooseUpgrade) {
                 const t = up.tower;
-                const cost = getUpgradeCostEffective(t.type, t.level);
+                const cost = getUpgradeCostEffective(t.type, t.level, t.col, t.row);
                 if (cost == null || money < cost || !towers.includes(t)) return;
                 const _fromLv = t.level;
                 money -= cost; t.level++; t.invested += cost;
@@ -7625,7 +8155,7 @@ for (const type of bestTypes) {
                 aiLastAssistantAction = `自动升级 ${TOWER_TYPES[t.type].name} Lv.${t.level}`;
             } else {
                 if (!buildAffordable || !build) return;
-                const cost = getBuildCost(build.type);
+                const cost = getBuildCost(build.type, build.col, build.row);
                 const reserve = 0;
                 if (money < cost + reserve || !canBuildAt(build.col, build.row)) return;
                 closeBuildMenu(); closeTowerMenu();
@@ -7759,6 +8289,7 @@ for (const type of bestTypes) {
             else if (screen === 'intro') drawIntro();
             else if (screen === 'bestiary') drawBestiary();
             else if (screen === 'towerdex') drawTowerDex();
+            else if (screen === 'enhance') drawEnhanceScreen();
             else drawGame();
         }
 
@@ -7850,10 +8381,11 @@ for (const type of bestTypes) {
             }
         }
 
+        const MAIN_BTN_COUNT = 6;
         function getMainBtnRect(i) {
-            const bw = 420, bh = 66, gap = 18, count = 5;
+            const bw = 420, bh = 58, gap = 14, count = MAIN_BTN_COUNT;
             const totalH = count * bh + (count - 1) * gap;
-            const startY = canvas.height - 70 - totalH;
+            const startY = canvas.height - 64 - totalH;
             return { x: (canvas.width - bw) / 2, y: startY + i * (bh + gap), w: bw, h: bh };
         }
 
@@ -7889,9 +8421,9 @@ for (const type of bestTypes) {
             ctx.fillText('致敬经典塔防游戏《防御阵型 · 觉醒》', canvas.width / 2, 232);
             ctx.fillText('作者：NonComtGr，代码由DeepSeek生成', canvas.width / 2, 268);
             drawMenuDecor();
-            const labels = ['▶  开始游戏', '📖  玩法简介', '👾  怪物图鉴', '🏰  防御塔图鉴', '📊  统计数据'];
-            const colors = ['#4a9eff', '#4affd0', '#66ff99', '#ffaa44', '#bd91ff'];
-            for (let i = 0; i < 5; i++) {
+            const labels = ['▶  开始游戏', '📖  玩法简介', '👾  怪物图鉴', '🏰  防御塔图鉴', '🧩  塔增强', '📊  统计数据'];
+            const colors = ['#4a9eff', '#4affd0', '#66ff99', '#ffaa44', '#ffd966', '#bd91ff'];
+            for (let i = 0; i < labels.length; i++) {
                 const r = getMainBtnRect(i);
                 const hov = hoveredMainBtn === i;
                 const col = colors[i];
@@ -7906,6 +8438,154 @@ for (const type of bestTypes) {
                 ctx.font = 'bold 28px "Microsoft YaHei"';
                 ctx.fillStyle = hov ? '#ffffff' : '#c0dcff';
                 ctx.fillText(labels[i], r.x + r.w / 2, r.y + r.h / 2 + 1);
+            }
+        }
+
+        // ============================================================
+        // 防御塔增强选择界面
+        // ============================================================
+        let enhScreenNotice = '', enhScreenNoticeAt = 0;
+
+        function enhTowerList() { return Object.keys(TOWER_ENHANCEMENTS); }
+
+        function getEnhTowerChipRect(i) {
+            const n = enhTowerList().length;
+            const marginX = 26, gap = 8;
+            const w = (canvas.width - marginX * 2 - gap * (n - 1)) / n;
+            return { x: marginX + i * (w + gap), y: 104, w: w, h: 52 };
+        }
+
+        function getEnhCardRect(i) {
+            const marginX = 26, gapX = 14, gapY = 12, top = 214, h = 128;
+            const w = (canvas.width - marginX * 2 - gapX) / 2;
+            const col = i % 2, row = Math.floor(i / 2);
+            return { x: marginX + col * (w + gapX), y: top + row * (h + gapY), w: w, h: h };
+        }
+
+        function enhCardTipHTML(type, idx) {
+            const t = TOWER_TYPES[type] || { name: type, icon: '', color: '#7ec8ff' };
+            const enh = (TOWER_ENHANCEMENTS[type] || [])[idx];
+            if (!enh) return '';
+            const unlocked = enhancementIsUnlocked(type, idx);
+            const active = enhancementSelectedIndex(type) === idx;
+            const stateText = active ? '✔ 当前已启用' : (unlocked ? '已解锁 · 点击启用' : '🔒 未解锁 · 每关每模式首次金牌随机解锁一个');
+            const stateColor = active ? '#4affd0' : (unlocked ? '#c0dcff' : '#ffaa44');
+            return `<div style="max-width:380px;line-height:1.7">`
+                + `<div style="font-size:15px;font-weight:bold;color:${t.color}">${t.icon} ${t.name} · ${enh.name}</div>`
+                + `<div style="font-size:13px;color:#8fffd8;margin-top:6px">效果：${enhancementModDesc(enh.mods, type)}</div>`
+                + `<div style="font-size:13px;color:${stateColor};margin-top:4px">状态：${stateText}</div>`
+                + `</div>`;
+        }
+
+        function drawEnhanceScreen() {
+            drawBackdrop();
+            drawBackBtn();
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = 'bold 34px "Microsoft YaHei"';
+            ctx.fillStyle = '#7ec8ff'; ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 22;
+            ctx.fillText('🧩 防御塔增强', canvas.width / 2, 44);
+            ctx.shadowBlur = 0;
+            ctx.font = '15px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
+            ctx.fillText(`已解锁 ${enhancementUnlockedTotal()} / ${enhancementTotalCount()} · 累计金牌 ${enhancementState.goldCount} 枚 · 每关每模式首次金牌解锁 1 个增强（重复金牌不再解锁）`, canvas.width / 2, 80);
+
+            const list = enhTowerList();
+            for (let i = 0; i < list.length; i++) {
+                const type = list[i];
+                const r = getEnhTowerChipRect(i);
+                const active = i === selectedEnhTower;
+                const hov = hoveredEnhTower === i;
+                const col = (TOWER_TYPES[type] || {}).color || '#7ec8ff';
+                ctx.fillStyle = active ? 'rgba(36,74,112,0.95)' : (hov ? 'rgba(29,48,72,0.95)' : 'rgba(19,28,43,0.9)');
+                roundRect(ctx, r.x, r.y, r.w, r.h, 10); ctx.fill();
+                ctx.strokeStyle = active ? '#7ec8ff' : (hov ? '#5e9acc' : '#2e4a6e');
+                ctx.lineWidth = active || hov ? 2 : 1.2;
+                roundRect(ctx, r.x, r.y, r.w, r.h, 10); ctx.stroke();
+                drawTowerLogo(ctx, type, 2, r.x + 17, r.y + r.h / 2, -Math.PI / 2, col, 0.64);
+                const unlocked = (enhancementState.unlocked[type] || []).length;
+                const sel = enhancementSelectedIndex(type);
+                ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold 13px "Microsoft YaHei"';
+                ctx.fillStyle = active || hov ? '#ffffff' : '#a8c4e4';
+                ctx.fillText((TOWER_TYPES[type] || {}).name || type, r.x + 32, r.y + r.h / 2 - 8);
+                ctx.font = '10px "Microsoft YaHei"'; ctx.fillStyle = sel === ENHANCEMENT_NONE ? '#6f8fb5' : '#8fffd8';
+                ctx.fillText(`解锁 ${unlocked}/10`, r.x + 32, r.y + r.h / 2 + 9);
+            }
+
+            const selType = list[selectedEnhTower] || list[0];
+            const selIdx = enhancementSelectedIndex(selType);
+            const selEnh = selIdx >= 0 ? (TOWER_ENHANCEMENTS[selType] || [])[selIdx] : null;
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.font = 'bold 18px "Microsoft YaHei"';
+            ctx.fillStyle = (TOWER_TYPES[selType] || {}).color || '#7ec8ff';
+            ctx.fillText(`${(TOWER_TYPES[selType] || {}).icon || ''} ${(TOWER_TYPES[selType] || {}).name || selType} 的 10 项增强`, 26, 190);
+            ctx.textAlign = 'right';
+            ctx.font = '14px "Microsoft YaHei"';
+            ctx.fillStyle = selEnh ? '#8fffd8' : '#7a9ac0';
+            ctx.fillText(selEnh
+                ? `当前启用：${selEnh.name} — ${enhancementModDesc(selEnh.mods, selType)}`
+                : '当前未启用增强 · 点击已解锁选项启用，再次点击已启用项可关闭', canvas.width - 26, 190);
+
+            for (let i = 0; i < ENHANCEMENT_COUNT_PER_TOWER; i++) {
+                const r = getEnhCardRect(i);
+                const enh = (TOWER_ENHANCEMENTS[selType] || [])[i];
+                if (!enh) continue;
+                const unlocked = enhancementIsUnlocked(selType, i);
+                const active = selIdx === i;
+                const hov = hoveredEnhCard === i;
+                ctx.save();
+                if (active) { ctx.shadowColor = 'rgba(74,255,208,0.4)'; ctx.shadowBlur = 16; }
+                ctx.fillStyle = active ? 'rgba(26,62,54,0.96)' : (unlocked ? 'rgba(23,38,58,0.94)' : 'rgba(15,21,30,0.92)');
+                roundRect(ctx, r.x, r.y, r.w, r.h, 12); ctx.fill();
+                ctx.restore();
+                ctx.strokeStyle = active ? '#4affd0' : (unlocked ? (hov ? '#7ec8ff' : '#3a6389') : (hov ? '#5d7590' : '#26313f'));
+                ctx.lineWidth = active || hov ? 2 : 1.2;
+                roundRect(ctx, r.x, r.y, r.w, r.h, 12); ctx.stroke();
+
+                // 左上角序号块
+                ctx.fillStyle = active ? '#4affd0' : (unlocked ? '#7ec8ff' : '#3c4d63');
+                roundRect(ctx, r.x + 14, r.y + 14, 30, 30, 8); ctx.fill();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold 15px "Microsoft YaHei"';
+                ctx.fillStyle = active ? '#08251d' : (unlocked ? '#08243a' : '#96a9bf');
+                ctx.fillText(String(i + 1), r.x + 29, r.y + 29);
+
+                ctx.textAlign = 'left';
+                ctx.font = 'bold 20px "Microsoft YaHei"';
+                ctx.fillStyle = active ? '#ffffff' : (unlocked ? '#c0dcff' : '#66788c');
+                ctx.fillText(enh.name, r.x + 54, r.y + 29);
+
+                // 右上状态徽标
+                const badge = active ? '✔ 已启用' : (unlocked ? '已解锁' : '🔒 未解锁');
+                const badgeCol = active ? '#4affd0' : (unlocked ? '#7ec8ff' : '#ffaa44');
+                ctx.textAlign = 'right';
+                ctx.font = '13px "Microsoft YaHei"';
+                ctx.fillStyle = badgeCol;
+                ctx.fillText(badge, r.x + r.w - 16, r.y + 29);
+
+                ctx.textAlign = 'left';
+                ctx.font = '14px "Microsoft YaHei"';
+                ctx.fillStyle = active ? '#8fffd8' : (unlocked ? '#a8c8e8' : '#6b7f96');
+                ctx.fillText('效果：' + enhancementModDesc(enh.mods, selType), r.x + 16, r.y + 72);
+
+                ctx.font = '12px "Microsoft YaHei"';
+                ctx.fillStyle = active ? '#4affd0' : (unlocked ? '#7a9ac0' : '#8a6f4a');
+                ctx.fillText(active ? '点击关闭：恢复该塔的原始性能'
+                    : (unlocked ? '点击启用（同一时间每个塔型只能启用 1 项）'
+                                : '未解锁 · 悬停可看效果，每关每模式首次金牌随机解锁'), r.x + 16, r.y + 100);
+
+                // 底部细进度条：该塔解锁进度
+                const unlockedCount = (enhancementState.unlocked[selType] || []).length;
+                ctx.fillStyle = 'rgba(60,100,150,0.18)';
+                roundRect(ctx, r.x + 16, r.y + r.h - 14, r.w - 32, 4, 2); ctx.fill();
+                ctx.fillStyle = active ? 'rgba(74,255,208,0.6)' : 'rgba(126,200,255,0.45)';
+                roundRect(ctx, r.x + 16, r.y + r.h - 14, (r.w - 32) * unlockedCount / 10, 4, 2); ctx.fill();
+            }
+
+            if (enhScreenNotice && Date.now() - enhScreenNoticeAt < 2200) {
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold 15px "Microsoft YaHei"';
+                ctx.fillStyle = '#ffaa44';
+                ctx.fillText(enhScreenNotice, canvas.width / 2, 942);
             }
         }
 
@@ -8101,6 +8781,7 @@ for (const type of bestTypes) {
             ['👾', `${ENEMY_TYPE_COUNT} 种敌人`, '含空中、护盾、治疗、免疫减速、孵化、召唤、干扰等特性，需要搭配不同类型防御塔应对。'],
             ['👻', '隐形单位',   `隐形怪只能被距离 ${STEALTH_REVEAL_RANGE} 格以内的防御塔发现并攻击；满级减速塔可揭示射程内的隐形单位！`],
             ['⭐', '满级特性',   '所有塔 5 级后可花 5000 升至满级(Lv.6)，解锁专属特性：多目标、永久灼烧、眩晕等。'],
+            ['🧩', '塔增强',     '主菜单「塔增强」可为每种塔启用 1 项增强（每种 10 项，常带取舍）；同一关同一模式首次拿到金牌随机解锁 1 项（反复刷同一关不再解锁），未解锁的也能悬停预览具体效果。'],
             ['📡', '增幅光环',   '增幅塔为自身以外的所有塔提供伤害、射速、射程加成，多座可叠加。'],
             ['🔥', '进阶难度',   '在关卡选择左侧可调节进阶难度（1-20），每一级都会叠加新的负面机制，挑战你的极限构筑。'],
             ['🔀', '路线反转',   '出入口不同的关卡可在模式选择中开启路线反转，敌军路线完全互换。'],
@@ -8746,7 +9427,8 @@ const ty = y + 150 + (featLines.length - 1) * featLineH;
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.028)';
                     ctx.fillRect(tx, ry, totalW, rowH);
                 }
-                const s = towerStatsAt(key, lv);
+                // 图鉴展示基础数值（不含当前启用的增强），避免与实战数值混淆
+                const s = computeTowerStats(key, lv);
                 const up = getUpgradeCost(key, lv);
                 let vals;
                 if (isLaser) vals = [s.dps.toFixed(1), lv >= MAX_LEVEL ? '永久' : s.burnDur.toFixed(1) + 's', s.range.toFixed(1)];
@@ -10285,7 +10967,7 @@ function drawRogueToggle() {
             for (let i = 0; i < BUILD_MENU_ORDER.length; i++) {
                 const type = BUILD_MENU_ORDER[i];
                 const d = TOWER_TYPES[type];
-                const cost = getBuildCost(type);
+                const cost = getBuildCost(type, buildMenu.col, buildMenu.row);
                 const r = getBuildItemRect(i);
                 const affordable = money >= cost;
                 const hovered = m.hover === i;
@@ -10808,7 +11490,7 @@ function drawRogueToggle() {
                 if (upgradable.length > 0) {
                     const t = upgradable[Math.floor(Math.random() * upgradable.length)];
                     const _fromLv = t.level;
-                    const cost = getUpgradeCostEffective(t.type, t.level) || 0;
+                    const cost = getUpgradeCostEffective(t.type, t.level, t.col, t.row) || 0;
                     t.level++; t.invested += cost;
                     recordUpgrade(t, _fromLv, cost);
                     SFX.upgrade();
@@ -11076,7 +11758,8 @@ if (up.id === 'synBoost' && rogueState) {
         // 结算面板
         // ============================================================
         function getResultLayout() {
-            const extra = (gameResult && gameResult.rogue) ? 26 : 0;
+            const extra = ((gameResult && gameResult.rogue) ? 26 : 0) +
+                          ((gameResult && (gameResult.enhancementUnlock || gameResult.goldRepeat)) ? 34 : 0);
             const w = 440, h = 470 + extra;
             return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
         }
@@ -11142,8 +11825,13 @@ if (up.id === 'synBoost' && rogueState) {
                 : (Number(s.towersBuilt) || 0);
             // 本局布局是否由 AI 改动过（智能托管 / 执行推荐 / 优化升级）：成绩要标明来源
             const medalBasisAi = useGrindEntryMedal ? !!endlessEntryMedalSnapshot.ai : aiLearnUsed;
+            // 金牌奖励：同一关同一模式（含路线反转/混乱/Roguelike 组合）只在「首次拿到金牌」时解锁一个增强
+            const prevMedalRecord = getModeMedalRecord(levelIndex, currentModeKey, routeReverse, chaosEnabled, !!rogueState);
             saveModeMedalResult(levelIndex, currentModeKey, medal, medalBasisScore, medalDifficulty, medalBasisTowers, medalBasisAi,
                                 routeReverse, chaosEnabled, !!rogueState);
+            const firstGold = medal === 'gold' && !(prevMedalRecord && prevMedalRecord.medal === 'gold');
+            const goldRepeat = !useGrindEntryMedal && medal === 'gold' && !firstGold;
+            const enhancementUnlock = (!useGrindEntryMedal && firstGold) ? awardGoldMedalEnhancement() : null;
             gameResult = {
                 win, score, medal, medalBasisScore, medalThresholds: medalBasisThresholds, difficulty: medalDifficulty,
                 kills: s.kills, leaked: st.red, wavesCleared: s.wavesCleared,
@@ -11157,14 +11845,24 @@ if (up.id === 'synBoost' && rogueState) {
                 levelName: lv.name, levelNum: levelIndex + 1,
                 modeName: mode.name + (chaosEnabled ? ' · 混乱' : '') + (routeReverse ? ' · 路线反转' : '') + (rogueState ? ' · Roguelike' : '') + (selectedAscension > 0 ? ' · 进阶'+selectedAscension : ''),
                 reverse: routeReverse, playTime: playTime,
-                showEndless: false
+                showEndless: false,
+                enhancementUnlock: enhancementUnlock,
+                goldRepeat: goldRepeat
             };
             // 无尽入口只认超级研磨：Roguelike / 混乱 / 反转 都只是叠加项，不构成进入资格
             if (win && currentModeKey === 'grind') {
                 unlockEndless();
                 gameResult.showEndless = true;
             }
-            msgDisplay.textContent = win ? '🎉 关卡通过！点击确定返回关卡选择' : '💀 核心全部丢失... 点击确定返回关卡选择';
+            let endMsg = win ? '🎉 关卡通过！点击确定返回关卡选择' : '💀 核心全部丢失... 点击确定返回关卡选择';
+            if (enhancementUnlock) {
+                const tname = (TOWER_TYPES[enhancementUnlock.type] || {}).name || enhancementUnlock.type;
+                const ename = ((TOWER_ENHANCEMENTS[enhancementUnlock.type] || [])[enhancementUnlock.idx] || {}).name || '增强';
+                endMsg += ` · 🔓 金牌解锁新增强：${tname} · ${ename}`;
+            } else if (goldRepeat) {
+                endMsg += ' · 🔓 本关首次金牌已记录，重复金牌不再解锁';
+            }
+            msgDisplay.textContent = endMsg;
             if (aiLearnUsed) {
                 aiSetStatus(win ? 'AI 已完成本关 · 通关成功' : 'AI 托管结束 · 本关未能守住');
                 aiAddMessage(win ? '🎉 本关所有波次已清除，AI 自动通关成功！' : '本局结束：基地核心已全部丢失。可以重新开始并调整难度。', 'bot');
@@ -11301,6 +11999,14 @@ if (up.id === 'synBoost' && rogueState) {
                 ['游玩时间', formatTime(r.playTime || 0)]
             ];
             if (r.rogue && rogueState) rows.push(['强化次数', String(rogueState.upgrades.length)]);
+            if (r.enhancementUnlock) {
+                const eu = r.enhancementUnlock;
+                const tname = (TOWER_TYPES[eu.type] || {}).name || eu.type;
+                const ename = ((TOWER_ENHANCEMENTS[eu.type] || [])[eu.idx] || {}).name || '增强';
+                rows.push(['🔓 金牌奖励', `${tname} · ${ename}`]);
+            } else if (r.goldRepeat) {
+                rows.push(['🔓 金牌奖励', '本关金牌已记录（重复不再解锁）']);
+            }
             ctx.font = '14px "Microsoft YaHei"';
             for (let i = 0; i < rows.length; i++) {
                 const y = L.y + 124 + i * 26;
@@ -13228,7 +13934,7 @@ if (up.id === 'synBoost' && rogueState) {
             for (const order of pendingBuilds) {
                 const d = TOWER_TYPES[order.type];
                 if (!d) continue;
-                const cost = getBuildCost(order.type);
+                const cost = getBuildCost(order.type, order.col, order.row);
                 const px = cellCenterX(order.col), py = cellCenterY(order.row);
                 const affordable = money >= cost;
                 const pulse = 0.5 + Math.sin(tNow + order.col * 0.7 + order.row * 1.3) * 0.5;
@@ -13794,6 +14500,13 @@ if (up.id === 'synBoost' && rogueState) {
                     ctx.lineWidth = 1.2 * sf; ctx.stroke();
                 }
             }
+            if (e.vulnTimer > 0) {
+                // ★ 增强「伤害加深」标记：紫色虚线圈 + 小箭头，提示这只要吃更多伤害
+                ctx.beginPath(); ctx.arc(e.x, e.y, size + 11 * sf, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(190, 120, 255, 0.85)'; ctx.lineWidth = 1.6 * sf;
+                if (enemies.length > 90) { ctx.stroke(); }
+                else { ctx.setLineDash([3 * sf, 4 * sf]); ctx.stroke(); ctx.setLineDash([]); }
+            }
             if (e.stunTimer > 0) {
                 const t2 = Date.now() / 120;
                 ctx.save();
@@ -13883,6 +14596,18 @@ if (up.id === 'synBoost' && rogueState) {
     if (!isDot && !skipDoubleShot && critChance > 0 && Math.random() < critChance) {
         dmg *= (rogueState && rogueState.bonus.critDmgMul) || 2;
     }
+            // ★ 增强「暴击」：按该塔的暴击率与倍率单独结算
+            if (!isDot && !skipDoubleShot && tower) {
+                const eCrit = enhancementMod(tower.type, 'critChance');
+                if (eCrit && Math.random() < eCrit) dmg *= (enhancementMod(tower.type, 'critMult') || 2);
+            }
+            // ★ 增强「伤害加深」：被标记的目标承受更多伤害（直接命中与灼烧/毒液都生效）
+            if (e.vulnTimer > 0 && e.vulnAmount > 0) dmg *= (1 + e.vulnAmount);
+            // ★ 增强「对护盾额外伤害」：目标仍有护盾时提升本次伤害
+            if (!isDot && tower) {
+                const sbonus = enhancementMod(tower.type, 'shieldBonus');
+                if (sbonus && e.shield > 0) dmg *= sbonus;
+            }
             if (rogueState && rogueState.bonus.ignoreShield) {
                 e.hp -= dmg;
             } else {
@@ -13892,6 +14617,29 @@ if (up.id === 'synBoost' && rogueState) {
                     dmg -= absorbed;
                 }
                 e.hp -= dmg;
+            }
+            // ★ 增强「命中减速 / 命中眩晕」：只对直接命中生效，灼烧/毒液等 DoT 不触发
+            if (!isDot && tower && e.hp > 0) {
+                const hitSlow = enhancementMod(tower.type, 'hitSlow');
+                if (hitSlow) {
+                    const ed = ENEMY_TYPES[e.type] || {};
+                    if (!ed.immuneSlow) {
+                        const slowDur = enhancementMod(tower.type, 'hitSlowDur') || 1;
+                        e.slowTimer = Math.max(e.slowTimer || 0, slowDur);
+                        e.slowFactor = Math.min(e.slowFactor == null ? 1 : e.slowFactor, hitSlow);
+                    }
+                }
+                const hitStun = enhancementMod(tower.type, 'hitStun');
+                if (hitStun) {
+                    const chance = enhancementMod(tower.type, 'hitStunChance');
+                    if (Math.random() < (chance == null ? 1 : chance)) applyStun(e, hitStun);
+                }
+                // ★ 增强「伤害加深」：命中后给目标挂上易伤标记（同类取更强的一套，刷新持续时间）
+                const vuln = enhancementMod(tower.type, 'vuln');
+                if (vuln) {
+                    e.vulnAmount = Math.max(e.vulnAmount || 0, vuln);
+                    e.vulnTimer = Math.max(e.vulnTimer || 0, enhancementMod(tower.type, 'vulnDur') || 3);
+                }
             }
             const actual = (hpBefore - Math.max(0, e.hp)) + (shBefore - e.shield);
             if (actual > 0) {
@@ -14160,6 +14908,10 @@ if (up.id === 'synBoost' && rogueState) {
                     e.slowTimer -= dt;
                     if (e.slowTimer <= 0) e.slowFactor = 1;
                 }
+                if (e.vulnTimer > 0) {
+                    e.vulnTimer -= dt;
+                    if (e.vulnTimer <= 0) { e.vulnTimer = 0; e.vulnAmount = 0; }
+                }
                 let step = e.speed * 60 * dt * (CELL / baseCellPx);
                 if (e.slowTimer > 0) step *= e.slowFactor;
                 if (rogueState && rogueState.bonus.enemySlow < 1) step *= rogueState.bonus.enemySlow;
@@ -14406,6 +15158,7 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
 
         function collectTargets(t, towerPx, towerPy, rangePx) {
             const typeDef = TOWER_TYPES[t.type];
+            const prefHighHp = !!enhancementMod(t.type, 'preferHighHp');
             const out = [];
             for (const e of enemies) {
                 if (e.hp <= 0) continue;
@@ -14418,7 +15171,7 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
                 const dist = Math.hypot(dx, dy);
                 if (dist > rangePx) continue;
                 if (!enemyVisibleFromTower(e, t, dist)) continue;
-                out.push({ e, dist, priority: aiEnemyTacticalPriority(e) });
+                out.push({ e, dist, priority: prefHighHp ? enhancementHpPriority(e) : aiEnemyTacticalPriority(e) });
             }
             out.sort((a, b) => {
                 if (a.priority !== b.priority) return b.priority - a.priority;
@@ -14432,6 +15185,7 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
         function findTarget(t, towerPx, towerPy, rangePx) {
             const typeDef = TOWER_TYPES[t.type];
             if (!typeDef) return null;
+            const prefHighHp = !!enhancementMod(t.type, 'preferHighHp');
             const range2 = rangePx * rangePx;
             let best = null, bestPri = -Infinity, bestDist = Infinity;
             for (let i = 0; i < enemies.length; i++) {
@@ -14447,7 +15201,7 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
                 if (dist2 > range2) continue;
                 const dist = Math.sqrt(dist2);
                 if (!enemyVisibleFromTower(e, t, dist)) continue;
-                const pri = aiEnemyTacticalPriority(e);
+                const pri = prefHighHp ? enhancementHpPriority(e) : aiEnemyTacticalPriority(e);
                 if (pri > bestPri || (pri === bestPri && dist < bestDist)) {
                     best = e; bestPri = pri; bestDist = dist;
                 }
@@ -14455,8 +15209,26 @@ if (rogueState && rogueState.bonus && rogueState.bonus.coreReturnSpeed) {
             return best;
         }
 
-        function turnToward(cur, target, dt, rate) {
-            let diff = target - cur;
+        // ★ 增强「分裂箭」：本次攻击是否额外打出子弹；返回额外目标数（0 = 未触发）
+        function rollSplitShot(t) {
+            const chance = enhancementMod(t.type, 'multiChance');
+            if (!chance || Math.random() >= chance) return 0;
+            return Math.max(1, Math.round(enhancementMod(t.type, 'multiTargets') || 1));
+        }
+        // 额外子弹的目标：射程内、未被主目标占用、由近到远挑选
+        function pickSplitTargets(t, towerPx, towerPy, rangePx, exclude, n) {
+            const cand = collectTargets(t, towerPx, towerPy, rangePx)
+                .filter(it => it.e !== exclude && it.e.hp > 0)
+                .sort((a, b) => a.dist - b.dist);
+            const out = [];
+            for (const it of cand) {
+                if (out.length >= n) break;
+                out.push(it.e);
+            }
+            return out;
+        }
+
+        function turnToward(cur, target, dt, rate) {            let diff = target - cur;
             while (diff > Math.PI) diff -= Math.PI * 2;
             while (diff < -Math.PI) diff += Math.PI * 2;
             return cur + diff * Math.min(1, rate * dt);
@@ -14863,10 +15635,31 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                         damage: st.damage,
                         tower: t,
                         isMax: isMax,
-                        splash: (typeDef.splash || 1.2) * (1 + (syn ? (syn.splash || 0) : 0)),
+                        splash: (typeDef.splash || 1.2) * (1 + (syn ? (syn.splash || 0) : 0)) + (enhancementMod('missile', 'splashAdd') || 0),
                         life: 4.0, maxLife: 4.0,
                         color: '#c44aff'
                     });
+                    // ★ 增强「分裂箭」：齐射模块有几率再补一枚导弹打别的目标
+                    const missileSplitN = rollSplitShot(t);
+                    if (missileSplitN > 0) {
+                        const extras = pickSplitTargets(t, towerPx, towerPy, rangePx, target, missileSplitN);
+                        for (const se of extras) {
+                            projectiles.push({
+                                kind: 'missile',
+                                fromX: towerPx, fromY: towerPy,
+                                x: towerPx, y: towerPy,
+                                tx: se.x, ty: se.y,
+                                target: se,
+                                angle: Math.atan2(se.y - towerPy, se.x - towerPx),
+                                speed: 12 * CELL,
+                                damage: st.damage * (enhancementMod('missile', 'splitRatio') || 0.75),
+                                tower: t, isMax: isMax,
+                                splash: (typeDef.splash || 1.2) * (1 + (syn ? (syn.splash || 0) : 0)) + (enhancementMod('missile', 'splashAdd') || 0),
+                                life: 4.0, maxLife: 4.0,
+                                color: '#c44aff'
+                            });
+                        }
+                    }
                     SFX.shoot('missile');
                     t.cooldown = actualCooldown;
                     continue;
@@ -14931,7 +15724,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     let cur = target, dmg = st.damage;
                     let fromX = towerPx, fromY = towerPy;
                     const maxJumps = typeDef.chainJumps + Math.floor(t.level / 2) + (syn ? Math.floor(syn.chain) : 0);
-                    const jumpR = 1.8 * CELL;
+                    // 跳跃半径默认 1.8 格，增强「长距跳链 / 远程传导 / 扩大跳幅」会额外加宽
+                    const jumpR = (1.8 + (enhancementMod('chain', 'jumpRange') || 0)) * CELL;
                     const pts = [];
                     for (let j = 0; j < maxJumps && cur; j++) {
                         hit.add(cur);
@@ -15005,6 +15799,12 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                         target.slowTimer = Math.max(target.slowTimer, st.duration);
                         target.slowFactor = Math.min(target.slowFactor, slowVal);
                     }
+                    // ★ 增强「冻结脉冲」：命中时有概率追加短眩晕
+                    const tStun = enhancementMod('temporal', 'hitStun');
+                    if (tStun) {
+                        const tChance = enhancementMod('temporal', 'hitStunChance');
+                        if (Math.random() < (tChance == null ? 1 : tChance)) applyStun(target, tStun);
+                    }
                     projectiles.push({
                         kind: 'ring', x: target.x, y: target.y, radius: 22 * (CELL / baseCellPx),
                         color: '#4affd0', life: 0.4, maxLife: 0.4
@@ -15049,10 +15849,13 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                         if (isMax) applyStun(target, 0.25 * (1 + (syn ? (syn.stun || 0) : 0)));
                         else if (syn && syn.stun > 0) applyStun(target, 0.4 * syn.stun);
                     }
-                    if (typeDef.splash) {
-                        let splashR = typeDef.splash * CELL * (1 + (syn ? (syn.splash || 0) : 0));
-                        let ratio = typeDef.splashRatio || 0.5;
+                    let splashRVis = 0;
+                    if (typeDef.splash || enhancementMod(t.type, 'splashAdd')) {
+                        const enhSplashAdd = enhancementMod(t.type, 'splashAdd') || 0;
+                        let splashR = ((typeDef.splash || 0) + enhSplashAdd) * CELL * (1 + (syn ? (syn.splash || 0) : 0));
+                        let ratio = typeDef.splash ? (typeDef.splashRatio || 0.5) : (enhancementMod(t.type, 'splashRatio') || 0.6);
                         if (t.type === 'missile' && isMax) { splashR *= 2; ratio = 1.0; }
+                        splashRVis = splashR;
                         for (const e of enemies) {
                             if (e === target || e.hp <= 0) continue;
                             const d = Math.hypot(e.x - target.x, e.y - target.y);
@@ -15067,6 +15870,23 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     const colors = { gun: '#4a9eff', cannon: '#ff8c42', missile: '#c44aff', flak: '#4ad8ff' };
                     const widths = { gun: 2, cannon: 5, missile: 3, flak: 1.6 };
                     const beamLife = { gun: 0.08, cannon: 0.18, missile: 0.14, flak: 0.06 };
+                    // ★ 增强「分裂箭」：有几率把这一发额外打向别的目标
+                    const splitN = rollSplitShot(t);
+                    if (splitN > 0) {
+                        const extras = pickSplitTargets(t, towerPx, towerPy, rangePx, target, splitN);
+                        const splitDmg = st.damage * (enhancementMod(t.type, 'splitRatio') || 0.75);
+                        for (const se of extras) {
+                            damageEnemy(se, splitDmg, t);
+                            projectiles.push({
+                                kind: 'beam', fromX: towerPx, fromY: towerPy,
+                                toX: se.x, toY: se.y,
+                                color: colors[t.type] || '#ffff00',
+                                width: widths[t.type] || 2,
+                                life: beamLife[t.type] || 0.1, maxLife: beamLife[t.type] || 0.1
+                            });
+                        }
+                        if (extras.length) SFX.shoot(t.type);
+                    }
                     projectiles.push({
                         kind: 'beam', fromX: towerPx, fromY: towerPy,
                         toX: target.x, toY: target.y,
@@ -15078,7 +15898,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     if (t.type === 'cannon' || t.type === 'missile' || t.type === 'flak') {
                         projectiles.push({
                             kind: 'boom', x: target.x, y: target.y,
-                            radius: (t.type === 'missile' && isMax ? typeDef.splash * 2 : (typeDef.splash || typeDef.boom || 0.6)) * CELL * 0.85,
+                            radius: splashRVis > 0 ? splashRVis * 0.85
+                                : (t.type === 'missile' && isMax ? typeDef.splash * 2 : (typeDef.splash || typeDef.boom || 0.6)) * CELL * 0.85,
                             color: t.type === 'cannon' ? '#ffaa44' : (t.type === 'flak' ? '#4ad8ff' : '#ddaaff'),
                             life: 0.25, maxLife: 0.25
                         });
@@ -15268,11 +16089,29 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             }
             if (screen === 'menu') {
                 let nh = -1;
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < MAIN_BTN_COUNT; i++) {
                     if (hitRect(mx, my, getMainBtnRect(i))) { nh = i; break; }
                 }
                 hoveredMainBtn = nh;
                 canvas.style.cursor = nh >= 0 ? 'pointer' : 'default';
+                return;
+            }
+            if (screen === 'enhance') {
+                hoveredBackBtn = hitRect(mx, my, BACK_BTN);
+                hoveredEnhTower = -1;
+                const tl = enhTowerList();
+                for (let i = 0; i < tl.length; i++) {
+                    if (hitRect(mx, my, getEnhTowerChipRect(i))) { hoveredEnhTower = i; break; }
+                }
+                hoveredEnhCard = -1;
+                const type = tl[selectedEnhTower];
+                if (type) {
+                    for (let i = 0; i < ENHANCEMENT_COUNT_PER_TOWER; i++) {
+                        if (hitRect(mx, my, getEnhCardRect(i))) { hoveredEnhCard = i; break; }
+                    }
+                }
+                if (type && hoveredEnhCard >= 0) showTipHTML(e.clientX, e.clientY, enhCardTipHTML(type, hoveredEnhCard));
+                canvas.style.cursor = (hoveredBackBtn || hoveredEnhTower >= 0 || hoveredEnhCard >= 0) ? 'pointer' : 'default';
                 return;
             }
             if (screen === 'stats') {
@@ -15409,12 +16248,14 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             hoveredRandomBtn = false;
             hoveredLevel = -1; hoveredMode = -1; hoveredReverse = false; hoveredRogue = false; hoveredChaos = false;
             hoveredAscUp = false; hoveredAscDown = false;
+            hoveredEnhTower = -1; hoveredEnhCard = -1;
             ascPanelHover = -1; gameAscHover = -1;
             autoUpgradeHover = false;
         });
 
         canvas.addEventListener('wheel', (e) => {
             if (draftPanel) { e.preventDefault(); return; }
+            if (screen === 'enhance') { e.preventDefault(); return; }
             if (screen === 'levels' || screen === 'bestiary' || screen === 'towerdex' || screen === 'intro' || screen === 'stats') {
                 e.preventDefault();
                 // 行/页滚动模式统一换算成像素：不同设备一格滚轮可能是 3 行而不是 100px
@@ -15489,16 +16330,49 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 return;
             }
             if (screen === 'menu') {
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < MAIN_BTN_COUNT; i++) {
                     if (hitRect(mx, my, getMainBtnRect(i))) {
                         SFX.click();
                         if (i === 0) setScreen('levels');
                         else if (i === 1) setScreen('intro');
                         else if (i === 2) setScreen('bestiary');
                         else if (i === 3) setScreen('towerdex');
+                        else if (i === 4) { selectedEnhTower = Math.max(0, enhTowerList().indexOf('gun')); setScreen('enhance'); }
                         else { statsTab = 'overview'; setScreen('stats'); }
                         return;
                     }
+                }
+                return;
+            }
+            if (screen === 'enhance') {
+                if (hitRect(mx, my, BACK_BTN)) { SFX.click(); setScreen('menu'); return; }
+                const tl = enhTowerList();
+                for (let i = 0; i < tl.length; i++) {
+                    if (hitRect(mx, my, getEnhTowerChipRect(i))) {
+                        SFX.click(); selectedEnhTower = i; hoveredEnhCard = -1;
+                        return;
+                    }
+                }
+                const type = tl[selectedEnhTower];
+                if (!type) return;
+                for (let i = 0; i < ENHANCEMENT_COUNT_PER_TOWER; i++) {
+                    if (!hitRect(mx, my, getEnhCardRect(i))) continue;
+                    if (!enhancementIsUnlocked(type, i)) {
+                        SFX.click();
+                        enhScreenNotice = '🔒 该增强尚未解锁：每关每模式首次金牌随机解锁一个';
+                        enhScreenNoticeAt = Date.now();
+                        return;
+                    }
+                    SFX.click();
+                    if (enhancementSelectedIndex(type) === i) {
+                        selectTowerEnhancement(type, ENHANCEMENT_NONE);
+                        enhScreenNotice = `已关闭「${(TOWER_TYPES[type] || {}).name || type}」的增强，恢复原始性能`;
+                    } else {
+                        selectTowerEnhancement(type, i);
+                        enhScreenNotice = `已启用：${(TOWER_TYPES[type] || {}).name || type} · ${TOWER_ENHANCEMENTS[type][i].name}`;
+                    }
+                    enhScreenNoticeAt = Date.now();
+                    return;
                 }
                 return;
             }
@@ -15651,7 +16525,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 if (selectedTower === existingTower) {
                     
                     if (existingTower.level >= MAX_LEVEL) { msgDisplay.textContent = `${TOWER_TYPES[existingTower.type].name} 已满级 (Lv.${MAX_LEVEL})`; return; }
-                    const upgradeCost = getUpgradeCostEffective(existingTower.type, existingTower.level);
+                    const upgradeCost = getUpgradeCostEffective(existingTower.type, existingTower.level, existingTower.col, existingTower.row);
                     if (upgradeCost !== null && money >= upgradeCost) {
                         const _fromLv = existingTower.level;
                         money -= upgradeCost;
