@@ -471,7 +471,8 @@ canvas { touch-action: none; }
     }
     return r;
 }
-        const GROW = { damage: 0.60, rate: 0.30, range: 0.08, slowMin: 0.15, slowStep: 0.07, slowDurStep: 0.4 };
+        // 减速塔：射程拉大、单次减速减弱（slow 是敌人移速倍率，越大越弱）
+        const GROW = { damage: 0.60, rate: 0.30, range: 0.08, slowBase: 0.60, slowMin: 0.22, slowStep: 0.06, slowDurStep: 0.4 };
 
         const TOWER_DRAFT_INTERVAL = 6; // 每 6 波选塔
         const ENEMY_BOOST_INTERVAL = 5; // 每 5 波怪物强化
@@ -3185,7 +3186,7 @@ function rollSynergyCount() {
             gun:      { name: '机枪塔', icon: '🔫', cost: 50,  color: '#4a9eff', range: 1.8, damage: 22,  fireRate: 0.28, targetsAir: true,  upgradeBase: 55 },
             cannon:   { name: '炮塔', icon: '💣', cost: 80,  color: '#ff8c42', range: 4.2, damage: 120, fireRate: 1.45, targetsAir: true,  boom: 0.35, upgradeBase: 62 },
             missile:  { name: '导弹塔', icon: '🚀', cost: 100, color: '#c44aff', range: 2.6, damage: 115, fireRate: 1.50, targetsAir: true,  splash: 1.2, splashRatio: 0.6, upgradeBase: 58 },
-            temporal: { name: '减速塔', icon: '❄️', cost: 70,  color: '#4affd0', range: 1.7, damage: 0,   fireRate: 0.5,  targetsAir: false, upgradeBase: 70 },
+            temporal: { name: '减速塔', icon: '❄️', cost: 70,  color: '#4affd0', range: 2.05, damage: 0,   fireRate: 0.5,  targetsAir: false, upgradeBase: 70 },
             laser:    { name: '激光塔', icon: '🔦', cost: 90,  color: '#ff4466', range: 2.2, damage: 110, fireRate: 0,    targetsAir: false, upgradeBase: 80 },
             shock:    { name: '震荡塔', icon: '⚡', cost: 85,  color: '#ffcc00', range: 1.5, damage: 40,  fireRate: 0.68, targetsAir: false, upgradeBase: 45 },
             chain:    { name: '链雷塔', icon: '🔗', cost: 110, color: '#88ccff', range: 3.0, damage: 76,  fireRate: 0.85, targetsAir: false, chainJumps: 3, chainDecay: 0.75, upgradeBase: 65 },
@@ -3510,7 +3511,7 @@ function rollSynergyCount() {
                 { name: '速射改造',      mods: { rate: 1.55, dmg: 0.80 } },
                 { name: '重弹链',        mods: { dmg: 1.60, rate: 0.85 } },
                 { name: '长管套件',      mods: { range: 1.40, dmg: 0.90 } },
-                { name: '枪管套件',      mods: { range: 1.30, rate: 0.90 } },
+                { name: '破甲弹链',      mods: { vuln: 0.16, vulnDur: 2.20, dmg: 0.92 } },
                 { name: '破盾弹头',      mods: { shieldBonus: 2, dmg: 0.92 } }
             ],
             cannon: [
@@ -3582,7 +3583,7 @@ function rollSynergyCount() {
                 { name: '远程传导',      mods: { range: 1.45, jumpRange: 0.40, rate: 0.88 } },
                 { name: '重载电球',      mods: { dmg: 1.25, rate: 1.10 } },
                 { name: '扩大跳幅',      mods: { jumpRange: 1.50, dmg: 0.92, rate: 1.05 } },
-                { name: '精密电极',      mods: { dmg: 1.20, range: 1.10 } },
+                { name: '腐蚀电弧',      mods: { vuln: 0.26, vulnDur: 2.60, dmg: 0.95 } },
                 { name: '麻痹电弧',      mods: { hitStun: 0.18, hitStunChance: 0.30, rate: 0.95 } }
             ],
             sniper: [
@@ -3919,7 +3920,7 @@ function computeTowerStats(type, lv) {
         }};
     }
     if (type === 'temporal') {
-        return { slow: Math.max(GROW.slowMin, 0.5 - (lv - 1) * GROW.slowStep), duration: 1.5 + (lv - 1) * GROW.slowDurStep, range, cooldown: d.fireRate };
+        return { slow: Math.max(GROW.slowMin, GROW.slowBase - (lv - 1) * GROW.slowStep), duration: 1.5 + (lv - 1) * GROW.slowDurStep, range, cooldown: d.fireRate };
     }
     if (type === 'laser') {
         const dps = d.damage * (1 + (lv - 1) * GROW.damage);
@@ -7226,7 +7227,8 @@ function aiConsumePlanPositionIfFromPlan(rec) {
             const st = towerStatsAt(type, level);
             let power = 0;
             if (type === 'temporal') {
-                power = 13 + (1.2 - (st.slow || 0.5)) * 36 + profile.slowableFastRatio * 30 + profile.stealthRatio * 10;
+                // 换算式与基础数值同步：1.32 - slow 让新数值下评分与旧版持平，并按射程额外加权
+                power = 13 + (1.32 - (st.slow || 0.60)) * 36 + (st.range - 1.7) * 6 + profile.slowableFastRatio * 30 + profile.stealthRatio * 10;
                 if (level >= MAX_LEVEL && profile.stealth > 0) {
                     power += profile.stealthRatio * 45;
                 }
@@ -15795,7 +15797,8 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                 }
                                 if (t.type === 'temporal') {
                     if (!ENEMY_TYPES[target.type].immuneSlow) {
-                        const slowVal = Math.min(1, st.slow * (1 + (syn ? (syn.slow || 0) : 0)));
+                        // 协同的 slow 是「减速强度倍率」，slow 存的是移速倍率（越小越强），所以做除法
+                        const slowVal = Math.max(0.06, Math.min(1, st.slow / (1 + (syn ? (syn.slow || 0) : 0))));
                         target.slowTimer = Math.max(target.slowTimer, st.duration);
                         target.slowFactor = Math.min(target.slowFactor, slowVal);
                     }
