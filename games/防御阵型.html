@@ -3381,6 +3381,8 @@ function rollSynergyCount() {
             const fresh = () => ({
                 version: 1,
                 totalStarts: 0, finishedGames: 0, wins: 0, losses: 0, rogueStarts: 0,
+                restarts: 0, levelSelects: 0,
+                medals: { gold: 0, silver: 0, copper: 0 },
                 levels: {}, towers: {}, enemies: {}
             });
             function load() {
@@ -3393,8 +3395,13 @@ function rollSynergyCount() {
                 if (!data.levels || typeof data.levels !== 'object') data.levels = {};
                 if (!data.towers || typeof data.towers !== 'object') data.towers = {};
                 if (!data.enemies || typeof data.enemies !== 'object') data.enemies = {};
-                for (const k of ['totalStarts','finishedGames','wins','losses','rogueStarts']) {
+                for (const k of ['totalStarts','finishedGames','wins','losses','rogueStarts','restarts','levelSelects']) {
                     data[k] = Math.max(0, Number(data[k]) || 0);
+                }
+                // 奖牌次数：老存档没有这段，缺字段按 0 补齐
+                if (!data.medals || typeof data.medals !== 'object') data.medals = { gold: 0, silver: 0, copper: 0 };
+                for (const k of ['gold', 'silver', 'copper']) {
+                    data.medals[k] = Math.max(0, Number(data.medals[k]) || 0);
                 }
                 return data;
             }
@@ -3441,6 +3448,25 @@ function rollSynergyCount() {
                 if (win) d.wins++; else d.losses++;
                 save();
             }
+            // 每次结算拿到奖牌计数（金/银/铜）；无尽沿用研磨入口奖牌的那次不重复计
+            function recordMedal(kind) {
+                if (kind !== 'gold' && kind !== 'silver' && kind !== 'copper') return;
+                const d = load();
+                d.medals[kind]++;
+                save();
+            }
+            // 重开次数：点击「重新开始」重开当前局的次数
+            function recordRestart() {
+                const d = load();
+                d.restarts++;
+                save();
+            }
+            // 关卡内点击「关卡选择」返回的次数（只在战斗界面点这个按钮才计）
+            function recordLevelSelect() {
+                const d = load();
+                d.levelSelects++;
+                save();
+            }
             function recordTowerBuild(type, cost) {
                 if (!type) return;
                 const t = tower(type); t.built++; t.buildCost += Math.max(0, Number(cost) || 0); save();
@@ -3472,7 +3498,7 @@ function rollSynergyCount() {
                 enemy(type).coresLost += amount; save();
             }
             return {
-                getData: load, flush, recordPlay, recordResult,
+                getData: load, flush, recordPlay, recordResult, recordMedal, recordRestart, recordLevelSelect,
                 recordTowerBuild, recordTowerUpgrade, recordTowerSold,
                 recordTowerDamage, recordTowerKill,
                 recordEnemySpawn, recordEnemyDamage, recordEnemyKill,
@@ -8665,7 +8691,7 @@ for (const type of bestTypes) {
             const d = GAME_STATS.getData();
             const top = 148, viewH = canvas.height - top - 18;
             let contentBottom = top + viewH;
-            if (statsTab === 'overview') contentBottom = 520;
+            if (statsTab === 'overview') contentBottom = 700;
             else if (statsTab === 'towers') contentBottom = 214 + Math.max(0, Object.keys(TOWER_TYPES).length - 1) * 46 + 96;
             else if (statsTab === 'enemies') contentBottom = 214 + Math.max(0, Object.keys(ENEMY_TYPES).length - 1) * 46 + 96;
             else contentBottom = 214 + Math.max(0, LEVELS.length - 1) * 46 + 96;
@@ -8687,6 +8713,17 @@ for (const type of bestTypes) {
                 const gap = 16, w = (canvas.width - 100 - gap * 4) / 5;
                 for (let i = 0; i < cards.length; i++) drawStatsCard(50 + i * (w + gap), 172, w, 126, cards[i][0], cards[i][1], cards[i][2], cards[i][3]);
 
+                // 第二行：奖牌次数 + 重开 / 关卡选择
+                const medals = d.medals || {};
+                const recordCards = [
+                    ['🥇 金牌次数', formatLifetimeStat(medals.gold), '每次结算拿到金牌计 1 次', '#ffcc44'],
+                    ['🥈 银牌次数', formatLifetimeStat(medals.silver), '每次结算拿到银牌计 1 次', '#c8d8e8'],
+                    ['🥉 铜牌次数', formatLifetimeStat(medals.copper), '含失败局的保底铜牌', '#d08a5a'],
+                    ['重开次数', formatLifetimeStat(d.restarts), '点击「重新开始」重开当前局', '#7ec8ff'],
+                    ['退出次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
+                ];
+                for (let i = 0; i < recordCards.length; i++) drawStatsCard(50 + i * (w + gap), 326, w, 126, recordCards[i][0], recordCards[i][1], recordCards[i][2], recordCards[i][3]);
+
                 let totalEnemyKills = 0, totalCoresLost = 0, totalDamage = 0, totalBuilds = 0;
                 for (const v of Object.values(d.enemies || {})) { totalEnemyKills += Number(v.killed) || 0; totalCoresLost += Number(v.coresLost) || 0; }
                 for (const v of Object.values(d.towers || {})) { totalDamage += Number(v.damage) || 0; totalBuilds += Number(v.built) || 0; }
@@ -8697,10 +8734,10 @@ for (const type of bestTypes) {
                     ['永久丢失核心', formatLifetimeStat(totalCoresLost), '被敌人带出地图的核心']
                 ];
                 const w2 = (canvas.width - 100 - 3 * 18) / 4;
-                for (let i = 0; i < more.length; i++) drawStatsCard(50 + i * (w2 + 18), 326, w2, 126, more[i][0], more[i][1], more[i][2], '#355779');
+                for (let i = 0; i < more.length; i++) drawStatsCard(50 + i * (w2 + 18), 476, w2, 126, more[i][0], more[i][1], more[i][2], '#355779');
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                 ctx.font = '14px "Microsoft YaHei"'; ctx.fillStyle = '#7898bd';
-                ctx.fillText('详细数据可通过上方「炮塔统计」「怪物统计」「关卡次数」查看。所有数据保存在当前浏览器中。', 54, 500);
+                ctx.fillText('详细数据可通过上方「炮塔统计」「怪物统计」「关卡次数」查看。奖牌次数按每次结算计，无尽模式沿用研磨入口奖牌不重复计。所有数据保存在当前浏览器中。', 54, 648);
             } else if (statsTab === 'towers') {
                 const x = 85, widths = [270, 175, 175, 175, 260, 175];
                 drawStatsTableHeader(x, 166, widths, ['防御塔', '建造次数', '升级次数', '击杀数', '造成伤害', '出售次数']);
@@ -11827,6 +11864,8 @@ if (up.id === 'synBoost' && rogueState) {
                 : (Number(s.towersBuilt) || 0);
             // 本局布局是否由 AI 改动过（智能托管 / 执行推荐 / 优化升级）：成绩要标明来源
             const medalBasisAi = useGrindEntryMedal ? !!endlessEntryMedalSnapshot.ai : aiLearnUsed;
+            // 生涯统计：本次结算拿到的奖牌（无尽沿用研磨入口奖牌的那次已在研磨局计过，不重复计）
+            if (!useGrindEntryMedal) GAME_STATS.recordMedal(medal);
             // 金牌奖励：同一关同一模式（含路线反转/混乱/Roguelike 组合）只在「首次拿到金牌」时解锁一个增强
             const prevMedalRecord = getModeMedalRecord(levelIndex, currentModeKey, routeReverse, chaosEnabled, !!rogueState);
             saveModeMedalResult(levelIndex, currentModeKey, medal, medalBasisScore, medalDifficulty, medalBasisTowers, medalBasisAi,
@@ -16619,6 +16658,7 @@ nextWaveBtn.addEventListener('click', callNextWave);
 
         document.getElementById('resetBtn').addEventListener('click', () => {
             SFX.click();
+            GAME_STATS.recordRestart();
             const kept = (rogueState && rogueState.affixes && rogueState.affixes.length)
                 ? rogueState.affixes.slice() : null;
             loadLevel(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true, chaosEnabled);
@@ -16627,6 +16667,8 @@ nextWaveBtn.addEventListener('click', callNextWave);
         document.getElementById('loadBtn').addEventListener('click', loadGame);
         document.getElementById('menuBtn').addEventListener('click', () => {
             SFX.click();
+            // 生涯统计：关卡内点「关卡选择」返回计一次
+            if (screen === 'game') GAME_STATS.recordLevelSelect();
             setScreen('levels');
         });
 
