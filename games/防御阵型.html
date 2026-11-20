@@ -8740,7 +8740,7 @@ for (const type of bestTypes) {
                     ['🥈 银牌次数', formatLifetimeStat(medals.silver), '每次结算拿到银牌计 1 次', '#c8d8e8'],
                     ['🥉 铜牌次数', formatLifetimeStat(medals.copper), '含失败局的保底铜牌', '#d08a5a'],
                     ['重开次数', formatLifetimeStat(d.restarts), '点击「重新开始」重开当前局', '#7ec8ff'],
-                    ['关卡选择次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
+                    ['退出次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
                 ];
                 for (let i = 0; i < recordCards.length; i++) drawStatsCard(50 + i * (w + gap), 326, w, 126, recordCards[i][0], recordCards[i][1], recordCards[i][2], recordCards[i][3]);
 
