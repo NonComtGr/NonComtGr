@@ -913,13 +913,40 @@ const EMPTY_SYN = {
     splash: 0, burn: 0, harvest: 0, targets: 0, chain: 0, pierce: 0, reveal: 0
 };
 
-// 抽卡时联动卡出现 0~3 张的概率
-function rollSynergyCount() {
-    const r = Math.random();
+// 抽卡时联动卡出现 0~3 张的概率（可传入本次抽卡专用的确定性随机源）
+function rollSynergyCount(rnd) {
+    const r = (typeof rnd === 'function' ? rnd : Math.random)();
     if (r < 0.50) return 0;
     if (r < 0.80) return 1;
     if (r < 0.95) return 2;
     return 3;
+}
+// 确定性 32 位洗牌随机：同一局 + 同一波数 + 同一类型 + 同一序号 → 永远同样的一组候选卡
+function hashString32(str) {
+    let h = 2166136261 >>> 0;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+}
+function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+function makeDraftRng(seed, waveNo, kind, seq) {
+    const mixed = (seed >>> 0) ^
+        Math.imul((Number(waveNo) || 0) + 1, 0x9E3779B1) ^
+        Math.imul(hashString32(kind || 'tower'), 0x85EBCA6B) ^
+        Math.imul((Number(seq) || 0) + 1, 0xC2B2AE35);
+    return mulberry32(mixed >>> 0);
 }
 
 
@@ -929,6 +956,8 @@ function rollSynergyCount() {
 
 
         let rogueState = null;
+        // Roguelike 抽卡的确定性种子 / 序号：保证同一波的三选一不因重开、回档而重抽
+        let rogueDraftSeed = 0, rogueDraftSeq = 0;
         let draftPanel = null;
         let draftQueue = [];
         let pendingAutoEnemyBoost = false;
@@ -1025,11 +1054,14 @@ function rollSynergyCount() {
                         coreDelayStacks: rogueState.enemyMods.coreDelayStacks,
                         picks: rogueState.enemyMods.picks.slice()
                     }
-                } : null
+                } : null,
+                // 抽卡确定性种子：让存档/回档后同一波的三选一保持一致
+                rogueDraftSeed: rogueDraftSeed,
+                rogueDraftSeq: rogueDraftSeq
             };
         }
 
-        function applySavedState(s) {
+        function applySavedState(s, opts) {
             if (!s || s.v !== 1 || !LEVELS[s.levelIndex]) return false;
 
             closeBuildMenu(); closeTowerMenu(); hideTip();
@@ -1041,6 +1073,9 @@ function rollSynergyCount() {
             currentModeKey = s.currentModeKey || 'story';
             routeReverse = !!s.routeReverse;
             rogueEnabled = !!s.rogueEnabled;
+            // 回档时可选：保留当前已有的 Roguelike 构筑（词条/强化/协同/难度），只回退战场状态
+            const keepCurrentRogue = !!(opts && opts.keepRogue) && !!rogueState && rogueEnabled;
+            const curRogue = rogueState;
             chaosEnabled = !!s.chaosEnabled || currentModeKey === 'storyPlus';
             millEnemyType = s.millEnemyType || null;
             millEnemyLevelIdx = (typeof s.millEnemyLevelIdx === 'number') ? s.millEnemyLevelIdx : -1;
@@ -1143,6 +1178,12 @@ function rollSynergyCount() {
                     _pendingFreeUp: false, _pendingCoreRepair: false,
                     _pendingKillAll: false, _pendingStunAll: false
                 };
+            }
+            // 回档保留构筑：沿用当前 rogueState（也保留当前抽卡种子与序号）
+            if (keepCurrentRogue) rogueState = curRogue;
+            else if (!opts || !opts.keepRogue) {
+                if (s.rogueDraftSeed != null && Number(s.rogueDraftSeed) > 0) rogueDraftSeed = Number(s.rogueDraftSeed) >>> 0;
+                rogueDraftSeq = Math.max(0, Number(s.rogueDraftSeq) || 0);
             }
 
             // ── 波次重建（算法确定性一致）──
@@ -1331,9 +1372,23 @@ function rollSynergyCount() {
             const restored = entry.wave;
             // 比回档点更晚的记录全部作废，连续回档才不会错位
             rewindHistory = rewindHistory.filter(h => h.wave < restored);
+            // 回档保留：已获得的词条/强化/协同/难度，以及正开着的「三选一」候选卡
+            const keptDraftPanel = draftPanel ? {
+                kind: draftPanel.kind,
+                choices: draftPanel.choices.slice(),
+                hovered: draftPanel.hovered,
+                openAt: draftPanel.openAt
+            } : null;
+            const keptDraftQueue = draftQueue.slice();
+            const keptPendingBoost = pendingAutoEnemyBoost;
             let ok = false;
-            try { ok = applySavedState(entry.state); } catch (err) { console.error('回档失败：', err); ok = false; }
+            try { ok = applySavedState(entry.state, { keepRogue: true }); } catch (err) { console.error('回档失败：', err); ok = false; }
             if (!ok) { msgDisplay.textContent = '⚠ 回档失败'; SFX.error(); return; }
+            if (keptDraftPanel && rogueState) {
+                draftPanel = keptDraftPanel;
+                draftQueue = keptDraftQueue;
+                pendingAutoEnemyBoost = keptPendingBoost;
+            }
             // 回档后给 3 秒准备时间，别让下一波立刻压上来把提示冲掉
             nextWaveAt = Math.max(nextWaveAt, gameClock + 3);
             SFX.click();
@@ -4546,7 +4601,7 @@ function makeSeededRng(seed) {
             };
         }
 
-        function loadLevel(idx, modeKey, reverse, rogue, keptAffixes, reuseMudPits, chaos) {
+        function loadLevel(idx, modeKey, reverse, rogue, keptAffixes, reuseMudPits, chaos, keptDraftSeed) {
             closeBuildMenu(); closeTowerMenu();
             gameResult = null; resultBtnHover = false; endlessBtnHover = false;
             battleStats = { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0,
@@ -4667,6 +4722,11 @@ function makeSeededRng(seed) {
             draftPanel = null;
             draftQueue = [];
             pendingAutoEnemyBoost = false;
+            // 抽卡种子：重新开始时沿用，保证同一波数的三选一不重抽；新开一局才重新随机
+            rogueDraftSeed = (typeof keptDraftSeed === 'number' && keptDraftSeed > 0)
+                ? (keptDraftSeed >>> 0)
+                : (Math.floor(Math.random() * 0x7FFFFFFF) + 1);
+            rogueDraftSeq = 0;
             if (rogueEnabled) {
                         let pickedAffixes;
             if (keptAffixes && keptAffixes.length) {
@@ -8740,7 +8800,7 @@ for (const type of bestTypes) {
                     ['🥈 银牌次数', formatLifetimeStat(medals.silver), '每次结算拿到银牌计 1 次', '#c8d8e8'],
                     ['🥉 铜牌次数', formatLifetimeStat(medals.copper), '含失败局的保底铜牌', '#d08a5a'],
                     ['重开次数', formatLifetimeStat(d.restarts), '点击「重新开始」重开当前局', '#7ec8ff'],
-                    ['退出次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
+                    ['关卡选择次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
                 ];
                 for (let i = 0; i < recordCards.length; i++) drawStatsCard(50 + i * (w + gap), 326, w, 126, recordCards[i][0], recordCards[i][1], recordCards[i][2], recordCards[i][3]);
 
@@ -11409,11 +11469,14 @@ function drawRogueToggle() {
             hideSellButton();
 
             const picked = [];
+            // 确定性抽卡：种子 + 当前波数 + 类型 + 本局第几次抽卡 → 不因重开/回档变化
+            const draftRnd = makeDraftRng(rogueDraftSeed, waveIndex, kind || 'tower', rogueDraftSeq++);
+            const dRnd = () => draftRnd();
 
             if (kind === 'enemy') {
                 const pool = ROGUE_ENEMY_BOOSTS.filter(b => !(b.once && rogueState.enemyMods.picks.includes(b.id)));
                 for (let i = 0; i < 3 && pool.length > 0; i++) {
-                    const idx = Math.floor(Math.random() * pool.length);
+                    const idx = Math.floor(dRnd() * pool.length);
                     picked.push(pool.splice(idx, 1)[0]);
                 }
             } else if (kind === 'synergy') {
@@ -11421,16 +11484,16 @@ function drawRogueToggle() {
                 const ownedSyn = new Set(rogueState.synergies.map(s => s.id));
                 const pool = ROGUE_SYNERGIES.filter(s => !ownedSyn.has(s.id));
                 for (let i = 0; i < 3 && pool.length > 0; i++) {
-                    const idx = Math.floor(Math.random() * pool.length);
+                    const idx = Math.floor(dRnd() * pool.length);
                     picked.push(pool.splice(idx, 1)[0]);
                 }
             } else {
                 // 1) 先按概率抽联动卡（0~3 张，同一联动不重复）
                 const ownedSyn = new Set(rogueState.synergies.map(s => s.id));
                 const synPool = ROGUE_SYNERGIES.filter(s => !ownedSyn.has(s.id));
-                const synWant = Math.min(synPool.length, rollSynergyCount());
+                const synWant = Math.min(synPool.length, rollSynergyCount(dRnd));
                 for (let i = 0; i < synWant; i++) {
-                    const idx = Math.floor(Math.random() * synPool.length);
+                    const idx = Math.floor(dRnd() * synPool.length);
                     picked.push(synPool.splice(idx, 1)[0]);
                 }
 
@@ -11443,13 +11506,13 @@ function drawRogueToggle() {
                     return true;
                 });
                 while (picked.length < 3 && upPool.length > 0) {
-                    const idx = Math.floor(Math.random() * upPool.length);
+                    const idx = Math.floor(dRnd() * upPool.length);
                     picked.push(upPool.splice(idx, 1)[0]);
                 }
 
                 // 3) 打乱顺序，避免联动卡永远排最左
                 for (let i = picked.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
+                    const j = Math.floor(dRnd() * (i + 1));
                     [picked[i], picked[j]] = [picked[j], picked[i]];
                 }
             }
@@ -16683,7 +16746,8 @@ nextWaveBtn.addEventListener('click', callNextWave);
             GAME_STATS.recordRestart();
             const kept = (rogueState && rogueState.affixes && rogueState.affixes.length)
                 ? rogueState.affixes.slice() : null;
-            loadLevel(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true, chaosEnabled);
+            loadLevel(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true, chaosEnabled,
+                      rogueEnabled ? rogueDraftSeed : 0);
         });
         document.getElementById('saveBtn').addEventListener('click', saveGame);
         document.getElementById('loadBtn').addEventListener('click', loadGame);
