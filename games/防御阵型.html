@@ -3383,6 +3383,7 @@ function rollSynergyCount() {
                 totalStarts: 0, finishedGames: 0, wins: 0, losses: 0, rogueStarts: 0,
                 restarts: 0, levelSelects: 0,
                 medals: { gold: 0, silver: 0, copper: 0 },
+                endlessWaves: {},
                 levels: {}, towers: {}, enemies: {}
             });
             function load() {
@@ -3402,6 +3403,12 @@ function rollSynergyCount() {
                 if (!data.medals || typeof data.medals !== 'object') data.medals = { gold: 0, silver: 0, copper: 0 };
                 for (const k of ['gold', 'silver', 'copper']) {
                     data.medals[k] = Math.max(0, Number(data.medals[k]) || 0);
+                }
+                // 无尽最高波数：按关卡记录，老存档缺字段按空表补齐
+                if (!data.endlessWaves || typeof data.endlessWaves !== 'object') data.endlessWaves = {};
+                for (const k of Object.keys(data.endlessWaves)) {
+                    const v = Math.max(0, Number(data.endlessWaves[k]) || 0);
+                    if (v > 0) data.endlessWaves[k] = v; else delete data.endlessWaves[k];
                 }
                 return data;
             }
@@ -3467,6 +3474,17 @@ function rollSynergyCount() {
                 d.levelSelects++;
                 save();
             }
+            // 每关的无尽最高波数：只保留最大值（开波时记录，等于「达到过的最大波数」）
+            function recordEndlessWave(levelIdx, waveNo) {
+                const w = Number(waveNo) || 0;
+                if (w <= 0) return;
+                const d = load();
+                const key = String(Math.max(0, levelIdx | 0));
+                if (w > (Number(d.endlessWaves[key]) || 0)) {
+                    d.endlessWaves[key] = w;
+                    save();
+                }
+            }
             function recordTowerBuild(type, cost) {
                 if (!type) return;
                 const t = tower(type); t.built++; t.buildCost += Math.max(0, Number(cost) || 0); save();
@@ -3498,7 +3516,7 @@ function rollSynergyCount() {
                 enemy(type).coresLost += amount; save();
             }
             return {
-                getData: load, flush, recordPlay, recordResult, recordMedal, recordRestart, recordLevelSelect,
+                getData: load, flush, recordPlay, recordResult, recordMedal, recordRestart, recordLevelSelect, recordEndlessWave,
                 recordTowerBuild, recordTowerUpgrade, recordTowerSold,
                 recordTowerDamage, recordTowerKill,
                 recordEnemySpawn, recordEnemyDamage, recordEnemyKill,
@@ -4932,6 +4950,8 @@ function makeSeededRng(seed) {
             for (let i = 0; i < queue.length; i++) queue[i].spawnAt = gameClock + i * spawnGap;
             waveRuntime.push({ id, startAt: gameClock, queue, total: queue.length, alive: queue.length, spawnGap, cleared: false, reward: 0, draftGiven: false });
             waveIndex++;
+            // 生涯统计：无尽模式记录每关达到过的最大波数（开局即记，含正在打的那一波）
+            if (currentModeKey === 'endless') GAME_STATS.recordEndlessWave(levelIndex, waveIndex);
             waveIntervalNext = getWaveInterval(currentLevel, waveIndex);
             updateUI();
             let tip = '';
@@ -8720,7 +8740,7 @@ for (const type of bestTypes) {
                     ['🥈 银牌次数', formatLifetimeStat(medals.silver), '每次结算拿到银牌计 1 次', '#c8d8e8'],
                     ['🥉 铜牌次数', formatLifetimeStat(medals.copper), '含失败局的保底铜牌', '#d08a5a'],
                     ['重开次数', formatLifetimeStat(d.restarts), '点击「重新开始」重开当前局', '#7ec8ff'],
-                    ['退出次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
+                    ['关卡选择次数', formatLifetimeStat(d.levelSelects), '关卡内点「关卡选择」返回的次数', '#8fd9a8']
                 ];
                 for (let i = 0; i < recordCards.length; i++) drawStatsCard(50 + i * (w + gap), 326, w, 126, recordCards[i][0], recordCards[i][1], recordCards[i][2], recordCards[i][3]);
 
@@ -8770,19 +8790,21 @@ for (const type of bestTypes) {
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '13px "Microsoft YaHei"'; ctx.fillStyle = '#718fb2';
                 ctx.fillText('说明：出场次数包含召唤、孵化和首领分裂产生的单位；永久带走核心与夺取核心分别统计。', x + 2, y + 18);
             } else {
-                const x = 35, widths = [310, 205, 205, 205, 205, 205];
-                drawStatsTableHeader(x, 166, widths, ['关卡', '剧情 普通/R', '混乱模式 普通/R', '一滴血 普通/R', '超级研磨 普通/R', '无尽 普通/R']);
+                const x = 35, widths = [250, 175, 175, 175, 180, 180, 190];
+                drawStatsTableHeader(x, 166, widths, ['关卡', '剧情 普通/R', '混乱模式 普通/R', '一滴血 普通/R', '超级研磨 普通/R', '无尽 普通/R', '无尽最高波数']);
                 let y = 214;
                 LEVELS.forEach((lv, i) => {
                     const counts = (d.levels && d.levels[String(i)]) || {};
+                    const endlessBest = Math.max(0, Number((d.endlessWaves || {})[String(i)]) || 0);
                     drawStatsTableRow(x, y, widths, [String(i + 1).padStart(2, '0') + ' · ' + lv.name,
                         formatModePlayCount(counts, 'story'), formatModePlayCount(counts, 'storyPlus'),
                         formatModePlayCount(counts, 'oneHp'), formatModePlayCount(counts, 'grind'),
-                        formatModePlayCount(counts, 'endless')], i, '#c5dcf4');
+                        formatModePlayCount(counts, 'endless'),
+                        endlessBest > 0 ? formatLifetimeStat(endlessBest) + ' 波' : '—'], i, '#c5dcf4');
                     y += 46;
                 });
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '13px "Microsoft YaHei"'; ctx.fillStyle = '#718fb2';
-                ctx.fillText('说明：每格显示「普通 / Roguelike」两种开局次数；无尽模式从结算界面点击进入时单独计数。', x + 2, y + 18);
+                ctx.fillText('说明：每格显示「普通 / Roguelike」两种开局次数；无尽模式从结算界面点击进入时单独计数。最右列是每关无尽模式达到过的最高波数（开波即记录，取历史最大值）。', x + 2, y + 18);
             }
             ctx.restore();
             drawScrollbar(top, viewH);
