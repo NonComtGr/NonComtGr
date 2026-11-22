@@ -7417,6 +7417,10 @@ function aiConsumePlanPositionIfFromPlan(rec) {
                 // 同类型塔越多，新增一座的边际价值越低；保留少量重复部署空间。
                 power *= Math.pow(0.90, Math.max(0, sameTypeCount - 1));
             }
+            // 减速效果不叠加：第二座之后的减速塔只多覆盖一小段路径，边际收益很低
+            if (type === 'temporal') power *= Math.pow(0.60, sameTypeCount);
+            // 增幅塔：叠加的增幅范围互相重叠，重复建造的收益递减得比普通塔更快
+            if (type === 'amplifier') power *= Math.pow(0.55, sameTypeCount);
 
             // 干扰者是高优先级威胁：优先评估能在干扰圈外处理它的远程/高单体伤害塔。
             if (profile.jammerRatio > 0) {
@@ -7649,14 +7653,43 @@ for (const type of bestTypes) {
                 stealthPathCover = totCnt > 0 ? covCnt / totCnt : 0;
             }
 
-            let inRange = 0, newCoverage = 0;
+            let inRange = 0, newCoverage = 0, usableInRange = 0;
+            // 「真能起作用」的路径点：攻击塔按目标类型过滤（只对地塔不能算飞行路径、防空塔不算地面路径），
+            // 减速塔按全部可减速路径计。这个值用来拒绝“建了却打不到怪”的位置。
+            const canActOnPath = relevantTowerCanHit(type) || type === 'temporal';
             for (let i = 0; i < nodes.length; i++) {
                 const n = nodes[i];
                 if (Math.hypot(n.x - (cell.c + 0.5), n.y - (cell.r + 0.5)) > range) continue;
                 inRange++;
+                if (canActOnPath) usableInRange++;
                 if (relevantTowerCanHit(type) && existingCoverage[i] === 0) newCoverage++;
             }
             if (inRange <= 0) continue;
+
+            // ★ 防「废塔」：既不延长路径、射程内又只有一两个路径点的新塔不再建造。
+            // 塔越多门槛越高，避免为了凑建筑上限而铺无用的塔。
+            const isAttackType = !NON_ATTACK_TOWER_TYPES.has(type);
+            const blockerGain = (lenRatio >= 1.05 && turnGain > 0) || lenRatio >= 1.08;
+            const pathFrac = inRange / Math.max(1, nodes.length);
+            const usableFrac = (canActOnPath ? usableInRange : inRange) / Math.max(1, nodes.length);
+            const minUsableFrac = isAttackType
+                ? (towers.length >= 16 ? 0.30 : towers.length >= 12 ? 0.25 : towers.length >= 8 ? 0.20 : (towers.length >= 5 ? 0.14 : 0.08))
+                : (type === 'temporal' ? (towers.length >= 10 ? 0.25 : 0.12) : 0.06);
+            if (!blockerGain && usableFrac < minUsableFrac) continue;
+            if (isAttackType && usableInRange < 2 && !blockerGain) continue;
+            // 路径已被现有火力覆盖得差不多，且新塔不能带来新覆盖：不如把钱拿去升级
+            if (isAttackType && coverageRate >= 0.85 && towers.length >= 8 && newCoverage === 0 && !blockerGain) continue;
+            // 减速塔的减速不叠加：覆盖率已经很高时再补一座只是凑数
+            if (type === 'temporal' && coverageRate >= 0.85 && towers.length >= 8 && !blockerGain) continue;
+            // 增幅塔：射程内至少要有 2 座攻击塔才有意义；已有增幅塔时要求更密集，
+            // 且增幅塔数量按总塔数配比封顶，避免靠便宜的增幅塔堆数量。
+            if (type === 'amplifier') {
+                const amplified = towers.filter(o => !NON_ATTACK_TOWER_TYPES.has(o.type) &&
+                    Math.hypot(o.col - cell.c, o.row - cell.r) <= (st.range || def.range || 0)).length;
+                const ampCount = towers.filter(o => o.type === 'amplifier').length;
+                if (amplified < (ampCount > 0 ? 4 : 2)) continue;
+                if (ampCount >= Math.max(1, Math.floor(towers.length / 6))) continue;
+            }
 
             const power = aiTowerPower(type, 1, profile, cell.c, cell.r);
             const cost = getBuildCost(type, cell.c, cell.r);
@@ -7736,11 +7769,13 @@ for (const type of bestTypes) {
                 liveThreatBonus * interferencePenalty * coreUrgency * ctxMul /
                 Math.pow(Math.max(1, cost), 0.72) / (1 + overlap * 0.42) *
                 mazeBonus * towerCountPenalty * hotspotBonus * stealthSilencePenalty * mudPenalty *
-                humanMul * budgetMul;
+                humanMul * budgetMul *
+                (0.55 + 0.45 * Math.min(1, usableFrac * 2.5));   // 射程内真正能打的路径越少，分数越低
 
             if (!best || score > best.score) best = {
                 action: 'build', type, col: cell.c, row: cell.r, cost, score, power,
-                inRange, newCoverage, coverageRate, jammerSafeReach, jammerExposure,
+                inRange, usableInRange, usableFrac, pathFrac, blockerGain, newCoverage, coverageRate,
+                jammerSafeReach, jammerExposure,
                 carrierReach, profile,
                 lenRatio, weightedRatio, turnGain, selfCover, hotspotNear,
                 beforeLength: beforeQ.length,
@@ -8143,7 +8178,7 @@ for (const type of bestTypes) {
             let buildBias = (underPressure ? 1.10 : 1.20) * (coreRatio < 0.55 ? 1.18 : 1) * AI_LEARN.getBuildVsUpgrade();
 
             // 塔数量已经很多 → 新塔边际价值下降
-            upgradeBias += Math.min(1.2, Math.max(0, towers.length - 2) * 0.12);
+            upgradeBias += Math.min(1.6, Math.max(0, towers.length - 2) * 0.16);
 
             // 覆盖率足够 → 优先升级现有塔，避免铺塔
             if (avgCoverage >= 55) upgradeBias += 0.20;
@@ -8248,7 +8283,12 @@ for (const type of bestTypes) {
                 aiSetStatus(`难度20资源管理：预留 ${ammoReserve} 金币用于弹药装填`);
                 return;
             }
-            const chooseUpgrade = upAffordable && (!buildAffordable || up.score * upgradeBias >= build.score * buildBias);
+            let chooseUpgrade = upAffordable && (!buildAffordable || up.score * upgradeBias >= build.score * buildBias);
+            // ★ 低价值新塔不抢升级的钱：塔数已多、且新塔射程内真正能打的路径占比低时，优先升级现有塔。
+            if (!chooseUpgrade && upAffordable && towers.length >= 5 && buildAffordable && build &&
+                (build.usableFrac || 0) < 0.22 && !build.blockerGain) {
+                chooseUpgrade = true;
+            }
 
             if (chooseUpgrade) {
                 const t = up.tower;
@@ -14038,6 +14078,7 @@ if (up.id === 'synBoost' && rogueState) {
                 if (segIdx >= pts.length - 1) segIdx = pts.length - 2;
                 const t = (d - segIdx * segLen) / segLen;
                 const p0 = pts[segIdx], p1 = pts[segIdx + 1];
+                if (!p0 || !p1) continue;   // 路径点偶尔会被重建过程挖空，跳过坏段避免绘制报错
                 const ax = p0.x + (p1.x - p0.x) * t;
                 const ay = p0.y + (p1.y - p0.y) * t;
                 if (ax < -pad || ay < -pad || ax > vw + pad || ay > vh + pad) continue;
