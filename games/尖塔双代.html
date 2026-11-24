@@ -392,6 +392,15 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .turn-btn.waiting{border-color:#6a5820;color:#e6c96a;background:linear-gradient(#3a2f10,#241d0b)}
 .log{position:absolute;left:22px;bottom:16px;width:262px;max-height:158px;overflow:hidden;font-size:10.5px;line-height:1.75;color:#8a97a1;opacity:.9;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end}
 .log div{margin-bottom:2px}
+/* 手机战斗界面：遗物栏 / 场景地面 / 能量球（桌面端默认隐藏） */
+.bt-relicbar{display:none}
+.bt-relics{display:flex;align-items:center;gap:5px;min-width:0;overflow-x:auto}
+.bt-relic{width:26px;height:26px;padding:0;border:1px solid #4a3f28;border-radius:50%;background:radial-gradient(circle at 35% 28%,#2b2a22,#12160f);display:grid;place-items:center;flex:0 0 auto}
+.bt-relic:active{background:#2c342a}
+.bt-relic-empty{font-size:9px;color:#6f7b85;letter-spacing:.08em}
+.bt-turn{margin-left:auto;font-size:9px;color:#9c8656;letter-spacing:.12em;white-space:nowrap}
+.bt-energy{display:none}
+.bt-floor,.bt-torch{display:none}
 .reward-grid{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
 .rw-head{display:flex;justify-content:space-between;align-items:center;gap:16px}
 .rw-items{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 4px}
@@ -662,6 +671,8 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .tb-phone .hpbar{width:min(15vw,96px);height:10px;flex:0 0 auto}
   .tb-phone .hp-bar-txt{font-size:8px;line-height:10px}
   .tb-phone .tph-floor{font-size:10px;color:#96a2ac;letter-spacing:.02em}
+  .tb-phone .tph-gold{color:#e7c46f}
+  .tb-phone .tph-coin{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#ffe7a3,#e0ad45 48%,#9a6718 78%,#5c3a0d);border:1px solid #6d4812;box-shadow:0 0 0 1px rgba(255,230,160,.42),inset 0 0 3px rgba(60,30,0,.45);flex:0 0 auto}
   .tb-phone .tph-char{font-size:11px}
   .tb-phone .tph-pots{display:flex;gap:3px;flex:0 0 auto}
   .tb-phone .tph-pots .mini-icon{width:27px;height:27px}
@@ -800,6 +811,128 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .char-card{padding:8px 10px}
   .char-card h3{font-size:13px}
   .char-card .blurb{font-size:10.5px;line-height:1.5}
+  /* ===== 战斗界面：参照卡牌爬塔原作的横屏构图 ===== */
+  .tb-phone{gap:6px;overflow:hidden}
+  .tph-who{display:flex;flex-direction:column;justify-content:center;line-height:1.06;min-width:0;flex:0 0 78px;max-width:78px}
+  .tph-who b{font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
+  .tph-who small{font-size:7px;color:#8b969f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .tph-spacer{flex:1 1 auto;min-width:0}
+  .tb-phone .tph-menu{margin-left:0}
+  .tb-phone .tph-icon{width:34px;height:34px;min-width:34px;min-height:34px;padding:0;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
+  .tb-phone .tph-floor{font-size:9px;white-space:nowrap}
+  .tb-phone .tph-pots .mini-icon{width:25px;height:25px}
+  .bt-relicbar{display:flex;height:27px;flex:0 0 auto;align-items:center;gap:6px;padding:0 calc(7px + env(safe-area-inset-right)) 0 calc(8px + env(safe-area-inset-left));background:linear-gradient(180deg,#13110c,#0b0d10 82%);border-bottom:1px solid #2b2417;overflow:hidden}
+  .bt-relic{width:24px;height:24px;border-color:#3e3521;background:radial-gradient(circle at 35% 28%,#24251f,#10140f)}
+  .bt-relic svg{width:18px;height:18px}
+  .bt-relic-empty{font-size:8.5px}
+  .bt-turn{font-size:8.5px;color:#9c8656;letter-spacing:.08em}
+  .bt-floor{display:block;position:absolute;left:0;right:0;bottom:0;height:30%;z-index:0;pointer-events:none;background:
+    linear-gradient(180deg,rgba(4,5,7,.88),rgba(10,11,13,.18) 52%,rgba(22,19,16,.32)),
+    repeating-linear-gradient(90deg,#1b1d20 0 54px,#121417 54px 55px),
+    repeating-linear-gradient(0deg,#202226 0 30px,#121417 30px 31px);
+    border-top:1px solid rgba(201,162,39,.13);box-shadow:inset 0 18px 30px rgba(0,0,0,.62)}
+  .bt-torch{display:block;position:absolute;bottom:30%;width:110px;height:130px;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 78%,rgba(226,132,48,.32),rgba(180,80,30,.11) 42%,transparent 72%)}
+  .bt-torch.l{left:-2%}.bt-torch.r{display:none}
+  .bt-torch::after{content:"";position:absolute;left:50%;bottom:26px;width:9px;height:20px;margin-left:-4px;border-radius:50% 50% 40% 40%;background:radial-gradient(circle at 50% 70%,#ffd07a,#e07a30 60%,transparent 72%);box-shadow:0 0 18px rgba(240,150,60,.7)}
+  .bt-torch::before{content:"";position:absolute;left:50%;bottom:18px;width:9px;height:24px;margin-left:-4px;border-radius:2px;background:linear-gradient(180deg,#4c3620,#1b130c);box-shadow:0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(201,162,39,.18)}
+  .battle-stage{display:grid;grid-template-columns:minmax(0,33%) minmax(0,67%);align-items:end;justify-items:center;gap:0;padding:2px 2px 8px;background:
+    radial-gradient(ellipse at 98% 68%,rgba(210,125,55,.11),transparent 40%),
+    radial-gradient(ellipse at 50% 28%,rgba(70,80,92,.22),transparent 66%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.026) 0 1px,transparent 1px 32px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 54px),
+    linear-gradient(180deg,#0c1014,#090b0e 70%,#07080a)}
+  .battle-stage.flank-layout{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr)}
+  .battle-stage>.player-panel,.battle-stage>.enemy-row,.battle-stage>.flank-slot{position:relative;z-index:2}
+  .player-panel{width:100%;max-width:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin:0}
+  .player-portrait{width:clamp(76px,16vw,106px);height:clamp(76px,16vw,106px);border:0;background:none;box-shadow:none;overflow:visible;filter:drop-shadow(0 8px 14px rgba(0,0,0,.7)) drop-shadow(0 0 16px rgba(201,162,39,.16))}
+  .player-portrait svg{width:100%;height:100%}
+  .player-portrait::before{content:"";position:absolute;inset:-16%;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.16),rgba(201,162,39,.05) 42%,transparent 66%);z-index:-1}
+  .player-portrait::after{content:"";position:absolute;left:12%;right:12%;bottom:-7px;height:12px;background:radial-gradient(ellipse,rgba(0,0,0,.78),transparent 70%);z-index:-1}
+  .pp-name{display:none}
+  .pp-status{display:block;width:100%;max-width:150px;margin-top:0}
+  .pp-status .energy-orb{display:none}
+  .pp-bars{width:100%}
+  .pp-bars .hp-row{width:100%;max-width:none;margin:0;gap:4px}
+  .pp-bars .pp-hp{height:15px}
+  .hp-bar-txt{font-size:10px;line-height:15px}
+  .hp-block{width:24px;height:24px;padding:0;border-radius:50%;justify-content:center;font-size:9.5px;background:radial-gradient(circle at 35% 28%,#2d4654,#0d161c);border-color:#4d7284;box-shadow:0 0 8px rgba(90,150,180,.22)}
+  .pp-bars .pp-hpnum{text-align:center;font-size:8.5px;margin-top:1px}
+  .pp-chips{justify-content:center;gap:2px;margin-top:2px;min-height:0;flex-wrap:wrap;max-height:18px;overflow:hidden}
+  .player-panel .mech-row{margin-top:2px;gap:3px;flex-wrap:nowrap;overflow:hidden}
+  .player-panel .mech-lbl{font-size:7px}
+  .player-panel .res-badge{min-width:22px}
+  .player-panel .res-badge .rv{font-size:10px}
+  .player-panel .res-badge .rl{font-size:6px}
+  .player-panel .orb{width:18px;height:18px;font-size:8px}
+  .player-panel .stance-badge{font-size:8px;padding:0 4px}
+  .player-panel .osty-panel{flex-direction:row;align-items:center;gap:3px;height:18px;max-height:18px;margin-top:1px;overflow:hidden}
+  .player-panel .osty-panel .osty-head{gap:2px;flex:0 0 auto}
+  .player-panel .osty-avatar{width:16px;height:16px}
+  .player-panel .osty-avatar svg{width:16px;height:16px}
+  .player-panel .osty-head .mech-lbl{font-size:6.5px}
+  .player-panel .osty-hp{width:38px;height:6px;flex:0 0 auto}
+  .player-panel .osty-panel>span{font-size:6.5px!important;white-space:nowrap;overflow:hidden}
+  .enemy-row{width:100%;display:flex;justify-content:space-evenly;align-items:flex-end;gap:4px;flex-wrap:nowrap}
+  .enemy{width:auto;flex:1 1 0;min-width:0;max-width:130px}
+  .enemy .etop{min-height:13px;gap:3px}
+  .intent{font-size:8.5px;padding:1px 6px;border-radius:8px;gap:2px}
+  .intent b{font-size:12px;line-height:1.1}
+  .intent .il{font-size:7.5px}
+  .enemy .portrait{width:clamp(62px,13.5vw,94px);height:clamp(62px,13.5vw,94px);border:0;background:none;box-shadow:none;overflow:visible;margin:0 auto;filter:drop-shadow(0 8px 12px rgba(0,0,0,.7)) drop-shadow(0 0 12px rgba(190,80,70,.12))}
+  .enemy .portrait svg{width:100%;height:100%}
+  .enemy .portrait::before{content:"";position:absolute;inset:-14%;border-radius:50%;background:radial-gradient(circle,rgba(190,80,70,.12),rgba(190,80,70,.04) 44%,transparent 66%);z-index:-1}
+  .enemy .portrait::after{content:"";position:absolute;left:8%;right:8%;bottom:-6px;height:10px;background:radial-gradient(ellipse,rgba(0,0,0,.8),transparent 70%);z-index:-1}
+  .enemy.sel .portrait{filter:drop-shadow(0 0 14px rgba(201,162,39,.65)) drop-shadow(0 8px 12px rgba(0,0,0,.7))}
+  .enemy .ename{font-size:8px;line-height:1.05;margin-top:0;color:#c9b98f}
+  .hp-row.ehp-row{width:100%;margin:1px 0 0;gap:3px}
+  .hp-row .hp-block{order:-1}
+  .ehp{height:13px;border-radius:2px;border-color:#5a2a30;background:#1a0e12;box-shadow:inset 0 0 6px #000}
+  .ehp i{background:linear-gradient(90deg,#7a1d2b,#cf4b44 70%,#e86a48)}
+  .ehp .hp-bar-txt{font-size:9px;line-height:13px}
+  .enemy .hp-block{width:21px;height:21px;font-size:8.5px;border-radius:50%;justify-content:center;padding:0}
+  .enemy .ehp-chips{justify-content:center;margin:1px 0 0;gap:2px;flex-wrap:nowrap;overflow:hidden}
+  .enemy .ehp-num{justify-content:center;margin:0;font-size:8px}
+  .enemy .einfo{top:16px;right:0;width:23px;height:23px;font-size:10px;opacity:.92}
+  .hand-wrap{height:39vh;max-height:310px;padding:0;gap:0;border-top:0;background:linear-gradient(180deg,rgba(5,6,8,0) 0%,rgba(6,7,9,.55) 26%,#060709 100%);justify-content:flex-end;overflow:hidden}
+  .hand-tools{position:absolute;inset:0;display:block;padding:0;pointer-events:none;z-index:6}
+  .hand-tools .pile{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:0;padding:0;border:0;background:none;pointer-events:auto}
+  .hand-tools .pile.dl{left:calc(9px + env(safe-area-inset-left));bottom:calc(5px + env(safe-area-inset-bottom))}
+  .hand-tools .pile.ae{right:calc(9px + env(safe-area-inset-right));bottom:calc(5px + env(safe-area-inset-bottom))}
+  .hand-tools .pile.ex{right:calc(55px + env(safe-area-inset-right));bottom:calc(5px + env(safe-area-inset-bottom))}
+  .hand-tools .pile .pv{width:34px;height:42px;border:1px solid #5a4b2e;border-radius:4px;display:grid;place-items:center;font-size:12px;color:#f0dfb6;font-family:var(--font-t);background:
+    linear-gradient(150deg,rgba(201,162,39,.18),transparent 45%),
+    repeating-linear-gradient(45deg,#24262c 0 4px,#1b1d22 4px 8px);box-shadow:0 3px 8px rgba(0,0,0,.6),inset 0 0 0 2px rgba(8,10,13,.8)}
+  .hand-tools .pile .pl{font-size:7px;color:#8e7c52;letter-spacing:.02em}
+  .hand-tools .ht-spacer{display:none}
+  .hand-tools .turn-btn{position:absolute;right:calc(8px + env(safe-area-inset-right));bottom:calc(60px + env(safe-area-inset-bottom));min-width:112px;min-height:44px;padding:6px 13px;font-size:12.5px;border-radius:5px;letter-spacing:.08em;background:linear-gradient(180deg,#3e4854,#222a33 70%,#1a2129);border:1px solid #7d8a96;color:#eef3f7;box-shadow:0 4px 0 #07090c,inset 0 1px 0 rgba(255,255,255,.14),0 6px 18px rgba(0,0,0,.5);pointer-events:auto}
+  .hand-tools .turn-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #07090c,inset 0 1px 0 rgba(255,255,255,.1)}
+  .hand-tools .turn-btn.waiting{background:linear-gradient(180deg,#3a2f10,#241d0b);border-color:#6a5820;color:#e6c96a}
+  .bt-energy{display:flex;position:absolute;left:calc(9px + env(safe-area-inset-left));bottom:calc(58px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;align-items:baseline;justify-content:center;padding-top:12px;z-index:6;font-family:var(--font-t);background:radial-gradient(circle at 35% 28%,#f0a34a,#8c2f24 62%,#2a0f12);border:2px solid #d9a24a;box-shadow:0 0 0 2px #1a0d08,0 0 20px rgba(230,140,58,.35),inset 0 0 14px rgba(0,0,0,.45);color:#fff1cf;pointer-events:auto}
+  .bt-energy b{font-size:24px;line-height:1;text-shadow:0 2px 3px #000}
+  .bt-energy span{font-size:9.5px;opacity:.82;margin-left:1px}
+  .hand{min-height:0;flex:1 1 auto;display:flex;flex-wrap:nowrap;gap:0;justify-content:flex-start;align-items:flex-end;overflow-x:auto;overflow-y:hidden;margin-left:calc(76px + env(safe-area-inset-left));width:calc(100% - 200px - env(safe-area-inset-left) - env(safe-area-inset-right));padding:8px 4px 9px 14px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+  .hand::-webkit-scrollbar{height:0}
+  .hand .card{flex:0 0 auto;width:27vh;min-width:84px;max-width:118px;height:31vh;min-height:100px;max-height:140px;padding:8px 7px 5px;border-radius:7px;transform:rotate(var(--rot,0deg)) translateY(var(--dy,0px));transform-origin:50% 100%;scroll-snap-align:center;touch-action:manipulation;box-shadow:0 10px 22px rgba(0,0,0,.72),inset 0 0 0 1px rgba(255,255,255,.04)}
+  .hand .card:first-child{margin-left:auto}
+  .hand .card:last-child{margin-right:auto}
+  .hand .card+.card{margin-left:-20px}
+  .hand .card:hover{transform:rotate(var(--rot,0deg)) translateY(calc(var(--dy,0px) - 4px))}
+  .hand .card.selected{transform:rotate(var(--rot,0deg)) translateY(calc(var(--dy,0px) - 14px)) scale(1.02);z-index:9;border-color:var(--brass);box-shadow:0 0 0 2px rgba(201,162,39,.6),0 18px 30px rgba(0,0,0,.72)}
+  .hand .card.t-atk{background:linear-gradient(175deg,#2e2126,#1d1519 58%,#120d10);border-color:#6b3a40}
+  .hand .card.t-skl{background:linear-gradient(175deg,#1c272e,#151d23 58%,#0f1418);border-color:#3c6170}
+  .hand .card.t-pwr{background:linear-gradient(175deg,#2b2618,#1d1a11 58%,#131008);border-color:#6b5726}
+  .hand .card.t-curse{background:linear-gradient(175deg,#261c2d,#18121d 58%,#100c14);border-color:#553a66}
+  .hand .card .cost{width:27px;height:27px;font-size:14px;left:-7px;top:-6px;background:radial-gradient(circle at 35% 30%,#e0ac55,#7a421f 62%,#2c170a);border:1px solid #f0c878;color:#fff7df;box-shadow:0 0 0 2px rgba(20,12,6,.8),0 3px 8px #000}
+  .hand .card .cost.cheap{background:radial-gradient(circle at 35% 30%,#4f7d68,#183024);border-color:#7fc0a0}
+  .hand .card .cost.pricy{background:radial-gradient(circle at 35% 30%,#7a3a48,#2a141a);border-color:#c06a7a}
+  .hand .card .cname{font-size:10.5px;line-height:1.2;min-height:19px;margin:-1px -4px 2px;padding:2px 3px;background:linear-gradient(90deg,rgba(90,40,30,.10),rgba(150,80,50,.45),rgba(90,40,30,.10));border-top:1px solid rgba(201,162,39,.28);border-bottom:1px solid rgba(201,162,39,.22);text-shadow:0 1px 2px #000}
+  .hand .card.t-skl .cname{background:linear-gradient(90deg,rgba(30,70,90,.12),rgba(60,130,160,.42),rgba(30,70,90,.12))}
+  .hand .card.t-pwr .cname{background:linear-gradient(90deg,rgba(90,72,20,.12),rgba(170,140,50,.45),rgba(90,72,20,.12))}
+  .hand .card.t-curse .cname{background:linear-gradient(90deg,rgba(70,30,90,.12),rgba(130,70,160,.42),rgba(70,30,90,.12))}
+  .hand .card .ctype{font-size:7px;padding:1px 0;color:#a89773}
+  .hand .card .ctext{font-size:9.5px;line-height:1.34;margin-top:3px;color:#d3d9dd;padding-right:12px}
+  .hand .card .cbot{font-size:6.5px;margin-top:2px}
+  .hand .card .cinfo{width:20px;height:20px;top:-20px;right:-1px;font-size:9px;background:rgba(6,8,11,.94);border-color:#8a7650;color:#f0e2c4;z-index:6;box-shadow:0 2px 6px rgba(0,0,0,.6)}
 }
 @media (pointer:coarse) and (orientation:landscape) and (max-width:640px){
   .tb-phone{gap:6px}
@@ -8689,7 +8822,7 @@ var codexOpen = false;
 var menuChar = 'iron';
 var upgPreview = null;
 var sel = {card:null, potion:null};
-var lpTimer=0, lpState=null, lpSuppress=false;
+var lpTimer=0, lpState=null, lpSuppress=false, handScrollT=0;
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -8814,6 +8947,7 @@ function iconSvg(kind,size){
     hp:'<path d="M12 20 C6 15 4 11 4 8 C4 5 7 3 9.5 4.5 L12 7 L14.5 4.5 C17 3 20 5 20 8 C20 11 18 15 12 20 Z" fill="currentColor"/>',
     gold:'<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8 V16" stroke="currentColor" stroke-width="1.6"/>',
     deck:'<rect x="7" y="4" width="10" height="15" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7 V19 H16" stroke="currentColor" stroke-width="2" fill="none"/>',
+    map:'<path d="M3 6 L9 4 L15 7 L21 5 V19 L15 21 L9 18 L3 20 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 4 V18 M15 7 V21" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".7"/>',
     energy:'<path d="M13 2 L5 14 H11 L10 22 L19 9 H13 Z" fill="currentColor"/>',
     time:'<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7 V12 L16 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
   };
@@ -8875,7 +9009,8 @@ function cardHTML(inst,opts){
   if(inst.ench) flags.push('✦'+ENCH.label(inst.ench));
   var star=d.starCost?(d.starCost==='X'?'<span class="scost" title="消耗全部辉星，X 为消耗量">✦X</span>':'<span class="scost" title="消耗 '+d.starCost+' 点辉星">✦'+d.starCost+'</span>'):'';
   var g2=d.gen2?'<span class="gem" style="background:#5fb0a0;margin-left:3px" title="二代新卡"></span>':'';
-  return '<div class="'+cls.join(' ')+'" data-act="'+(opts.act||'')+'" data-idx="'+(opts.idx!=null?opts.idx:'')+'" data-i="'+(opts.i!=null?opts.i:'')+'">'+
+  var fanStyle=(opts.hand&&opts.total)?' style="--rot:'+(opts.rot||0)+'deg;--dy:'+(opts.dy||0)+'px"':'';
+  return '<div class="'+cls.join(' ')+'"'+fanStyle+' data-act="'+(opts.act||'')+'" data-idx="'+(opts.idx!=null?opts.idx:'')+'" data-i="'+(opts.i!=null?opts.i:'')+'">'+
     '<div class="cost '+costCls+'">'+costShow+star+'</div>'+
     (opts.hand?'<button class="cinfo" data-act="card-info" data-idx="'+(opts.idx!=null?opts.idx:'')+'" aria-label="卡牌详情">i</button>':'')+
     '<div class="cname">'+esc(d.name)+(inst.ups>0&&d.maxUp>1?'<span style="color:#7fe3a5;font-size:10px">+'+inst.ups+'</span>':'')+'</div>'+
@@ -9186,11 +9321,14 @@ function renderTop(){
   var relics=r.relics.map(function(rl,i){ return '<div class="mini-icon" data-act="relic" data-i="'+i+'" data-relic="'+esc(rl.name)+'" data-tip="'+esc(rl.name)+'|'+esc(rl.desc||'')+'">'+itemIcon(rl.name,'rel',22)+'</div>'; }).join('');
   var ch=D.chars[r.char];
   var phoneBar='<div class="tb-phone">'+
+    '<div class="tph-who"><b style="color:'+ch.color+'">'+esc(ch.name)+'</b><small>'+esc(ch.epithet||'')+'</small></div>'+
     '<div class="stat">'+iconSvg('hp',14)+'<span class="hpbar"><i style="width:'+pct+'%"></i>'+hpStatusLayers(r.hp,r.maxHp,topPoison,0)+'</span><b>'+r.hp+'/'+r.maxHp+'</b></div>'+
-    '<div class="stat">'+iconSvg('gold',14)+'<b>'+r.gold+'</b></div>'+
-    '<div class="stat tph-char" style="color:'+ch.color+'">'+esc(ch.name)+'</div>'+
-    '<div class="stat tph-floor">'+r.act+'幕'+r.floor+'楼</div>'+
+    '<div class="stat tph-gold"><b class="tph-coin"></b><b>'+r.gold+'</b></div>'+
     (potionSlots>0?'<div class="tph-pots">'+potions+'</div>':'')+
+    '<div class="stat tph-floor">第 '+r.floor+' 楼</div>'+
+    '<div class="tph-spacer"></div>'+
+    '<button class="btn sm tph-icon" data-act="deck" aria-label="查看牌组" data-tip="牌组|查看当前牌组与每张牌的完整说明。">'+iconSvg('deck',15)+'</button>'+
+    '<button class="btn sm tph-icon" data-act="map-open" aria-label="查看地图" data-tip="地图|查看本幕路线，不离开当前界面。">'+iconSvg('map',15)+'</button>'+
     '<button class="btn sm tph-menu" data-act="phone-menu" aria-label="打开菜单">☰</button></div>';
   tb.innerHTML=phoneBar+'<div class="tb-main">'+
     '<div class="brand">尖塔双代</div>'+
@@ -10029,14 +10167,20 @@ function battleScreen(){
       (chips?'<div class="chips ehp-chips">'+chips+'</div>':'')+
       (eTags?'<div class="ehp-num mono">'+eTags+'</div>':'')+'</div>';
   }); var enemies=enemyCards.join('');
-  var hand=b.hand.map(function(c,i){ return cardHTML(c,{hand:true,idx:i,act:'card',selected:sel.card===i}); }).join('');
+  var hn=b.hand.length;
+  var hand=b.hand.map(function(c,i){
+    var mid=(hn-1)/2, off=i-mid;
+    var rot=hn>1?off*(hn>6?1.1:2.0):0;
+    var dy=hn>1?Math.abs(off)*(hn>6?1.5:2):0;
+    return cardHTML(c,{hand:true,idx:i,total:hn,rot:rot,dy:dy,act:'card',selected:sel.card===i});
+  }).join('');
   var log=E.log.slice(-7).map(function(l){ return '<div>'+esc(l)+'</div>'; }).join('');
   var stanceCls=b.stance==='wrath'?' stance-wrath':b.stance==='div'?' stance-div':'';
   var act4=E.run.act===4;
   var stageBg=act4?'<div class="act-bg a4 battle-act4">'+actArt(4)+'</div>':'';
   var playerPoison=(b.buff&&b.buff.poi)||0;
   var playerTags=hpStatusTags(E.run.hp,playerPoison,0);
-  var playerPanel='<div class="player-panel"><div class="player-portrait" style="background:#0b1014">'+charSvg(E.run.char,ch.color)+'</div>'+
+  var playerPanel='<div class="player-panel"><div class="player-portrait">'+charSvg(E.run.char,ch.color)+'</div>'+
     '<div class="pp-name">'+esc(ch.name)+'</div>'+
     '<div style="margin-top:2px"><button class="btn sm" data-act="toggle-bosstip" data-tip="怪物套路|鼠标悬停怪物时显示它的招式池、当前下一招与出招循环。默认开启。" style="font-size:9px;padding:1px 7px;color:'+(bossPatternOn?'#8fd0bf':'#8b969f')+'">套路提示 '+(bossPatternOn?'开':'关')+'</button></div>'+
     '<div class="pp-status"><div class="energy-orb">'+b.energy+'/'+b.maxEnergy+'</div>'+
@@ -10058,11 +10202,18 @@ function battleScreen(){
   } else {
     endBtn='<button class="btn primary turn-btn" data-act="endturn" '+(b.playerTurn?'':'disabled')+'>结束回合<span class="key-hint"> (E)</span></button>';
   }
+  var relicBar='<div class="bt-relicbar"><div class="bt-relics">'+
+    (E.run.relics.length?E.run.relics.map(function(rl,i){ return '<button class="bt-relic" data-act="relic" data-i="'+i+'" data-relic="'+esc(rl.name)+'" data-tip="'+esc(rl.name)+'|'+esc(rl.desc||'')+'">'+itemIcon(rl.name,'rel',18)+'</button>'; }).join(''):'<span class="bt-relic-empty">本局暂无遗物</span>')+
+    '</div><div class="bt-turn">第 '+b.turn+' 回合</div></div>';
   $('screen').innerHTML='<div class="battle'+stanceCls+(act4?' act4':'')+'">'+
-    '<div class="battle-stage'+(b.flank?' flank-layout':'')+'">'+stageBg+'<div class="battle-hud"><b>'+ACT_NAMES[E.run.act-1]+'</b> · 第 '+E.run.floor+' 楼 · '+({boss:'首领战',elite:'精英战'}[b.tier]||'普通战斗')+' · 回合 '+b.turn+'</div>'+
+    relicBar+
+    '<div class="battle-stage'+(b.flank?' flank-layout':'')+'">'+stageBg+
+    '<div class="bt-floor"></div><div class="bt-torch l"></div><div class="bt-torch r"></div>'+
+    '<div class="battle-hud"><b>'+ACT_NAMES[E.run.act-1]+'</b> · 第 '+E.run.floor+' 楼 · '+({boss:'首领战',elite:'精英战'}[b.tier]||'普通战斗')+' · 回合 '+b.turn+'</div>'+
     '<div class="stage-tower">'+towerSvg()+'</div><div class="arena"></div><div class="log">'+log+'</div>'+
     stageBody+'</div>'+
     '<div class="hand-wrap'+(mpT&&mpT.ended?' mp-wait':'')+'">'+
+    '<div class="bt-energy" data-tip="能量|每回合恢复到上限；打出卡牌时消耗，部分卡牌会增加或减少能量。"><b>'+b.energy+'</b><span>/'+b.maxEnergy+'</span></div>'+
     '<div class="hand-tools">'+
     '<div class="pile dl" data-act="pile" data-pile="draw"><div class="pv">'+b.draw.length+'</div><div class="pl">抽牌堆</div></div>'+
     '<div class="pile ae" data-act="pile" data-pile="discard"><div class="pv">'+b.discard.length+'</div><div class="pl">弃牌堆</div></div>'+
@@ -11204,6 +11355,7 @@ function onClick(e){
   var t=e.target.closest('[data-act]'); if(!t) return;
   var act=t.getAttribute('data-act');
   if(lpSuppress){ lpSuppress=false; return; }
+  if(act==='card'&&Date.now()-handScrollT<380) return;
   if(act==='map-open'){ if(mapModalOpen) closeMapModal(); else mapModal(); return; }
   if(act==='map-close'||(act==='scrim'&&mapModalOpen)){ closeMapModal(); return; }
   if(mapModalOpen) closeMapModal();
@@ -11397,6 +11549,10 @@ function bind(){
   },{passive:true});
   document.addEventListener('pointerup',function(){ clearTimeout(lpTimer); lpState=null; },{passive:true});
   document.addEventListener('pointercancel',function(){ clearTimeout(lpTimer); lpState=null; },{passive:true});
+  document.addEventListener('scroll',function(e){
+    var t=e.target;
+    if(t&&t.classList&&t.classList.contains('hand')) handScrollT=Date.now();
+  },true);
 }
 return {render:render,bind:bind,toast:toast,sel:sel,flashRelic:flashRelic,bossAvatar:bossAvatar,monsterAvatar:monsterAvatar,needsTarget:needsTarget,
   openStats:function(){ statsOpen=true; render(); },
