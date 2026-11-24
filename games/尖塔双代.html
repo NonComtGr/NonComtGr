@@ -30,7 +30,9 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
   background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:overlay}
 #app{position:relative;height:100%;display:flex;flex-direction:column;min-height:0}
-button{font-family:var(--font-b);cursor:pointer}
+button{font-family:var(--font-b);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.modal,#mp-modal{-webkit-user-select:text;user-select:text}
 h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.02em}
 .mono{font-variant-numeric:tabular-nums}
 .btn{background:linear-gradient(#2a343d,#1a2128);color:var(--parch);border:1px solid var(--line);
@@ -343,6 +345,9 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .pile .pl{font-size:9px;color:#6f7b85;letter-spacing:.1em}
 .pile:hover .pv{border-color:var(--brass)}
 .turn-btn{position:absolute;right:18px;bottom:86px}
+.hand-tools{display:contents}
+.hand-wrap.mp-wait .hand{opacity:.42;filter:grayscale(.35);pointer-events:none}
+.turn-btn.waiting{border-color:#6a5820;color:#e6c96a;background:linear-gradient(#3a2f10,#241d0b)}
 .log{position:absolute;left:22px;bottom:16px;width:262px;max-height:158px;overflow:hidden;font-size:10.5px;line-height:1.75;color:#8a97a1;opacity:.9;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end}
 .log div{margin-bottom:2px}
 .reward-grid{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
@@ -592,6 +597,52 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .end-screen h1{font-size:26px}
   .end-screen .sub{font-size:10px;margin-top:4px;line-height:1.6}
   .deck-list{gap:4px;margin-top:8px}
+}
+/* ===== 手机 / 平板横屏：手牌工具条与触控优化 ===== */
+@media (pointer:coarse) and (orientation:landscape){
+  .topbar{padding-top:calc(4px + env(safe-area-inset-top));padding-left:calc(10px + env(safe-area-inset-left));padding-right:calc(10px + env(safe-area-inset-right))}
+  .tb-sub{margin-top:2px;min-height:18px}
+  .topbar .mini-icon{width:20px;height:20px;font-size:9px}
+  .tb-main{gap:7px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+  .tb-main::-webkit-scrollbar{display:none}
+  .tb-main .btn.sm{flex:0 0 auto;min-height:30px;display:inline-flex;align-items:center;padding:5px 9px}
+  .tb-main .stat,.tb-main .brand{flex:0 0 auto}
+  .hand-wrap{height:46vh;max-height:290px;padding:0 calc(8px + env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));justify-content:flex-end;gap:3px}
+  .player-panel [data-act="toggle-bosstip"]{display:none}
+  .player-panel > div:has([data-act="toggle-bosstip"]){display:none}
+  .enemy .portrait{width:20vh;height:20vh;max-width:100px;max-height:100px}
+  .ehp,.pp-hp{height:11px}
+  .hp-bar-txt{font-size:8.5px;line-height:11px}
+  .hand-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:2px 1px 3px;width:100%}
+  .hand-tools .pile{position:static;display:inline-flex;flex-direction:row;align-items:center;gap:5px;background:#141b20;border:1px solid #2e3a44;border-radius:5px;padding:4px 8px;min-height:32px;flex:0 0 auto}
+  .hand-tools .pile .pv{width:auto;height:auto;border:0;background:none;font-size:13px;color:#e3ecf2;font-family:var(--font-t);line-height:1}
+  .hand-tools .pile .pl{font-size:9px;color:#93a0aa;letter-spacing:.02em}
+  .hand-tools .pile:hover .pv{border:0}
+  .hand-tools .ht-spacer{flex:1 1 auto}
+  .hand-tools .turn-btn{position:static;flex:0 0 auto;min-width:104px;min-height:44px;padding:8px 15px;font-size:13px;border-radius:6px;letter-spacing:.06em;box-shadow:0 3px 0 #05070a,inset 0 1px 0 rgba(255,255,255,.08)}
+  .hand-tools .turn-btn.waiting{min-width:104px;font-size:12px;color:#e6c96a}
+  .hand{min-height:0;flex:1 1 auto;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:5px 2px 2px;align-items:flex-end;justify-content:flex-start;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+  .hand .card{flex:0 0 auto;width:23vh;min-width:64px;max-width:108px;scroll-snap-align:center;touch-action:manipulation}
+  .hand .card:first-child{margin-left:auto}
+  .hand .card:last-child{margin-right:auto}
+  .card{height:29vh;max-height:132px;padding:6px 6px 5px}
+  .card .cname{font-size:10px;min-height:21px;line-height:1.25}
+  .card .ctext{font-size:9.5px;line-height:1.4}
+  .card .ctype{font-size:7px}
+  .card .cost{width:22px;height:22px;font-size:12px;left:-5px;top:-5px}
+  .card .cbot{font-size:6.5px}
+  .card:hover{transform:none}
+  .card.selected{transform:translateY(-6px) scale(1.01)}
+  .pile .pv,.card{-webkit-touch-callout:none}
+  #mp-overlay #mp-modal{width:98vw;max-height:88vh;padding:12px 13px;border-radius:8px}
+  #mp-hud{left:auto!important;right:calc(8px + env(safe-area-inset-right))!important;top:calc(72px + env(safe-area-inset-top))!important;bottom:auto!important;width:190px!important;min-width:0!important;max-width:44vw!important;height:auto!important;max-height:34vh!important;overflow:auto!important;padding:6px 8px!important;font-size:10px!important;z-index:60;opacity:.96}
+  #mp-hud .hud-head{gap:6px;margin-bottom:3px;font-size:10px!important;flex-wrap:nowrap}
+  #mp-hud .hud-head span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mp-hud .hud-head button{flex:0 0 auto;white-space:nowrap}
+  #mp-hud .mp-hud-row{line-height:1.45;font-size:10px}
+  #mp-hud .mp-hud-enemy{font-size:9.5px}
+  .modal{max-height:calc(100dvh - 12px)}
+  .scrim{padding:calc(6px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))}
 }
 /* ===== 动画系统 ===== */
 #fx-layer{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
@@ -9031,8 +9082,7 @@ function menuScreen(){
     '</div><div class="menu-right">'+
     (E.hasSave()?'<button class="btn primary" data-act="continue" style="width:100%;padding:14px">继续上次的攀登</button>':'')+
     '<button class="btn" data-act="cm-open" style="width:100%;padding:10px;margin-top:6px;border-color:#8a6f16;color:#e6c96a">自定义模式 · 特效 / 种子 / 进阶</button>'+
-    '<button class="btn" onclick="SPIRE_NET.open()" style="width:100%;padding:10px;margin-top:6px;border-color:#3f6f78;color:#9fd7d0">联机竞速 · 多人同种子房间码</button>'+
-    '<button class="btn" id="mp-entry" onclick="SPIRE_MP.open()" style="width:100%;padding:10px;margin-top:6px;border-color:#c9a227;color:#e6c96a">联机合作 · 房间码 · 最多10人</button>'+
+    '<button class="btn" id="mp-entry" onclick="SPIRE_MP.open()" style="width:100%;padding:10px;margin-top:6px;border-color:#c9a227;color:#e6c96a">联机合作 · 回合同步 · 最多10人</button>'+
     '<button class="btn" data-act="stats-open" style="width:100%;padding:9px;margin-top:6px;border-color:#5b6a52;color:#b7d0a8">统计数据 · 战绩 / 记录 / 对局历史</button>'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><h2 style="font-size:15px;color:#a9b3bb;letter-spacing:.2em">选择角色 <span style="font-size:10px;color:#6f7b85;letter-spacing:.1em">滚轮浏览 · 点击攀登</span></h2>'+
     '<button class="btn sm" data-act="codex" data-tab="cards">图鉴</button></div>'+
@@ -9717,6 +9767,9 @@ function itemIcon(name,kind,size){
   svg+='<g transform="translate(64,64) scale(0.34)" opacity=".85">'+ICON_ACC[acc].replace(/COLOR/g,col)+'</g>';
   return '<svg viewBox="0 0 100 100" width="'+size+'" height="'+size+'" style="display:block;margin:auto;flex:none">'+svg+'</svg>';
 }
+/* 联机合作：回合锁状态（未联机时返回 null） */
+function mpTurnState(){ try{ if(window.SPIRE_MP&&typeof window.SPIRE_MP.turnLock==='function') return window.SPIRE_MP.turnLock(); }catch(e){} return null; }
+function mpWaiting(){ var t=mpTurnState(); return !!(t&&t.ended); }
 function battleScreen(){
   var b=E.b; if(!b){ mapScreen(); return; }
   var ch=D.chars[E.run.char];
@@ -9764,15 +9817,26 @@ function battleScreen(){
       stageBody='<div class="flank-slot left">'+enemyCards[li]+'</div>'+playerPanel+'<div class="flank-slot right">'+enemyCards[ri]+'</div>';
     }
   }
+  var mpT=mpTurnState();
+  var endBtn;
+  if(mpT){
+    endBtn='<button class="btn primary turn-btn'+(mpT.ended?' waiting':'')+'" data-act="endturn" '+((mpT.ended||!b.playerTurn)?'disabled':'')+'>'+
+      (mpT.ended?('等待队友 '+mpT.done+'/'+mpT.total):'结束回合')+'</button>';
+  } else {
+    endBtn='<button class="btn primary turn-btn" data-act="endturn" '+(b.playerTurn?'':'disabled')+'>结束回合 (E)</button>';
+  }
   $('screen').innerHTML='<div class="battle'+stanceCls+(act4?' act4':'')+'">'+
     '<div class="battle-stage'+(b.flank?' flank-layout':'')+'">'+stageBg+'<div class="battle-hud"><b>'+ACT_NAMES[E.run.act-1]+'</b> · 第 '+E.run.floor+' 楼 · '+({boss:'首领战',elite:'精英战'}[b.tier]||'普通战斗')+' · 回合 '+b.turn+'</div>'+
     '<div class="stage-tower">'+towerSvg()+'</div><div class="arena"></div><div class="log">'+log+'</div>'+
     stageBody+'</div>'+
-    '<div class="hand-wrap"><div class="pile dl" data-act="pile" data-pile="draw"><div class="pv">'+b.draw.length+'</div><div class="pl">抽牌堆</div></div>'+
+    '<div class="hand-wrap'+(mpT&&mpT.ended?' mp-wait':'')+'">'+
+    '<div class="hand-tools">'+
+    '<div class="pile dl" data-act="pile" data-pile="draw"><div class="pv">'+b.draw.length+'</div><div class="pl">抽牌堆</div></div>'+
     '<div class="pile ae" data-act="pile" data-pile="discard"><div class="pv">'+b.discard.length+'</div><div class="pl">弃牌堆</div></div>'+
     '<div class="pile ex" data-act="pile" data-pile="exhaust"><div class="pv">'+b.exhaust.length+'</div><div class="pl">消耗堆</div></div>'+
-    '<div class="hand" id="hand">'+hand+'</div>'+
-    '<button class="btn primary turn-btn" data-act="endturn" '+(b.playerTurn?'':'disabled')+'>结束回合 (E)</button></div></div>';
+    '<div class="ht-spacer"></div>'+
+    endBtn+'</div>'+
+    '<div class="hand" id="hand">'+hand+'</div></div></div>';
 }
 /* 结束回合前，若奥斯提将自主攻击且有多名敌人，先让玩家选目标 */
 
@@ -10905,6 +10969,7 @@ function onClick(e){
   if(act==='relic'){ var rl=E.run.relics[+t.getAttribute('data-i')]; if(rl) modal('<div style="text-align:center">'+itemIcon(rl.name,'rel',56)+'</div><h2>'+esc(rl.name)+'</h2><p>'+esc(rl.desc)+'</p>'); return; }
   if(act==='node'){ E.enterFloor(+t.getAttribute('data-idx')); sel.card=null; sel.potion=null; render(); return; }
   if(act==='card'){
+    if(mpWaiting()){ toast('已结束回合，等待队友…'); return; }
     var idx=+t.getAttribute('data-idx'), inst=E.b.hand[idx]; if(!inst||!E.canPlay(inst)) return;
     if(needsTarget(inst)&&E.aliveEnemies().length>1){ sel.card=sel.card===idx?null:idx; render(); return; }
     if(needsTarget(inst)) E.faceTarget(firstUid());
@@ -10919,6 +10984,7 @@ function onClick(e){
   if(act==='endturn'){ sel.card=null; E.endTurn(); render(); return; }
   if(act==='potion'){ potionMenu(+t.getAttribute('data-i')); return; }
   if(act==='potion-use'){
+    if(mpWaiting()){ toast('已结束回合，等待队友…'); return; }
     var pi=+t.getAttribute('data-i'), pp=E.run.potions[pi]; if(!pp){closeModal();return;}
     closeModal();
     var tg=pp.effects.some(function(o){return TARGET_OPS[o.k];});
@@ -10986,7 +11052,7 @@ function bind(){
   });
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape'){ sel.card=null; sel.potion=null; if(E.picker&&E.picker.mode==='scry')E.closePicker(); render(); }
-    if((e.key==='e'||e.key==='E')&&E.S==='combat'&&E.b&&E.b.playerTurn){ E.endTurn(); render(); }
+    if((e.key==='e'||e.key==='E')&&E.S==='combat'&&E.b&&E.b.playerTurn&&!mpWaiting()){ E.endTurn(); render(); }
     if(e.key==='d'&&E.run){ deckModal(); }
   });
   document.addEventListener('mousemove',function(e){
@@ -11218,316 +11284,6 @@ U.render=function(){
   return out;
 };
 })();</script>
-<script id="s-net">/* ================= 尖塔双代 · 联机竞速 ================= */
-(function(){
-'use strict';
-var E=window.SPIRE_ENGINE,D=window.SPIRE_DATA;
-if(!E||!D) return;
-
-var NET={
-  base:'', room:null, token:null, playerId:0, phase:'idle', name:'', codeInput:'',
-  pollTimer:null, sendTimer:null, lastError:''
-};
-function $(id){ return document.getElementById(id); }
-function nEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-function defBase(){
-  if(location.protocol==='http:'||location.protocol==='https:') return location.origin;
-  try{ return localStorage.getItem('spire_net_server')||'http://localhost:8787'; }catch(e){ return 'http://localhost:8787'; }
-}
-function normBase(v){
-  v=String(v||'').trim();
-  if(!v) v=defBase();
-  v=v.replace(/\/+$/,'');
-  if(!/^https?:\/\//i.test(v)) v='http://'+v;
-  try{ localStorage.setItem('spire_net_server',v); }catch(e){}
-  return v;
-}
-function api(path,opt){
-  opt=opt||{};
-  return fetch(NET.base+path,{
-    method:opt.method||'GET',
-    headers:{'Content-Type':'application/json'},
-    body:opt.body?JSON.stringify(opt.body):undefined,
-    cache:'no-store'
-  }).then(function(r){
-    return r.json().catch(function(){return {ok:false,error:'HTTP '+r.status};}).then(function(j){
-      if(!r.ok||!j.ok) throw new Error(j.error||('HTTP '+r.status));
-      return j;
-    });
-  }).catch(function(err){
-    var msg=String(err&&err.message||err);
-    if(/Failed to fetch|NetworkError|fetch failed/i.test(msg)) msg='无法连接服务端，请先运行 server.js';
-    throw new Error(msg);
-  });
-}
-function setStatus(msg,bad){
-  NET.lastError=msg||'';
-  var el=$('net-status');
-  if(el){ el.textContent=msg||''; el.style.color=bad?'#e09a9a':'#9fd7d0'; }
-}
-function injectStyle(){
-  if($('net-style')) return;
-  var st=document.createElement('style'); st.id='net-style';
-  st.textContent=
-    '#net-panel{position:fixed;right:14px;bottom:14px;z-index:40;width:268px;background:rgba(14,19,24,.96);border:1px solid #3f6f78;border-radius:7px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:10px 11px;font-size:11px;color:#cbd6dd}'+
-    '#net-panel .net-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;color:#9fd7d0;font-size:12px;font-weight:700;letter-spacing:.08em}'+
-    '#net-panel .net-code{color:#e6c96a;font-family:monospace;font-size:14px;letter-spacing:.16em}'+
-    '#net-panel .net-row{padding:5px 0;border-top:1px solid #22303a;line-height:1.55}'+
-    '#net-panel .net-row.me{color:#a9d6c2}'+
-    '#net-panel .net-row.opp{color:#e0b3a8}'+
-    '#net-panel .net-actions{display:flex;gap:6px;margin-top:6px}'+
-    '#net-panel button{background:#17232b;border:1px solid #3f6f78;color:#a9d6c2;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px}'+
-    '.net-inp{width:100%;background:#0d141a;border:1px solid #2c3c47;color:#dfe8ee;border-radius:4px;padding:6px 8px;font-size:12px;box-sizing:border-box}'+
-    '.net-card{background:#111920;border:1px solid #2a3b47;border-radius:6px;padding:10px}'+
-    '.net-label{font-size:11px;color:#8b969f;margin:8px 0 3px;display:block}'+
-    '.net-bigcode{font-family:monospace;font-size:27px;letter-spacing:.18em;color:#e6c96a;text-align:center;padding:7px 0}'+
-    '@media(max-width:620px){#net-panel{width:220px;right:8px;bottom:8px;font-size:10px}}';
-  document.head.appendChild(st);
-}
-function ensureBase(){
-  if(!NET.base) NET.base=defBase();
-  return NET.base;
-}
-function overlay(html){
-  var ov=$('overlay'); if(!ov) return;
-  ov.style.display='flex';
-  ov.innerHTML='<div class="scrim" style="display:flex;align-items:center;justify-content:center;padding:20px" onclick="SPIRE_NET.close()"><div class="modal" onclick="event.stopPropagation()" style="max-width:700px;width:94vw;animation:none;opacity:1">'+html+'</div></div>';
-}
-function header(title,sub){
-  return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">'+
-    '<div><div style="font-size:17px;font-weight:700;color:#dfe8ee">'+nEsc(title)+'</div><div style="font-size:11px;color:#8b969f;margin-top:3px">'+nEsc(sub||'')+'</div></div>'+
-    '<button class="btn sm" onclick="SPIRE_NET.close()">关闭</button></div>';
-}
-function nameField(){
-  return '<label class="net-label">你的名字</label><input class="net-inp" id="net-name" maxlength="16" value="'+nEsc(NET.name||'')+'" placeholder="最多16字">';
-}
-function charOptions(){
-  var ids=['iron','silent','defect','watcher','regent','necro','fool','warden','shade','arcanist','beast','wuj'];
-  return ids.map(function(k){
-    var c=D.chars[k];
-    return '<option value="'+k+'">'+nEsc(c?c.name:k)+'</option>';
-  }).join('');
-}
-function charName(k){ var c=D.chars[k]; return c?c.name:(k||'未知'); }
-function renderIdle(){
-  ensureBase();
-  injectStyle();
-  var serverRow=location.protocol==='file:'?
-    ('<label class="net-label">服务器地址（运行 server.js 的电脑 IP）</label><input class="net-inp" id="net-server" value="'+nEsc(NET.base)+'" placeholder="http://192.168.1.5:8787">'):
-    ('<div style="font-size:10px;color:#6f7b85;margin-top:6px">服务器：'+nEsc(NET.base)+'</div>');
-  overlay(header('联机竞速','多人同种子竞速（最多 10 人）：地图与随机数一致，各自爬塔，实时对比进度。')+
-    nameField()+serverRow+
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:10px">'+
-      '<div class="net-card"><b style="color:#9fd7d0">创建房间</b>'+
-        '<label class="net-label">角色</label><select class="net-inp" id="net-char">'+charOptions()+'</select>'+
-        '<label class="net-label">进阶等级（0-20）</label><input class="net-inp" id="net-asc" type="number" min="0" max="20" value="0">'+
-        '<button class="btn primary" onclick="SPIRE_NET.create()" style="width:100%;margin-top:9px">创建并等待玩家</button>'+
-        '<div style="font-size:10px;color:#6f7b85;margin-top:6px">创建后把房间码发给其他人；至少 2 人即可开始，最多 10 人。</div>'+
-      '</div>'+
-      '<div class="net-card"><b style="color:#e0b3a8">加入房间</b>'+
-        '<label class="net-label">房间码</label><input class="net-inp" id="net-code" maxlength="5" value="'+nEsc(NET.codeInput||'')+'" placeholder="例如 ABC12" style="text-transform:uppercase;font-family:monospace;letter-spacing:.12em">'+
-        '<label class="net-label">角色</label><select class="net-inp" id="net-join-char">'+charOptions()+'</select>'+
-        '<label class="net-label">进阶等级（0-20）</label><input class="net-inp" id="net-join-asc" type="number" min="0" max="20" value="0">'+
-        '<button class="btn" onclick="SPIRE_NET.join()" style="width:100%;margin-top:9px;border-color:#6d4a42;color:#e0b3a8">加入竞速</button>'+
-        '<div style="font-size:10px;color:#6f7b85;margin-top:6px">输入 5 位房间码加入；每名玩家可选自己的角色。</div>'+
-      '</div>'+
-    '</div>'+
-    '<div id="net-status" style="min-height:18px;margin-top:8px;font-size:11px;color:#9fd7d0"></div>'+
-    '<div style="font-size:10px;color:#6f7b85;line-height:1.6;margin-top:5px">首次使用：双击“启动联机服务.bat”，浏览器会自动打开服务页；把地址发给其他人，大家打开同一地址即可加入竞速。</div>');
-}
-function renderWaiting(){
-  ensureBase(); injectStyle();
-  var room=NET.room||{players:[]};
-  var isHost=NET.playerId===1;
-  overlay(header('等待玩家','房间已创建。至少 2 人即可开始同种子多人竞速，最多 10 人。')+
-    '<div class="net-bigcode" id="net-room-code">'+nEsc(room.code||'')+'</div>'+
-    '<div style="display:flex;gap:6px;justify-content:center;margin-bottom:9px"><button class="btn sm" onclick="SPIRE_NET.copyCode()">复制房间码</button></div>'+
-    '<div class="net-card" id="net-player-list"></div>'+
-    '<div id="net-wait-note" style="margin-top:9px;font-size:11px;color:#9fd7d0"></div>'+
-    '<div style="display:flex;gap:8px;margin-top:9px">'+
-      (isHost?'<button class="btn primary" id="net-start" onclick="SPIRE_NET.start()" disabled style="flex:1">开始竞速</button>':'')+
-      '<button class="btn" onclick="SPIRE_NET.leave()" style="border-color:#6d4a42;color:#e0b3a8'+(isHost?'':' ;flex:1')+'">退出房间</button>'+
-    '</div>'+
-    '<div id="net-status" style="min-height:18px;margin-top:8px;font-size:11px;color:#9fd7d0"></div>');
-  updateWaiting(room);
-}
-function updateWaiting(room){
-  if(!room) return;
-  NET.room=room;
-  var players=room.players||[];
-  var code=$('net-room-code'); if(code) code.textContent=room.code;
-  var list=$('net-player-list');
-  if(list){
-    list.innerHTML=players.map(function(p){
-      var tag=p.id===NET.playerId?'（你）':'';
-      var host=p.id===1?'<span style="color:#e6c96a;font-size:10px">房主</span> ':'';
-      var st=p.left?'已离开':(p.connected?'在线':'离线');
-      return '<div class="net-row '+(p.id===NET.playerId?'me':'opp')+'" style="border-top:0;padding:3px 0"><b>P'+p.id+' · '+nEsc(p.name)+tag+'</b> '+host+'<span style="color:#8b969f">'+nEsc(charName(p.char))+'</span> <span style="color:'+(p.left?'#6f7b85':(p.connected?'#8fd0bf':'#e09a9a'))+'">'+st+'</span></div>';
-    }).join('')+'<div style="font-size:10px;color:#6f7b85;margin-top:4px">房间码 '+nEsc(room.code)+' · 种子 '+nEsc(room.seed)+' · '+players.length+'/10 人</div>';
-  }
-  var active=players.filter(function(p){return !p.left;}).length;
-  var btn=$('net-start'); if(btn) btn.disabled=active<2;
-  var note=$('net-wait-note');
-  if(note){
-    if(active<2) note.textContent='至少需要 2 名玩家，当前 '+active+'/10，房间码发给其他人即可加入…';
-    else if(NET.playerId===1) note.textContent='已有 '+active+' 人，可以开始多人竞速。';
-    else note.textContent='已有 '+active+' 人，等待房主开始…';
-  }
-}
-function buildPanel(){
-  injectStyle();
-  var old=$('net-panel'); if(old) old.remove();
-  var p=document.createElement('div'); p.id='net-panel';
-  p.innerHTML='<div class="net-title"><span>联机竞速 · <span class="net-code" id="net-panel-code"></span></span><span style="display:flex;gap:5px"><button onclick="SPIRE_NET.open()">房间</button><button onclick="SPIRE_NET.leave()">断开</button></span></div>'+
-    '<div id="net-panel-body"><div style="color:#8b969f">连接中…</div></div>';
-  document.body.appendChild(p);
-}
-function stateLine(name,st,me,left,char){
-  var ch=char?' <span style="color:#6f7b85;font-size:10px">'+nEsc(char)+'</span>':'';
-  if(left) return '<div class="net-row '+(me?'me':'opp')+'"><b>'+nEsc(name)+'</b>'+ch+' · 已离开</div>';
-  if(!st) return '<div class="net-row '+(me?'me':'opp')+'"><b>'+nEsc(name)+'</b>'+ch+' · 等待进度…</div>';
-  var status=st.over?(st.won?'已通关':'已结束'):('第 '+st.act+' 幕 · 第 '+st.floor+' 层');
-  return '<div class="net-row '+(me?'me':'opp')+'"><b>'+nEsc(name)+'</b>'+ch+'<br>'+status+' · HP '+st.hp+'/'+st.maxHp+' · 金币 '+st.gold+'</div>';
-}
-function updatePanel(room){
-  if(!room) return;
-  var code=$('net-panel-code'); if(code) code.textContent=room.code;
-  var body=$('net-panel-body'); if(!body) return;
-  var me=(room.players||[]).filter(function(p){return p.id===NET.playerId;})[0];
-  var head='<div style="font-size:10px;color:#6f7b85;margin-bottom:4px">房间 '+nEsc(room.code)+' · 种子 '+nEsc(room.seed)+' · '+(room.status==='racing'?'竞速中':'等待中')+' · '+(room.players||[]).length+'/10 人</div>';
-  var rows=(room.players||[]).map(function(p){
-    return stateLine(p.name+(p.id===NET.playerId?'（你）':''),p.state,p.id===NET.playerId,p.left,charName(p.char));
-  }).join('');
-  var lead=room.leader?'<div style="font-size:10px;color:#e6c96a;margin-top:4px">当前领先：'+nEsc(room.leader)+'</div>':'';
-  var win=room.winner?'<div style="font-size:11px;color:#e6c96a;margin-top:5px">胜者：'+nEsc(room.winner)+'</div>':'';
-  body.innerHTML=head+rows+lead+win;
-}
-function localState(){
-  var r=E.run;
-  if(!r) return null;
-  return {
-    act:r.act||1, floor:r.floor||0, hp:r.hp||0, maxHp:r.maxHp||1, gold:r.gold||0,
-    kills:(r.stats&&r.stats.kills)||0, over:!!r.over, won:!!r.won
-  };
-}
-function postState(){
-  if(NET.phase!=='racing'||!NET.room||!NET.token) return;
-  var st=localState(); if(!st) return;
-  api('/api/state',{method:'POST',body:{code:NET.room.code,token:NET.token,state:st}}).catch(function(){});
-}
-function poll(){
-  if(!NET.room||!NET.token) return;
-  var room=NET.room;
-  api('/api/room?code='+encodeURIComponent(room.code)+'&token='+encodeURIComponent(NET.token)).then(function(j){
-    NET.room=j.room;
-    if(NET.phase==='waiting'){
-      updateWaiting(j.room);
-      if(j.room.status==='racing') startRun(j.room);
-    }else if(NET.phase==='racing'){
-      updatePanel(j.room);
-    }
-  }).catch(function(err){
-    if(NET.phase==='waiting') setStatus(err.message,true);
-    if($('net-panel-body')) $('net-panel-body').innerHTML='<div style="color:#e09a9a">'+nEsc(err.message)+'</div>';
-  });
-}
-function beginTimers(){
-  if(NET.pollTimer) clearInterval(NET.pollTimer);
-  if(NET.sendTimer) clearInterval(NET.sendTimer);
-  NET.pollTimer=setInterval(poll,1000);
-  NET.sendTimer=setInterval(postState,1500);
-  poll();
-}
-function startRun(room){
-  if(NET.phase==='racing') return;
-  var me=(room.players||[]).filter(function(p){return p.id===NET.playerId;})[0];
-  var char=(me&&me.char)||room.char||'iron';
-  var asc=Math.max(0,Math.min(20,Number((me&&me.asc)!=null?me.asc:room.asc)||0));
-  try{
-    E.newRun(char,asc,{seed:String(room.seed)});
-  }catch(err){
-    setStatus('开始失败：'+err.message,true); return;
-  }
-  NET.phase='racing';
-  $('overlay').style.display='none';
-  buildPanel();
-  updatePanel(room);
-  try{ E.render(); }catch(e){}
-  try{ E.toast('联机竞速开始：房间 '+room.code); }catch(e){}
-  postState();
-}
-function readValue(id){ var el=$(id); return el?String(el.value||'').trim():''; }
-function create(){
-  try{ NET.base=normBase($('net-server')?readValue('net-server'):defBase()); }catch(e){}
-  var name=readValue('net-name'); if(!name) return setStatus('请先填写名字',true);
-  NET.name=name;
-  try{ localStorage.setItem('spire_net_name',name); }catch(e){}
-  var char=readValue('net-char')||'iron';
-  var asc=Math.max(0,Math.min(20,Number(readValue('net-asc'))||0));
-  setStatus('创建中…',false);
-  api('/api/create',{method:'POST',body:{name:name,char:char,asc:asc}}).then(function(j){
-    NET.token=j.token; NET.playerId=j.playerId; NET.room=j.room; NET.phase='waiting';
-    renderWaiting(); beginTimers();
-  }).catch(function(err){ setStatus(err.message,true); });
-}
-function join(){
-  try{ NET.base=normBase($('net-server')?readValue('net-server'):defBase()); }catch(e){}
-  var name=readValue('net-name'); if(!name) return setStatus('请先填写名字',true);
-  var code=(readValue('net-code')||'').toUpperCase();
-  if(code.length<4) return setStatus('请输入房间码',true);
-  var char=readValue('net-join-char')||'iron';
-  var asc=Math.max(0,Math.min(20,Number(readValue('net-join-asc'))||0));
-  NET.name=name; NET.codeInput=code;
-  try{ localStorage.setItem('spire_net_name',name); }catch(e){}
-  setStatus('加入中…',false);
-  api('/api/join',{method:'POST',body:{name:name,code:code,char:char,asc:asc}}).then(function(j){
-    NET.token=j.token; NET.playerId=j.playerId; NET.room=j.room; NET.phase='waiting';
-    renderWaiting(); beginTimers();
-  }).catch(function(err){ setStatus(err.message,true); });
-}
-function start(){
-  if(!NET.room||!NET.token) return;
-  var btn=$('net-start'); if(btn) btn.disabled=true;
-  setStatus('正在开始…',false);
-  api('/api/start',{method:'POST',body:{code:NET.room.code,token:NET.token}}).then(function(j){
-    NET.room=j.room; startRun(j.room);
-  }).catch(function(err){ setStatus(err.message,true); if(btn) btn.disabled=false; });
-}
-function copyCode(){
-  var code=NET.room&&NET.room.code||'';
-  if(!code) return;
-  try{
-    navigator.clipboard.writeText(code).then(function(){ setStatus('房间码已复制：'+code,false); }).catch(function(){ setStatus('房间码：'+code,false); });
-  }catch(e){ setStatus('房间码：'+code,false); }
-}
-function close(){
-  var ov=$('overlay'); if(ov) ov.style.display='none';
-}
-function open(){
-  if(NET.phase==='waiting'&&NET.room) renderWaiting();
-  else if(NET.phase==='racing'&&NET.room){
-    overlay(header('联机竞速进行中','房间 '+NET.room.code+'，多人正在同一张地图上爬塔。')+
-      '<div class="net-card" id="net-player-list"></div><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" onclick="SPIRE_NET.leave()" style="border-color:#6d4a42;color:#e0b3a8">断开联机</button></div>');
-    updateWaiting(NET.room);
-  }else{
-    try{ NET.name=localStorage.getItem('spire_net_name')||NET.name; }catch(e){}
-    renderIdle();
-  }
-}
-function leave(){
-  if(NET.room&&NET.token) api('/api/leave',{method:'POST',body:{code:NET.room.code,token:NET.token}}).catch(function(){});
-  if(NET.pollTimer) clearInterval(NET.pollTimer);
-  if(NET.sendTimer) clearInterval(NET.sendTimer);
-  NET.pollTimer=NET.sendTimer=null;
-  NET.phase='idle'; NET.room=null; NET.token=null; NET.playerId=0;
-  var p=$('net-panel'); if(p) p.remove();
-  close();
-  try{ E.toast('已断开联机'); }catch(e){}
-}
-
-window.SPIRE_NET={open:open,close:close,create:create,join:join,start:start,copyCode:copyCode,leave:leave,state:function(){return NET;}};
-})();</script>
-
 <script id="s-boot">/* ================= 尖塔双代 · 启动 ================= */
 (function(){
 'use strict';
@@ -11563,8 +11319,10 @@ try{
     peer:null, hostConn:null, conns:[], isHost:false, room:'', name:'', char:'iron',
     myId:'host', players:[], lobby:false, combat:false, started:false,
     encounter:'nob', encounterLabel:'', shared:null, seed:0, result:null,
-    chat:[], ended:false, lastHpSent:0, lobbyReady:false
+    chat:[], ended:false, lastHpSent:0, lobbyReady:false,
+    turnRound:1, myTurnEnded:false, turnWaiting:false, releasing:false
   };
+  var realEndTurn=E.endTurn;
   window.SPIRE_MP=MP; MP.open=openModal; MP.close=closeModal;
   MP._test={startLocal:function(e,l,s){return startLocal(e,l,s);},applyDamage:function(i,id,v){return applyDamage(i,id,v);},updateSelfHp:updateSelfHp,basePlayers:basePlayers,hostData:function(c,m){return hostData(c,m);},guestData:function(m){return guestData(m);},resolveEncounter:resolveEncounter};
   try{
@@ -11588,9 +11346,52 @@ try{
 	}
   function broadcast(msg,except){ (MP.conns||[]).forEach(function(c){ if(c&&c.open&&c!==except){ try{c.send(msg);}catch(e){} } }); }
   function sendHost(msg){ if(MP.hostConn&&MP.hostConn.open){ try{MP.hostConn.send(msg);}catch(e){} } }
-  function basePlayers(){ return MP.players.map(function(p){ return {id:p.id,name:p.name,char:p.char,host:!!p.host,hp:p.hp||0,maxHp:p.maxHp||0,block:p.block||0,alive:p.alive!==false}; }); }
+  function basePlayers(){ return MP.players.map(function(p){ return {id:p.id,name:p.name,char:p.char,host:!!p.host,hp:p.hp||0,maxHp:p.maxHp||0,block:p.block||0,alive:p.alive!==false,ended:!!p.ended}; }); }
   function broadcastLobby(){ if(!MP.isHost)return; broadcast({t:'lobby',room:MP.room,players:basePlayers(),encounter:MP.encounter,label:MP.encounterLabel,started:MP.started}); refreshRoom(); }
-  function broadcastParty(){ if(!MP.isHost)return; broadcast({t:'party',players:basePlayers()}); refreshRoom(); renderHUD(); }
+  function broadcastParty(){ if(!MP.isHost)return; broadcast({t:'party',players:basePlayers(),round:MP.turnRound}); refreshRoom(); renderHUD(); checkAllEnded(); }
+  /* ---------- 回合同步：所有存活玩家都结束回合后才推进 ---------- */
+  function alivePlayers(){ return (MP.players||[]).filter(function(p){ return p.alive!==false; }); }
+  function endedCount(){ return alivePlayers().filter(function(p){ return !!p.ended; }).length; }
+  function turnTotal(){ return Math.max(1, alivePlayers().length); }
+  function turnLockState(){
+    if(!(MP.combat&&MP.room&&MP.started)) return null;
+    return {active:true,ended:!!MP.myTurnEnded,round:MP.turnRound||1,done:endedCount(),total:turnTotal()};
+  }
+  function requestEndTurn(){
+    if(!MP.combat||!MP.room||MP.ended) return false;
+    if(MP.myTurnEnded) return false;
+    var p=myPlayer(); if(p) p.ended=true;
+    MP.myTurnEnded=true; MP.turnWaiting=true;
+    if(MP.isHost){ broadcastParty(); checkAllEnded(); }
+    else { sendHost({t:'turnend',round:MP.turnRound}); renderHUD(); }
+    try{ E.render(); }catch(e){}
+    try{ E.toast('已结束回合，等待队友…'); }catch(e){}
+    return true;
+  }
+  function checkAllEnded(){
+    if(!MP.isHost||!MP.combat) return;
+    var al=alivePlayers(); if(!al.length) return;
+    if(al.every(function(p){ return !!p.ended; })) advanceRound();
+  }
+  function advanceRound(){
+    if(!MP.isHost) return;
+    MP.turnRound=(MP.turnRound||1)+1;
+    MP.players.forEach(function(p){ p.ended=false; });
+    MP.myTurnEnded=false; MP.turnWaiting=false;
+    broadcast({t:'turnround',round:MP.turnRound});
+    broadcastParty();
+    releaseTurn();
+  }
+  function releaseTurn(){
+    if(MP.releasing) return;
+    MP.releasing=true; MP.myTurnEnded=false; MP.turnWaiting=false;
+    try{ realEndTurn.call(E); }catch(err){ try{console.warn('MP endTurn',err);}catch(e){} }
+    MP.releasing=false;
+    try{ E.render(); }catch(e){}
+    renderHUD();
+  }
+  MP.turnLock=turnLockState;
+  MP.requestEndTurn=requestEndTurn;
   function updateSelfHp(hp,maxHp,block){
     var p=myPlayer(); if(!p){ p={id:MP.myId,name:MP.name,char:MP.char,host:MP.isHost}; MP.players.push(p); }
     p.hp=Math.max(0,hp||0); p.maxHp=Math.max(1,maxHp||1); p.block=Math.max(0,block||0); p.alive=p.hp>0;
@@ -11631,12 +11432,12 @@ try{
   }
   function victory(){
     if(!MP.isHost||MP.ended)return;
-    MP.ended=true; MP.combat=false;
+    MP.ended=true; MP.combat=false; MP.myTurnEnded=false; MP.turnWaiting=false;
     syncSharedFromLocal(); broadcast({t:'victory',shared:MP.shared});
     showResult('战斗胜利！');
   }
   function showResult(text){
-    MP.result=text||'战斗胜利！'; MP.combat=false; MP.ended=true; openModal(); renderHUD();
+    MP.result=text||'战斗胜利！'; MP.combat=false; MP.ended=true; MP.myTurnEnded=false; MP.turnWaiting=false; openModal(); renderHUD();
   }
   function resolveEncounter(){
     var opt=ENCS.find(function(x){return x.id===MP.encounter;})||ENCS[1];
@@ -11647,10 +11448,11 @@ try{
     return {id:pick.id,label:'随机'+({normal:'普通',elite:'精英',boss:'Boss'}[opt.kind])+'（'+pick.name+'）'};
   }
   function startLocal(enc,list,seed){
-    MP.players=list.map(function(p){return {id:p.id,name:p.name,char:p.char,host:!!p.host,hp:0,maxHp:0,block:0,alive:true};});
+    MP.players=list.map(function(p){return {id:p.id,name:p.name,char:p.char,host:!!p.host,hp:0,maxHp:0,block:0,alive:true,ended:false};});
     MP.myId=MP.isHost?'host':(MP.peer&&MP.peer.id);
     var me=MP.players.find(function(p){return p.id===MP.myId;})||MP.players[0];
     var char=me&&me.char||'iron';
+    MP.turnRound=1; MP.myTurnEnded=false; MP.turnWaiting=false; MP.releasing=false;
     MP.combat=true; MP.started=true; MP.lobby=false; MP.ended=false; MP.result=null; MP.seed=seed; MP.encounterLabel=enc.label;
     E.newRun(char,0,{seed:seed});
     var def=D.enemies.find(function(e){return e.id===enc.id;});
@@ -11678,7 +11480,7 @@ try{
       if(MP.started||MP.conns.length>=9){ try{conn.on('open',function(){conn.send({t:'err',msg:'房间已满或战斗已开始'});});}catch(e){} setTimeout(function(){try{conn.close();}catch(e){}},300); return; }
       MP.conns.push(conn);
       conn.on('data',function(data){ try{ hostData(conn,data); }catch(e){ console.warn('MP host data',e); } });
-      conn.on('close',function(){ MP.conns=MP.conns.filter(function(c){return c!==conn;}); MP.players=MP.players.filter(function(p){return p.id!==conn.peer;}); broadcastLobby(); broadcastParty(); });
+      conn.on('close',function(){ MP.conns=MP.conns.filter(function(c){return c!==conn;}); MP.players=MP.players.filter(function(p){return p.id!==conn.peer;}); broadcastLobby(); broadcastParty(); checkAllEnded(); });
       conn.on('error',function(){});
     });
     MP.peer.on('error',function(err){ var m=err&&err.type==='unavailable-id'?'房间号已被占用，换一个。':'连接失败：'+(err&&err.type||err); setStatus(m,true); });
@@ -11696,7 +11498,7 @@ try{
       MP.hostConn=c;
       c.on('open',function(){ c.send({t:'hello',name:MP.name,char:MP.char}); setStatus('已加入房间 '+code,false); addChat('系统','已加入房间。'); });
       c.on('data',function(data){ try{ guestData(data); }catch(e){ console.warn('MP guest data',e); } });
-      c.on('close',function(){ MP.lobby=false; setStatus('房主已断开连接。',true); renderModal(); });
+      c.on('close',function(){ MP.lobby=false; MP.combat=false; MP.myTurnEnded=false; MP.turnWaiting=false; setStatus('房主已断开连接。',true); renderModal(); renderHUD(); try{ E.render(); }catch(e){} });
       c.on('error',function(err){ setStatus('连接失败：'+(err&&err.type||err),true); });
     });
     MP.peer.on('error',function(err){ var m=(err&&err.type==='peer-unavailable')?'房间不存在或房主已离线。':'连接失败：'+(err&&err.type||err); setStatus(m,true); });
@@ -11711,13 +11513,20 @@ try{
     } else if(msg.t==='php'){ var q=MP.players.find(function(x){return x.id===conn.peer;}); if(q){q.hp=msg.hp;q.maxHp=msg.maxHp;q.block=msg.block;q.alive=msg.alive;q.char=msg.char||q.char;broadcastParty();} }
     else if(msg.t==='chat'){ addChat(MP.players.find(function(x){return x.id===conn.peer;})?MP.players.find(function(x){return x.id===conn.peer;}).name:'玩家',msg.text); broadcast({t:'chat',from:MP.players.find(function(x){return x.id===conn.peer;})?MP.players.find(function(x){return x.id===conn.peer;}).name:'玩家',text:msg.text},conn); }
     else if(msg.t==='dmg'){ applyDamage(msg.i,msg.id,msg.v); }
+    else if(msg.t==='turnend'){
+      if(!MP.combat) return;
+      if(msg.round!=null && (MP.turnRound||1)!==msg.round) return;
+      var tp=MP.players.find(function(x){return x.id===conn.peer;});
+      if(tp && !tp.ended){ tp.ended=true; broadcastParty(); checkAllEnded(); }
+    }
     else if(msg.t==='win'){ if(!MP.ended) victory(); }
   }
   function guestData(msg){
     if(!msg||!msg.t)return;
     if(msg.t==='welcome'||msg.t==='lobby'){ MP.room=msg.room||MP.room; MP.players=msg.players||MP.players; if(msg.encounter)MP.encounter=msg.encounter; MP.encounterLabel=msg.label||MP.encounterLabel; MP.started=!!msg.started; MP.lobby=true; renderModal(); }
     else if(msg.t==='chat'){ addChat(msg.from,msg.text); }
-    else if(msg.t==='party'){ MP.players=msg.players||MP.players; refreshRoom(); renderHUD(); }
+    else if(msg.t==='party'){ MP.players=msg.players||MP.players; if(msg.round)MP.turnRound=msg.round; var gp=MP.players.find(function(x){return x.id===MP.myId;}); if(gp&&MP.myTurnEnded)gp.ended=true; refreshRoom(); renderHUD(); }
+    else if(msg.t==='turnround'){ MP.turnRound=msg.round||MP.turnRound; MP.players.forEach(function(p){p.ended=false;}); MP.myTurnEnded=false; MP.turnWaiting=false; releaseTurn(); }
     else if(msg.t==='ehp'){ MP.shared=msg.shared; applyShared(); }
     else if(msg.t==='start'){ startLocal(msg.encounter,msg.players||[],msg.seed); }
     else if(msg.t==='started-scale'){ MP.shared=msg.shared; applyShared(); }
@@ -11739,7 +11548,8 @@ try{
   }
   function refreshRoom(){
     if(!$('mp-room-body'))return;
-    var list=$('mp-players'); if(list){ list.innerHTML=MP.players.map(function(p){ var me=p.id===MP.myId; return '<div class="mp-player'+(me?' me':'')+'"><b>'+esc(p.name)+'</b>'+(p.host?'<span class="mp-tag">房主</span>':'')+'<span>'+esc(charName(p.char))+'</span><span>'+esc(p.hp||0)+'/'+esc(p.maxHp||0)+'</span></div>'; }).join(''); }
+    var list=$('mp-players'); if(list){ list.innerHTML=MP.players.map(function(p){ var me=p.id===MP.myId; return '<div class="mp-player'+(me?' me':'')+'"><b>'+esc(p.name)+'</b>'+(p.host?'<span class="mp-tag">房主</span>':'')+'<span>'+esc(charName(p.char))+'</span><span>'+esc(p.hp||0)+'/'+esc(p.maxHp||0)+'</span>'+(MP.combat?(p.ended?'<span class="mp-tag" style="border-color:#2f6a55;color:#8fd0bf">已结束</span>':'<span style="color:#6f7b85;font-size:10px">行动中</span>'):'')+'</div>'; }).join(''); }
+    var ti=$('mp-turn-info'); if(ti){ var tl=turnLockState(); ti.textContent=tl?('第 '+tl.round+' 回合 · 已结束 '+tl.done+'/'+tl.total+(tl.ended?'（你已结束，等待队友）':'')):''; }
     var codeEl=$('mp-room-code'); if(codeEl)codeEl.textContent=MP.room||'';
     var cnt=$('mp-count'); if(cnt)cnt.textContent=MP.players.length+'/10';
     var enc=$('mp-enc-label'); if(enc)enc.textContent=MP.encounterLabel||(ENCS.find(function(x){return x.id===MP.encounter;})||{}).label||'';
@@ -11750,7 +11560,7 @@ try{
   function modalHTML(){
     if(MP.result){ return '<div class="mp-head"><h2>联机合作</h2><button class="btn sm" data-mp-act="close">关闭</button></div>'+
       '<div class="mp-result"><b>'+esc(MP.result)+'</b><p>房间 '+esc(MP.room)+' · '+MP.players.length+' 人</p><div class="mp-actions">'+(MP.isHost?'<button class="btn" data-mp-act="lobby">下一场</button>':'<button class="btn" data-mp-act="lobby">等待房主</button>')+'<button class="btn" data-mp-act="leave">离开房间</button></div></div>'; }
-    if(MP.combat && MP.room){ return '<div class="mp-head"><h2>联机战斗 · 房间 '+esc(MP.room)+'</h2><button class="btn sm" data-mp-act="close">收起</button></div>'+'<div id="mp-room-body"><div class="mp-meta"><span>房间号 <b id="mp-room-code">'+esc(MP.room)+'</b></span><span id="mp-count">'+MP.players.length+'/10</span></div>'+'<div class="mp-section"><h3>队伍</h3><div id="mp-players"></div></div>'+'<p class="mp-dim">怪物血量全队共享；敌人攻击和技能为 AOE，每位玩家各自结算格挡与受击。</p><div class="mp-actions"><button class="btn" data-mp-act="leave">离开房间</button></div></div>'; }
+    if(MP.combat && MP.room){ return '<div class="mp-head"><h2>联机战斗 · 房间 '+esc(MP.room)+'</h2><button class="btn sm" data-mp-act="close">收起</button></div>'+'<div id="mp-room-body"><div class="mp-meta"><span>房间号 <b id="mp-room-code">'+esc(MP.room)+'</b></span><span id="mp-count">'+MP.players.length+'/10</span></div>'+'<div class="mp-section"><h3>队伍</h3><div id="mp-players"></div></div>'+'<p class="mp-dim">回合推进：所有存活玩家都结束回合后，才会统一进入下一回合（由房主广播）。怪物血量全队共享；敌人攻击和技能为 AOE，每位玩家各自结算格挡与受击。</p><p class="mp-dim" id="mp-turn-info"></p><div class="mp-actions">'+(MP.isHost?'<button class="btn" data-mp-act="force-turn">强制推进回合</button>':'')+'<button class="btn" data-mp-act="leave">离开房间</button></div></div>'; }
     if(MP.lobby && MP.room){ var me=myPlayer(); return '<div class="mp-head"><h2>联机合作 · 房间 '+esc(MP.room)+'</h2><button class="btn sm" data-mp-act="close">收起</button></div>'+
       '<div id="mp-room-body"><div class="mp-meta"><span>房间号 <b id="mp-room-code">'+esc(MP.room)+'</b></span><button class="btn sm" data-mp-act="copy">复制</button><span id="mp-count">'+MP.players.length+'/10</span></div>'+
       '<div class="mp-section"><h3>玩家</h3><div id="mp-players"></div></div>'+
@@ -11762,10 +11572,10 @@ try{
     return '<div class="mp-head"><h2>联机合作</h2><button class="btn sm" data-mp-act="close">关闭</button></div>'+
       '<div class="mp-connect"><label>昵称 <input id="mp-name" maxlength="20" placeholder="你的昵称" value="'+esc(MP.name)+'"></label><label>房间号 <input id="mp-code" maxlength="6" placeholder="留空则自动生成" value="'+esc(MP.room)+'"></label>'+
       '<div class="mp-actions"><button class="btn primary" data-mp-act="create">创建房间</button><button class="btn" data-mp-act="join">加入房间</button></div>'+
-      '<p class="mp-dim">最多 10 人。房主负责开始战斗与结算；加入者输入同一房间号即可。</p><p id="mp-status"></p></div>';
+      '<p class="mp-dim">最多 10 人。房主负责开始战斗与结算；加入者输入同一房间号即可。战斗中需要所有存活玩家都结束回合，才会进入下一回合。</p><p id="mp-status"></p></div>';
   }
   function ensureUI(){
-    if(!$('mp-style')){ var st=document.createElement('style'); st.id='mp-style'; st.textContent='#mp-overlay{position:fixed;inset:0;z-index:9997;background:rgba(4,8,10,.72);display:none;align-items:center;justify-content:center;padding:18px}#mp-overlay.show{display:flex}#mp-modal{width:760px;max-width:96vw;max-height:92vh;overflow:auto;background:#11171c;border:1px solid #33434e;border-radius:10px;padding:18px;color:#dfe6ea;box-shadow:0 20px 60px rgba(0,0,0,.6)}.mp-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #26343e;padding-bottom:10px}.mp-head h2{margin:0;font-size:18px;color:#e6c96a}.mp-section{margin-top:14px}.mp-section h3{font-size:13px;color:#8fd0bf;margin:0 0 7px}.mp-meta{display:flex;gap:10px;align-items:center;font-size:12px;color:#8b969f}.mp-meta b{color:#e6c96a;letter-spacing:.12em}.mp-player{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid #26343e;border-radius:6px;margin-bottom:5px;font-size:12px}.mp-player b{min-width:105px}.mp-player.me{border-color:#8a6f16;background:rgba(201,162,39,.08)}.mp-player span{color:#96a3ad}.mp-tag{color:#e6c96a!important;border:1px solid #6a5820;border-radius:4px;padding:0 5px;font-size:10px}.mp-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.mp-controls select,.mp-connect input,#mp-chat-input{background:#0c1115;border:1px solid #33434e;color:#dfe6ea;border-radius:5px;padding:7px 9px;font-size:12px}.mp-connect label{display:flex;gap:10px;align-items:center;margin:8px 0;font-size:12px;color:#9fb0bd}.mp-connect input{width:220px}#mp-chat-input{flex:1}.mp-chat-log{height:150px;overflow:auto;background:#0b1014;border:1px solid #26343e;border-radius:6px;padding:8px;font-size:11.5px;line-height:1.6}.mp-chat-line b{color:#e6c96a;margin-right:6px}.mp-chat-row{display:flex;gap:8px;margin-top:6px}.mp-actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}.mp-dim{color:#77858f;font-size:11px}.mp-result{padding:22px 8px;text-align:center}.mp-result b{font-size:22px;color:#e6c96a}.mp-result p{color:#8b969f;font-size:12px}#mp-status{font-size:12px;min-height:18px}#mp-hud{position:fixed;left:16px;bottom:16px;z-index:70;background:rgba(12,18,22,.94);border:1px solid #33434e;border-radius:9px;padding:9px 11px;min-width:230px;color:#dfe6ea;font-size:11px;display:none;box-shadow:0 8px 26px rgba(0,0,0,.45)}#mp-hud.show{display:block}#mp-hud .hud-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:5px}.mp-hud-row{display:flex;justify-content:space-between;gap:8px;line-height:1.7}.mp-hud-row b{color:#e6c96a}.mp-hud-enemy{color:#e09a9a}.mp-hud button{border:1px solid #5b5028;background:#211d12;color:#e6c96a;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer}'; document.head.appendChild(st); }
+    if(!$('mp-style')){ var st=document.createElement('style'); st.id='mp-style'; st.textContent='#mp-overlay{position:fixed;inset:0;z-index:9997;background:rgba(4,8,10,.72);display:none;align-items:center;justify-content:center;padding:18px}#mp-overlay.show{display:flex}#mp-modal{width:760px;max-width:96vw;max-height:92vh;overflow:auto;background:#11171c;border:1px solid #33434e;border-radius:10px;padding:18px;color:#dfe6ea;box-shadow:0 20px 60px rgba(0,0,0,.6)}.mp-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #26343e;padding-bottom:10px}.mp-head h2{margin:0;font-size:18px;color:#e6c96a}.mp-section{margin-top:14px}.mp-section h3{font-size:13px;color:#8fd0bf;margin:0 0 7px}.mp-meta{display:flex;gap:10px;align-items:center;font-size:12px;color:#8b969f}.mp-meta b{color:#e6c96a;letter-spacing:.12em}.mp-player{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid #26343e;border-radius:6px;margin-bottom:5px;font-size:12px}.mp-player b{min-width:105px}.mp-player.me{border-color:#8a6f16;background:rgba(201,162,39,.08)}.mp-player span{color:#96a3ad}.mp-tag{color:#e6c96a!important;border:1px solid #6a5820;border-radius:4px;padding:0 5px;font-size:10px}.mp-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.mp-controls select,.mp-connect input,#mp-chat-input{background:#0c1115;border:1px solid #33434e;color:#dfe6ea;border-radius:5px;padding:7px 9px;font-size:12px}.mp-connect label{display:flex;gap:10px;align-items:center;margin:8px 0;font-size:12px;color:#9fb0bd}.mp-connect input{width:220px}#mp-chat-input{flex:1}.mp-chat-log{height:150px;overflow:auto;background:#0b1014;border:1px solid #26343e;border-radius:6px;padding:8px;font-size:11.5px;line-height:1.6}.mp-chat-line b{color:#e6c96a;margin-right:6px}.mp-chat-row{display:flex;gap:8px;margin-top:6px}.mp-actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}.mp-dim{color:#77858f;font-size:11px}.mp-result{padding:22px 8px;text-align:center}.mp-result b{font-size:22px;color:#e6c96a}.mp-result p{color:#8b969f;font-size:12px}#mp-status{font-size:12px;min-height:18px}#mp-hud{position:fixed;left:16px;bottom:16px;z-index:70;background:rgba(12,18,22,.94);border:1px solid #33434e;border-radius:9px;padding:9px 11px;min-width:230px;color:#dfe6ea;font-size:11px;display:none;box-shadow:0 8px 26px rgba(0,0,0,.45)}#mp-hud.show{display:block}#mp-hud .hud-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:5px}.mp-hud-row{display:flex;justify-content:space-between;gap:8px;line-height:1.7}.mp-hud-row b{color:#e6c96a}.mp-hud-enemy{color:#e09a9a}.mp-hud button{border:1px solid #5b5028;background:#211d12;color:#e6c96a;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer}.mp-hud-turn{margin:0 0 4px;padding:3px 6px;border-radius:4px;background:rgba(143,208,191,.10);border:1px solid #2f5f55;color:#8fd0bf;font-size:10.5px;line-height:1.5}.mp-hud-turn.done{background:rgba(201,162,39,.12);border-color:#6a5820;color:#e6c96a}#mp-hud.waiting{border-color:#8a6f16}.mp-hud-row.ended{color:#7fc0a8}.mp-hud-row.ended b{color:#7fc0a8}'; document.head.appendChild(st); }
     
     if(!$('mp-overlay')){ var ov=document.createElement('div'); ov.id='mp-overlay'; ov.innerHTML='<div id="mp-modal"></div>'; ov.addEventListener('click',function(e){ if(e.target===ov) closeModal(); }); document.body.appendChild(ov); }
     if(!$('mp-hud')){ var hud=document.createElement('div'); hud.id='mp-hud'; document.body.appendChild(hud); }
@@ -11777,8 +11587,12 @@ try{
     var hud=$('mp-hud'); if(!hud)return;
     if(!MP.room||!MP.combat){ hud.classList.remove('show'); hud.innerHTML=''; return; }
     var enemy=(MP.shared||[]).map(function(e){return e.hp>0?esc(defName(e.id))+' '+e.hp+'/'+e.maxHp:'';}).filter(Boolean).join(' · ');
+    var tl=turnLockState();
     hud.classList.add('show');
-    hud.innerHTML='<div class="hud-head"><span>联机 · '+esc(MP.room)+' · '+MP.players.length+'人</span><button data-mp-act="hud-open">房间</button></div>'+MP.players.map(function(p){return '<div class="mp-hud-row"><span>'+esc(p.name)+(p.id===MP.myId?'（你）':'')+'</span><b>'+esc(p.hp||0)+'/'+esc(p.maxHp||0)+'</b></div>';}).join('')+(enemy?'<div class="mp-hud-enemy">'+enemy+'</div>':'');
+    if(tl) hud.classList.toggle('waiting',!!tl.ended);
+    hud.innerHTML='<div class="hud-head"><span>联机 · '+esc(MP.room)+' · 第 '+(tl?tl.round:1)+' 回合</span><button data-mp-act="hud-open">房间</button></div>'+
+      (tl?'<div class="mp-hud-turn'+(tl.ended?' done':'')+'">'+(tl.ended?('你已结束回合 · 等待队友 '+tl.done+'/'+tl.total):('本回合已结束 '+tl.done+'/'+tl.total))+'</div>':'')+
+      MP.players.map(function(p){return '<div class="mp-hud-row'+(p.ended?' ended':'')+'"><span>'+(p.ended?'✓ ':'')+esc(p.name)+(p.id===MP.myId?'（你）':'')+'</span><b>'+esc(p.hp||0)+'/'+esc(p.maxHp||0)+'</b></div>';}).join('')+(enemy?'<div class="mp-hud-enemy">'+enemy+'</div>':'');
   }
   document.addEventListener('click',function(e){
     var t=e.target.closest&&e.target.closest('[data-mp-act]'); if(!t)return;
@@ -11788,6 +11602,7 @@ try{
     if(act==='copy'){ try{navigator.clipboard.writeText(MP.room); setStatus('房间号已复制',false);}catch(err){ setStatus('复制失败，请手动选择房间号',true); } return; }
     if(act==='leave'){ leaveRoom(); return; }
     if(act==='lobby'){ enterLobby(); return; }
+    if(act==='force-turn'){ if(!MP.isHost||!MP.combat)return; MP.players.forEach(function(p){ p.ended=true; }); broadcastParty(); checkAllEnded(); return; }
     if(act==='start'){ if(!MP.isHost)return; if(MP.players.length<1){setStatus('至少需要 1 名玩家',true);return;} var list=basePlayers(); var enc=resolveEncounter(); var seed=Math.floor(Math.random()*1000000000); MP.encounterLabel=enc.label; MP.started=true; MP.lobby=false; broadcast({t:'start',encounter:enc,players:list,seed:seed}); startLocal(enc,list,seed); return; }
     if(act==='chat'){ var ci=$('mp-chat-input'); if(ci){ sendChat(ci.value); ci.value=''; } return; }
     if(act==='create'||act==='join'){ var ni=$('mp-name'), co=$('mp-code'); MP.name=(ni&&ni.value.trim()||MP.name||('玩家'+Math.floor(Math.random()*900+100))).slice(0,20); MP.room=(co&&co.value.trim()||'').toUpperCase(); store('spire2_mp_name',MP.name); if(act==='create') connectHost(); else connectGuest(); return; }
@@ -11798,6 +11613,11 @@ try{
   });
   document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target&&e.target.id==='mp-chat-input'){ sendChat(e.target.value); e.target.value=''; e.preventDefault(); } });
   setInterval(function(){ var btn=$('mp-entry'); if(btn){ var title=(E.S==='title'||!E.run); btn.style.display=title?'block':'none'; } var hud=$('mp-hud'); if(hud&&MP.combat&&E.S!=='combat'){ hud.classList.remove('show'); } if(MP.room&&MP.combat&&E.run){ var now=Date.now(); if(now-MP.lastHpSent>1000){ MP.lastHpSent=now; updateSelfHp(E.run.hp,E.run.maxHp,E.b&&E.b.block||0); } } },500);
+  /* 联机合作：接管引擎的结束回合，改为等待所有存活玩家 */
+  E.endTurn=function(){
+    if(MP.combat&&MP.room&&MP.started&&!MP.releasing&&E.b&&E.b.playerTurn){ return requestEndTurn(); }
+    return realEndTurn.apply(E,arguments);
+  };
   ensureUI();
 })();
 
