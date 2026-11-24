@@ -76,6 +76,36 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .ph-empty{font-size:11px;color:#6f7b85}
 .ph-foot{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
 .ph-foot .btn{flex:1;min-height:40px}
+.ph-home{display:none}
+.cinfo,.einfo{display:none}
+.ci-grid{display:flex;gap:14px;align-items:flex-start}
+.ci-face{flex:none}
+.ci-face .card{width:112px;height:158px}
+.ci-side{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.ci-meta{display:flex;flex-wrap:wrap;gap:5px;font-size:10px;color:#9aa7b1}
+.ci-pill{border:1px solid #33414b;border-radius:10px;padding:1px 7px;color:#c3cfd8}
+.ci-sec{font-size:9.5px;letter-spacing:.12em;color:#7f8d97;border-bottom:1px solid #22303a;padding-bottom:3px;margin-top:3px}
+.ci-txt{font-size:12px;line-height:1.65;color:#dbe6ee}
+.ci-up{font-size:11.5px;line-height:1.6;color:#9fe3b8;background:#0f1d16;border:1px solid #2b4a38;border-radius:4px;padding:6px 8px}
+.ci-kw{font-size:10.5px;line-height:1.6;color:#98a6b1}
+.ci-kw b{color:#c9d5de}
+.ei-top{display:flex;gap:12px;align-items:center}
+.ei-main{flex:1;min-width:0}
+.ei-portrait{width:90px;height:90px;flex:none;border:1px solid #3a4650;border-radius:4px;background:#0b1014;padding:5px}
+.ei-portrait svg{width:100%;height:100%;display:block}
+.ei-name{font-size:17px;color:#f0e1bc}
+.ei-sub{font-size:10px;color:#8b969f;margin-top:2px}
+.ei-hp{display:flex;align-items:center;gap:6px;margin-top:7px}
+.ei-hpbar{flex:1;height:13px;background:#1a2229;border:1px solid #3a444d;border-radius:3px;position:relative;overflow:hidden}
+.ei-hpbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#b5535a,#8a363d)}
+.ei-hpbar span{position:relative;z-index:1;display:block;text-align:center;font-size:9px;line-height:11px;color:#fff}
+.ei-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ei-box{border:1px solid #293641;border-radius:4px;padding:5px 8px;font-size:10.5px;color:#a9b6c0;line-height:1.5;background:#111920}
+.ei-box b{color:#e8eff3;display:block;font-size:11px;margin-bottom:1px}
+.ei-buff{font-size:10.5px;line-height:1.55;color:#a9b6c0;margin:2px 0}
+.ei-buff b{color:#e8d18a}
+.ti-sheet h2{font-size:16px;margin-bottom:4px}
+.ti-sheet p{font-size:12.5px;line-height:1.7;margin:4px 0}
 .tb-sub{display:flex;align-items:center;margin-top:4px;min-height:26px}
 .tb-main .tb-floor{align-self:flex-start}
 .topbar .brand{font-family:var(--font-t);font-size:16px;color:var(--brass);letter-spacing:.16em;white-space:nowrap}
@@ -662,16 +692,76 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .hand-tools .ht-spacer{flex:1 1 auto}
   .hand-tools .turn-btn{position:static;flex:0 0 auto;min-width:104px;min-height:44px;padding:8px 15px;font-size:13px;border-radius:6px;letter-spacing:.06em;box-shadow:0 3px 0 #05070a,inset 0 1px 0 rgba(255,255,255,.08)}
   .hand-tools .turn-btn.waiting{min-width:104px;font-size:12px;color:#e6c96a}
-  .hand{min-height:0;flex:1 1 auto;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:5px 2px 2px;align-items:flex-end;justify-content:flex-start;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-  .hand .card{flex:0 0 auto;width:25vh;min-width:68px;max-width:112px;scroll-snap-align:center;touch-action:manipulation}
+  .hand{min-height:0;flex:1 1 auto;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:11px 2px 2px;align-items:flex-end;justify-content:flex-start;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+  .hand .card{flex:0 0 auto;width:30vh;min-width:78px;max-width:126px;scroll-snap-align:center;touch-action:manipulation}
   .hand .card:first-child{margin-left:auto}
   .hand .card:last-child{margin-right:auto}
-  .card{height:29vh;max-height:132px;padding:6px 6px 5px}
-  .card .cname{font-size:10.5px;min-height:22px;line-height:1.25}
-  .card .ctext{font-size:10px;line-height:1.4}
-  .card .ctype{font-size:7px}
-  .card .cost{width:22px;height:22px;font-size:12px;left:-5px;top:-5px}
-  .card .cbot{font-size:6.5px}
+  .card{height:29vh;max-height:134px;padding:7px 7px 5px}
+  .card .cname{font-size:11px;min-height:23px;line-height:1.25}
+  .card .ctext{font-size:11px;line-height:1.38}
+  .card .ctype{font-size:7.5px}
+  .card .cost{width:24px;height:24px;font-size:13px;left:-5px;top:-2px}
+  .card .cbot{font-size:7px}
+  .cinfo{display:flex;position:absolute;top:2px;right:2px;z-index:3;width:26px;height:26px;padding:0;align-items:center;justify-content:center;border-radius:50%;border:1px solid #5b6a76;background:rgba(9,13,17,.86);color:#dfe9f0;font-size:12px;font-weight:700;line-height:1;font-family:var(--font-t)}
+  .einfo{display:flex;position:absolute;top:2px;right:2px;z-index:3;width:28px;height:28px;padding:0;align-items:center;justify-content:center;border-radius:50%;border:1px solid #5b6a76;background:rgba(9,13,17,.86);color:#dfe9f0;font-size:13px;font-weight:700;line-height:1;font-family:var(--font-t)}
+  .einfo:active,.cinfo:active{background:#243039}
+  .ph-home{display:flex;height:100%;min-height:0;background:linear-gradient(120deg,#0b1014 0%,#0c1217 55%,#0a0f13 100%)}
+  .phh-left{flex:0 0 214px;display:flex;flex-direction:column;gap:6px;min-height:0;padding:9px 9px 7px calc(11px + env(safe-area-inset-left));border-right:1px solid #232b32;position:relative;overflow:hidden}
+  .phh-art{position:absolute;left:20%;bottom:0;width:78%;opacity:.22;pointer-events:none}
+  .phh-art svg{width:100%;height:auto;display:block}
+  .phh-brand,.phh-actions,.phh-mini,.phh-note,.phh-motto{position:relative;z-index:1}
+  .phh-motto{font-family:var(--font-t);font-size:11px;letter-spacing:.18em;color:#9c8656;margin:auto 2px 0;line-height:1.6}
+  .phh-brand{flex:none;padding:1px 2px 5px}
+  .phh-kicker{font-size:8.5px;letter-spacing:.2em;color:#8e7a4a;white-space:nowrap}
+  .phh-brand h1{font-family:var(--font-t);font-size:25px;line-height:1.02;color:#f2e6c6;letter-spacing:.09em;margin-top:2px}
+  .phh-brand h1 span{color:var(--brass);font-size:19px;letter-spacing:.12em;margin-left:5px}
+  .phh-actions{display:flex;flex-direction:column;gap:5px;min-height:0}
+  .phh-btn{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-height:41px;padding:5px 11px;text-align:left;border:1px solid #33404a;border-radius:4px;background:linear-gradient(150deg,#182128,#111820);color:#dfe8ee;font-size:12.5px;line-height:1.15;letter-spacing:.02em}
+  .phh-btn small{font-size:8.5px;color:#8b969f;line-height:1.3;margin-top:1px}
+  .phh-btn.primary{border-color:#8a6f16;background:linear-gradient(150deg,#2c2510,#181306);color:#f0d98a}
+  .phh-btn.mp{border-color:#8a6f16;color:#e6c96a}
+  .phh-btn.stat{border-color:#44553f;color:#b7d0a8}
+  .phh-btn:active{background:#202a32}
+  .phh-mini{display:flex;gap:5px;margin-top:2px}
+  .phh-mini .btn{flex:1;min-height:34px;font-size:10.5px}
+  .phh-note{margin-top:3px;font-size:8.5px;line-height:1.5;color:#66737d;padding:3px 2px 0}
+  .phh-right{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;padding:7px calc(8px + env(safe-area-inset-right)) 4px 11px}
+  .phh-head{flex:none;display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 2px 5px}
+  .phh-head h2{font-size:14px;letter-spacing:.14em;color:#c8d2d9}
+  .phh-hint{font-size:9px;color:#6f7b85}
+  .phh-grid{flex:1 1 auto;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:min-content;gap:7px;padding:1px 2px 8px;align-content:start;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .phh-char{display:flex;flex-direction:column;min-width:0;border:1px solid #2d3942;border-radius:5px;background:linear-gradient(145deg,#19222a,#10161b);overflow:hidden}
+  .phh-pick{display:flex;gap:8px;align-items:center;padding:7px 8px 5px;border:0;background:none;color:inherit;text-align:left;min-width:0}
+  .phh-pick .char-sigil{width:38px;height:38px;flex:none}
+  .phh-tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+  .phh-name{font-size:12.5px;color:#f0e1bc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+  .phh-ep{font-size:8.5px;color:#8e7a4a;margin-left:3px}
+  .phh-meta{font-size:8.5px;color:#8b969f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .phh-tags{display:flex;gap:3px;margin-top:1px}
+  .phh-tags .tag{font-size:7.5px;padding:0 4px;line-height:1.6}
+  .phh-asc{display:flex;align-items:center;gap:5px;padding:3px 7px 4px;border-top:1px solid #22303a;font-size:8.5px;color:#8e9aa4;overflow:hidden}
+  .phh-asc>span:first-child{flex:0 0 auto}
+  .phh-asc .btn{flex:0 0 auto;min-width:30px;min-height:28px;padding:0;font-size:14px;display:inline-flex;align-items:center;justify-content:center}
+  .phh-asc b{flex:0 0 auto;min-width:24px;text-align:center;color:#e6c96a;font-size:10.5px}
+  .phh-cap{font-size:7.5px;color:#6f7b85;font-weight:400;margin-left:1px}
+  .phh-go{color:#e6c96a;font-size:9.5px;letter-spacing:.04em;margin-left:auto;border:1px solid #6b5a2a;background:#181408;border-radius:3px;padding:3px 8px;min-height:28px;line-height:1.3;white-space:nowrap;flex:0 0 auto}
+  @media (min-width:800px){
+    .phh-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .phh-ep{display:none}
+  }
+  @media (max-width:660px){
+    .phh-ep{display:none}
+  }
+  @media (max-height:380px){
+    .phh-left{flex-basis:200px;gap:4px;padding-top:6px}
+    .phh-brand h1{font-size:21px}
+    .phh-brand h1 span{font-size:16px}
+    .phh-btn{min-height:36px;padding:3px 10px;font-size:11.5px}
+    .phh-btn small{display:none}
+    .phh-note{font-size:8px}
+    .phh-motto{font-size:10px}
+    .phh-char .phh-tags{display:none}
+  }
   .card:hover{transform:none}
   .card.selected{transform:translateY(-6px) scale(1.01)}
   .pile .pv,.card{-webkit-touch-callout:none}
@@ -8599,6 +8689,7 @@ var codexOpen = false;
 var menuChar = 'iron';
 var upgPreview = null;
 var sel = {card:null, potion:null};
+var lpTimer=0, lpState=null, lpSuppress=false;
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -8786,6 +8877,7 @@ function cardHTML(inst,opts){
   var g2=d.gen2?'<span class="gem" style="background:#5fb0a0;margin-left:3px" title="二代新卡"></span>':'';
   return '<div class="'+cls.join(' ')+'" data-act="'+(opts.act||'')+'" data-idx="'+(opts.idx!=null?opts.idx:'')+'" data-i="'+(opts.i!=null?opts.i:'')+'">'+
     '<div class="cost '+costCls+'">'+costShow+star+'</div>'+
+    (opts.hand?'<button class="cinfo" data-act="card-info" data-idx="'+(opts.idx!=null?opts.idx:'')+'" aria-label="卡牌详情">i</button>':'')+
     '<div class="cname">'+esc(d.name)+(inst.ups>0&&d.maxUp>1?'<span style="color:#7fe3a5;font-size:10px">+'+inst.ups+'</span>':'')+'</div>'+
     '<div class="ctype">'+typeLbl+(flags.length?' · '+flags.join('·'):'')+'</div>'+
     '<div class="ctext"><span class="cbody">'+richText(text)+'</span></div>'+
@@ -9158,6 +9250,8 @@ function genTagOf(c){
 }
 function menuScreen(){
   var touch=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
+  var prevPhoneScroll=0; var _pg=document && document.querySelector ? document.querySelector('.phh-grid') : null;
+  if(_pg) prevPhoneScroll=_pg.scrollTop;
   var order=['iron','silent','defect','watcher','regent','necro','fool','warden','shade','arcanist','beast','wuj'];
   var wheel=order.map(function(k){
     var c=D.chars[k], n=D.cards[k].length;
@@ -9174,6 +9268,43 @@ function menuScreen(){
       '<span style="color:#6f7b85">已解锁 '+E.ascUnlocked(k)+'</span></span>'+
       '<div class="cc-go">攀登 ›</div></button>';
   }).join('');
+  if(touch){
+    var phWheel=order.map(function(k){
+      var c=D.chars[k], n=D.cards[k].length;
+      return '<div class="phh-char">'+
+        '<button class="phh-pick" data-act="newrun" data-char="'+k+'">'+
+          '<div class="char-sigil" style="background:#0d1216">'+charSvg(k,c.color)+'</div>'+
+          '<div class="phh-tx"><div class="phh-name">'+esc(c.name)+'<span class="phh-ep">'+esc(c.epithet)+'</span></div>'+
+          '<div class="phh-meta">'+c.hp+' 血 · '+c.energy+' 能量 · '+n+' 卡</div>'+
+          '<div class="phh-tags">'+genTagOf(c)+c.tags.slice(0,2).map(function(t){return '<span class="tag gold">'+esc(t)+'</span>';}).join('')+'</div></div>'+
+        '</button>'+
+        '<div class="phh-asc"><span data-tip="进阶 '+E.ascSelected(k)+'|'+esc(E.ascInfoTip(E.ascSelected(k),true))+'">进阶</span>'+
+          '<button class="btn sm" data-act="asc-minus" data-char="'+k+'">−</button>'+
+          '<b>'+E.ascSelected(k)+'<span class="phh-cap">/'+E.ascUnlocked(k)+'</span></b>'+
+          '<button class="btn sm" data-act="asc-plus" data-char="'+k+'">+</button>'+
+          '<button class="phh-go" data-act="newrun" data-char="'+k+'">攀登 ›</button></div>'+
+      '</div>';
+    }).join('');
+    $('screen').innerHTML='<div class="ph-home">'+
+      '<aside class="phh-left">'+
+        '<div class="phh-brand"><div class="phh-kicker">SLAY THE SPIRE · 一代 + 二代</div><h1>尖塔<span>双代</span></h1></div>'+
+        '<div class="phh-art">'+towerSvg()+'</div>'+
+        '<div class="phh-actions">'+
+          (E.hasSave()?'<button class="phh-btn primary" data-act="continue">继续上次的攀登<small>从保存的楼层继续</small></button>':'')+
+          '<button class="phh-btn" data-act="cm-open">自定义模式<small>特效 / 种子 / 进阶</small></button>'+
+          '<button class="phh-btn mp" onclick="SPIRE_MP.open()">联机合作<small>回合同步 · 最多 10 人</small></button>'+
+          '<button class="phh-btn stat" data-act="stats-open">统计数据<small>战绩 / 记录 / 历史</small></button>'+
+        '</div>'+
+        '<div class="phh-mini"><button class="btn" data-act="codex" data-tab="cards">图鉴</button><button class="btn" data-act="help">机制</button></div>'+
+        '<div class="phh-motto">向上，直到腐化之心。</div>'+
+        '<div class="phh-note">12 位角色 · 1132 张卡牌 · 216 件遗物<br>长按卡牌或状态可看详细说明</div>'+
+      '</aside>'+
+      '<section class="phh-right"><div class="phh-head"><h2>选择角色</h2><span class="phh-hint">上下滑动 · 点角色即开始</span></div>'+
+        '<div class="phh-grid">'+phWheel+'</div></section></div>';
+    var _ng=document.querySelector('.phh-grid');
+    if(_ng&&prevPhoneScroll) _ng.scrollTop=prevPhoneScroll;
+    return;
+  }
   $('screen').innerHTML='<div class="menu"><div class="menu-left"><div class="tower">'+towerSvg()+'</div>'+
     '<div class="sub">杀戮尖塔 一代 + 二代 · 完全体</div><h1>尖塔<br>双代</h1>'+
     '<div class="desc">把《杀戮尖塔》1 代、2 代与《深渊尖塔》熔于一炉。<em>十二位角色、1132 张卡牌、216 件遗物、102 种怪物、114 个事件</em>，三幕加塔心，一路攀到腐化之心面前。<br><br>'+
@@ -9890,6 +10021,7 @@ function battleScreen(){
     if(e.impaled) chips+='<span class="chip gold" data-tip="钉住|被箭矢钉住，再命中 3 次或击杀可拔回箭矢。">钉住</span>';
     var selCls=(sel.card!=null)?' sel':'';
     return '<div class="enemy'+selCls+'" data-act="enemy" data-uid="'+e.uid+'" data-pattern="'+e.uid+'">'+
+      '<button class="einfo" data-act="enemy-info" data-uid="'+e.uid+'" aria-label="怪物详情">i</button>'+
       '<div class="etop">'+intentHtml+'</div>'+
       '<div class="portrait" data-uid="'+e.uid+'">'+monsterAvatar(e.name)+'</div>'+
       '<div class="ename">'+esc(e.name)+'</div>'+
@@ -9973,7 +10105,81 @@ function helpModal(){
   modal('<h2>机制速查</h2><p>三幕各 16 楼（第 8 楼宝箱、第 14 楼营火、第 16 楼首领），第 4 幕为塔心：营火 → 商店 → 尖塔之矛与盾 → 腐化之心。</p>'+
     '<h3 style="font-size:14px;color:#c9a227;margin:14px 0 6px">角色机制</h3>'+mechs+
     '<h3 style="font-size:14px;color:#c9a227;margin:14px 0 6px">状态效果</h3><div class="codex-grid">'+keys.map(function(k){return '<div class="codex-item"><b>'+k[0]+'</b><br><span>'+k[1]+'</span></div>';}).join('')+'</div>'+
-    '<h3 style="font-size:14px;color:#c9a227;margin:14px 0 6px">界面设置</h3><div class="codex-item"><b>怪物套路提示 · '+(bossPatternOn?'开启':'关闭')+'</b><br><span>鼠标悬停怪物时显示它的招式池、当前下一招与出招循环。默认开启。</span><br><button class="btn sm" data-act="toggle-bosstip" style="margin-top:6px">'+(bossPatternOn?'关闭提示':'开启提示')+'</button></div>');
+    '<h3 style="font-size:14px;color:#c9a227;margin:14px 0 6px">界面设置</h3><div class="codex-item"><b>怪物套路提示 · '+(bossPatternOn?'开启':'关闭')+'</b><br><span>鼠标悬停怪物时显示它的招式池、当前下一招与出招循环。默认开启。</span><br><button class="btn sm" data-act="toggle-bosstip" style="margin-top:6px">'+(bossPatternOn?'关闭提示':'开启提示')+'</button></div>'+
+    '<div class="codex-item" style="margin-top:8px"><b>手机查看完整信息</b><br><span>点手牌右上角的 i 查看费用、类型、完整效果与升级预览；点怪物右上角的 i 查看生命、意图、状态说明与整套招式循环；长按任意状态/药水/遗物图标也能弹出说明。</span></div>');
+}
+/* 手机：卡牌完整信息 */
+function cardInfoModal(inst){
+  var d=E.cardDef(inst); if(!d) return;
+  var cost=E.cardCost(inst);
+  var costTxt=(d.cost==='-'||(typeof d.cost==='number'&&d.cost>=9))?'—':cost;
+  var typeLbl=TYPE_LABEL[d.type]||'技能';
+  var rarity=CARD_RARITY_LABEL[d.rarity]||'';
+  var target=needsTarget(inst)?'指向单体敌人':'自身 / 自动结算';
+  var txt=C.describe(inst);
+  var upTxt='';
+  var maxUp=(d.maxUp===undefined?1:d.maxUp);
+  if(!d.curse&&maxUp>0&&(inst.ups||0)<maxUp){
+    var cu={}; Object.keys(inst).forEach(function(k){ cu[k]=inst[k]; }); cu.ups=(inst.ups||0)+1;
+    try{ var t2=C.describe(cu); if(t2&&t2!==txt) upTxt=t2; }catch(e){}
+  }
+  var kws=[];
+  if(d.exhaust||E.hasEx(inst)) kws.push(['消耗','打出后从本场战斗中移除，本场不再出现。']);
+  if(d.ethereal) kws.push(['虚无','回合结束时若仍在手中，此牌被消耗。']);
+  if(d.retain||d.name==='打捞'&&inst.ups>0||d.name==='苦难'&&inst.ups>0) kws.push(['保留','回合结束时不会被弃置，留在手中。']);
+  if(d.innate||(d.innateUp&&inst.ups>0)) kws.push(['固有','战斗开始时必定出现在起始手牌中。']);
+  if(d.sly) kws.push(['狡诈','被弃置时触发它的额外效果。']);
+  if(inst.ench) kws.push(['附魔 · '+ENCH.label(inst.ench),ENCH.descOf(inst)||'']);
+  var kwHtml=kws.map(function(k){ return '<div><b>'+esc(k[0])+'</b>'+(k[1]?'：'+esc(k[1]):'')+'</div>'; }).join('');
+  function pill(t){ return '<span class="ci-pill">'+esc(t)+'</span>'; }
+  modal('<h2>卡牌详情 · '+esc(d.name)+'</h2>'+
+    '<div class="ci-grid"><div class="ci-face">'+cardHTML(inst,{})+'</div>'+
+    '<div class="ci-side"><div class="ci-meta">'+pill('费用 '+costTxt)+pill(typeLbl)+(rarity?pill(rarity):'')+pill(target)+((inst.ups||0)>0?pill('已升级 +'+inst.ups):'')+'</div>'+
+    '<div class="ci-sec">完整效果</div><div class="ci-txt">'+richText(txt)+'</div>'+
+    (upTxt?'<div class="ci-sec">升级后</div><div class="ci-up">'+richText(upTxt)+'</div>':'')+
+    (kwHtml?'<div class="ci-sec">关键词</div><div class="ci-kw">'+kwHtml+'</div>':'')+
+    '</div></div>');
+}
+/* 手机：怪物完整信息 */
+function enemyInfoModal(uid){
+  if(!E.b) return;
+  var e=E.b.enemies.filter(function(en){return en.uid===uid;})[0];
+  if(!e) return;
+  var d=e.def||{};
+  var role=d.tier==='boss'?'Boss':d.tier==='elite'?'精英':'怪物';
+  var mv=(d.moves&&d.moves[e.nextMove])?d.moves[e.nextMove]:null;
+  var intentTxt=e.hp<=0?'已倒下':(e.escaped?'已逃离':(mv?('<b>'+esc(mv.name)+'</b> · '+esc(moveBrief(mv))):'本回合没有固定招式'));
+  var buffs='';
+  Object.keys(e.buff||{}).forEach(function(k){
+    var v=e.buff[k]; if(!v) return;
+    var nm=STATUS_NAME[k]||k, tp=STATUS_TIP[k]||'';
+    buffs+='<div class="ei-buff"><b>'+esc(nm)+' '+v+'</b>'+(tp?'：'+esc(tp):'')+'</div>';
+  });
+  if(e.doom>0) buffs+='<div class="ei-buff"><b>末日 '+e.doom+'</b>：敌人回合结束时若末日≥剩余生命，直接处决。</div>';
+  if(e.impaled) buffs+='<div class="ei-buff"><b>钉住</b>：被箭矢钉住，再命中 3 次或击杀可拔回箭矢。</div>';
+  if(e.block>0) buffs+='<div class="ei-buff"><b>格挡 '+e.block+'</b>：优先抵消攻击伤害，回合开始清空。</div>';
+  var extras=enemyStateChips(e);
+  var extraRows='';
+  if(extras){ var tmp=document.createElement('div'); tmp.innerHTML=extras; Array.prototype.slice.call(tmp.children).forEach(function(ch){ var tp=(ch.getAttribute('data-tip')||'').split('|'); if(tp[1]) extraRows+='<div class="ei-buff"><b>'+esc(tp[0])+'</b>：'+esc(tp[1])+'</div>'; }); }
+  modal('<h2>怪物详情 · '+esc(e.name)+'</h2>'+
+    '<div class="ei-top"><div class="ei-portrait">'+monsterAvatar(e.name)+'</div>'+
+    '<div class="ei-main"><div class="ei-name">'+esc(e.name)+'</div><div class="ei-sub">'+esc(role)+(d.act?' · 第 '+d.act+' 幕':'')+(d.hp?' · 基础生命 '+esc(String(d.hp).replace(',','–')):'')+'</div>'+
+    '<div class="ei-hp"><div class="ei-hpbar"><i style="width:'+Math.max(0,Math.min(100,e.hp/e.maxHp*100))+'%"></i><span>'+e.hp+' / '+e.maxHp+'</span></div></div></div></div>'+
+    '<div class="ei-grid" style="margin-top:8px"><div class="ei-box"><b>当前意图</b>'+intentTxt+'</div>'+
+    '<div class="ei-box"><b>战斗数据</b>生命 '+e.hp+'/'+e.maxHp+' · 格挡 '+e.block+(e.buff&&e.buff.poi?' · 中毒 '+e.buff.poi:'')+'</div></div>'+
+    (d.desc?'<div class="ci-sec">怪物说明</div><div class="ci-txt" style="font-size:11.5px">'+esc(d.desc)+'</div>':'')+
+    ((buffs||extras)?'<div class="ci-sec">状态效果</div>'+((extras)?'<div class="chips" style="margin:2px 0 4px">'+extras+'</div>':'')+'<div class="ei-buffs">'+buffs+extraRows+'</div>':'')+
+    '<div class="ci-sec">招式与循环</div><div class="ei-pattern">'+enemyPatternHtml(e)+'</div>');
+}
+/* 手机：长按状态/图标弹出说明 */
+function tipSheet(el){
+  if(!el) return;
+  var pat=el.getAttribute&&el.getAttribute('data-pattern');
+  if(!el.getAttribute('data-tip')&&pat){ enemyInfoModal(+pat); return; }
+  var tip=el.getAttribute('data-tip'); if(!tip) return;
+  var parts=tip.split('|');
+  var body=esc(parts.slice(1).join('|')||'').split('§').join('<br>');
+  modal('<div class="ti-sheet"><h2>'+esc(parts[0])+'</h2><p>'+body+'</p><div class="ph-empty" style="margin-top:6px">长按卡牌 / 怪物 / 状态图标可随时查看说明</div></div>');
 }
 
 /* ---------- 奖励 ---------- */
@@ -10997,6 +11203,7 @@ function onDbgInput(e){ var t=e.target; if(t&&t.getAttribute&&t.getAttribute('da
 function onClick(e){
   var t=e.target.closest('[data-act]'); if(!t) return;
   var act=t.getAttribute('data-act');
+  if(lpSuppress){ lpSuppress=false; return; }
   if(act==='map-open'){ if(mapModalOpen) closeMapModal(); else mapModal(); return; }
   if(act==='map-close'||(act==='scrim'&&mapModalOpen)){ closeMapModal(); return; }
   if(mapModalOpen) closeMapModal();
@@ -11070,6 +11277,8 @@ function onClick(e){
   if(act==='pile'){ pileModal(t.getAttribute('data-pile')); return; }
   if(act==='relic'){ var rl=E.run.relics[+t.getAttribute('data-i')]; if(rl) modal('<div style="text-align:center">'+itemIcon(rl.name,'rel',56)+'</div><h2>'+esc(rl.name)+'</h2><p>'+esc(rl.desc)+'</p>'); return; }
   if(act==='node'){ E.enterFloor(+t.getAttribute('data-idx')); sel.card=null; sel.potion=null; render(); return; }
+  if(act==='card-info'){ var cii=+t.getAttribute('data-idx'); var cinst=E.b&&E.b.hand[cii]; if(cinst) cardInfoModal(cinst); return; }
+  if(act==='enemy-info'){ enemyInfoModal(+t.getAttribute('data-uid')); return; }
   if(act==='card'){
     if(mpWaiting()){ toast('已结束回合，等待队友…'); return; }
     var idx=+t.getAttribute('data-idx'), inst=E.b.hand[idx]; if(!inst||!E.canPlay(inst)) return;
@@ -11164,6 +11373,30 @@ function bind(){
     if(pt){ showEnemyPattern(+pt.getAttribute('data-pattern'),e.clientX,e.clientY); return; }
     hideTip();
   });
+  /* 触屏长按：卡牌 / 怪物 / 状态图标 → 完整信息 */
+  document.addEventListener('pointerdown',function(e){
+    if(e.pointerType==='mouse'||e.button>0) return;
+    var el=e.target.closest('[data-tip],[data-pattern],[data-act="card"]');
+    if(!el) return;
+    lpState={x:e.clientX,y:e.clientY,el:el};
+    clearTimeout(lpTimer);
+    lpTimer=setTimeout(function(){
+      var s=lpState; lpState=null; if(!s) return;
+      lpSuppress=true;
+      setTimeout(function(){ lpSuppress=false; },700);
+      var cardEl=s.el.closest('[data-act="card"]');
+      if(cardEl&&E.b){ var idx=+cardEl.getAttribute('data-idx'); var inst=E.b.hand[idx]; if(inst){ cardInfoModal(inst); return; } }
+      var rewardEl=s.el.closest('[data-act="reward-card"],[data-act="reward-card2"]');
+      if(rewardEl&&E.reward){ var ri=+rewardEl.getAttribute('data-i'); var arr=(rewardEl.getAttribute('data-act')==='reward-card2'?E.reward.cards2:E.reward.cards)||[]; if(arr[ri]){ cardInfoModal(arr[ri]); return; } }
+      if(s.el.getAttribute('data-pattern')){ enemyInfoModal(+s.el.getAttribute('data-pattern')); return; }
+      tipSheet(s.el);
+    },430);
+  },{passive:true});
+  document.addEventListener('pointermove',function(e){
+    if(lpState&&(Math.abs(e.clientX-lpState.x)>9||Math.abs(e.clientY-lpState.y)>9)){ clearTimeout(lpTimer); lpState=null; }
+  },{passive:true});
+  document.addEventListener('pointerup',function(){ clearTimeout(lpTimer); lpState=null; },{passive:true});
+  document.addEventListener('pointercancel',function(){ clearTimeout(lpTimer); lpState=null; },{passive:true});
 }
 return {render:render,bind:bind,toast:toast,sel:sel,flashRelic:flashRelic,bossAvatar:bossAvatar,monsterAvatar:monsterAvatar,needsTarget:needsTarget,
   openStats:function(){ statsOpen=true; render(); },
