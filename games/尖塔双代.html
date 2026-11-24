@@ -64,6 +64,18 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .topbar{display:flex;flex-direction:column;align-items:stretch;gap:0;padding:8px 18px 6px;border-bottom:1px solid #2a333b;
   background:linear-gradient(#141a20,#0e1216);z-index:90;position:relative;flex:0 0 auto;}
 .tb-main{display:flex;align-items:center;gap:16px;min-width:0}
+.tb-phone{display:none}
+.ph-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ph-sub{font-size:12px;color:#96a2ac;margin:2px 0 0}
+.ph-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.ph-btn{min-height:52px;font-size:13px;display:flex;flex-direction:column;justify-content:center;gap:2px;text-align:center}
+.ph-btn small{font-size:9.5px;color:#8b969f;font-weight:normal}
+.ph-relic-h{font-size:12px;color:#a9b3bb;letter-spacing:.12em;margin:14px 0 6px}
+.ph-relics{display:flex;flex-wrap:wrap;gap:6px}
+.ph-relic{width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:#131920;border:1px solid #303a42;border-radius:5px}
+.ph-empty{font-size:11px;color:#6f7b85}
+.ph-foot{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+.ph-foot .btn{flex:1;min-height:40px}
 .tb-sub{display:flex;align-items:center;margin-top:4px;min-height:26px}
 .tb-main .tb-floor{align-self:flex-start}
 .topbar .brand{font-family:var(--font-t);font-size:16px;color:var(--brass);letter-spacing:.16em;white-space:nowrap}
@@ -612,13 +624,30 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 }
 /* ===== 手机 / 平板横屏：手牌工具条与触控优化 ===== */
 @media (pointer:coarse) and (orientation:landscape){
-  .topbar{padding-top:calc(4px + env(safe-area-inset-top));padding-left:calc(10px + env(safe-area-inset-left));padding-right:calc(10px + env(safe-area-inset-right))}
-  .tb-sub{margin-top:2px;min-height:18px}
-  .topbar .mini-icon{width:20px;height:20px;font-size:9px}
-  .tb-main{gap:7px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-  .tb-main::-webkit-scrollbar{display:none}
-  .tb-main .btn.sm{flex:0 0 auto;min-height:30px;display:inline-flex;align-items:center;padding:5px 9px}
-  .tb-main .stat,.tb-main .brand{flex:0 0 auto}
+  .topbar{padding:3px calc(6px + env(safe-area-inset-right)) 3px calc(6px + env(safe-area-inset-left))}
+  .topbar .brand{display:none}
+  .tb-main,.tb-sub{display:none}
+  .tb-phone{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+  .tb-phone .stat{font-size:11px;gap:3px;flex:0 0 auto}
+  .tb-phone .hpbar{width:min(15vw,96px);height:10px;flex:0 0 auto}
+  .tb-phone .hp-bar-txt{font-size:8px;line-height:10px}
+  .tb-phone .tph-floor{font-size:10px;color:#96a2ac;letter-spacing:.02em}
+  .tb-phone .tph-char{font-size:11px}
+  .tb-phone .tph-pots{display:flex;gap:3px;flex:0 0 auto}
+  .tb-phone .tph-pots .mini-icon{width:27px;height:27px}
+  .tb-phone .tph-menu{margin-left:auto;min-width:44px;min-height:34px;font-size:16px;line-height:1;padding:0 8px;flex:0 0 auto}
+  .tb-phone .tph-char{overflow:hidden;text-overflow:ellipsis;max-width:80px}
+  .ph-grid{gap:6px}
+  .ph-btn{min-height:46px;font-size:12px}
+  .ph-foot .btn{min-height:42px}
+  .key-hint{display:none}
+  .battle-stage{padding:2px 6px 0;gap:min(7vw,56px)}
+  .enemy{width:min(30vw,190px)}
+  .player-panel{width:min(30vw,190px)}
+  .enemy .portrait,.player-portrait{width:26vh;height:26vh;max-width:116px;max-height:116px}
+  .pp-hp,.hp-row{width:min(30vh,140px)}
+  .pp-status .energy-orb{width:32px;height:32px;font-size:13px}
+  .pp-bars .pp-hpnum{font-size:10px}
   .hand-wrap{height:46vh;max-height:290px;padding:0 calc(8px + env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));justify-content:flex-end;gap:3px}
   .player-panel [data-act="toggle-bosstip"]{display:none}
   .player-panel > div:has([data-act="toggle-bosstip"]){display:none}
@@ -626,20 +655,20 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .ehp,.pp-hp{height:11px}
   .hp-bar-txt{font-size:8.5px;line-height:11px}
   .hand-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding:2px 1px 3px;width:100%}
-  .hand-tools .pile{position:static;display:inline-flex;flex-direction:row;align-items:center;gap:5px;background:#141b20;border:1px solid #2e3a44;border-radius:5px;padding:4px 8px;min-height:32px;flex:0 0 auto}
-  .hand-tools .pile .pv{width:auto;height:auto;border:0;background:none;font-size:13px;color:#e3ecf2;font-family:var(--font-t);line-height:1}
-  .hand-tools .pile .pl{font-size:9px;color:#93a0aa;letter-spacing:.02em}
+  .hand-tools .pile{position:static;display:inline-flex;flex-direction:row;align-items:center;gap:6px;background:#141b20;border:1px solid #2e3a44;border-radius:6px;padding:6px 10px;min-height:38px;flex:0 0 auto}
+  .hand-tools .pile .pv{width:auto;height:auto;border:0;background:none;font-size:15px;color:#e3ecf2;font-family:var(--font-t);line-height:1}
+  .hand-tools .pile .pl{font-size:10px;color:#93a0aa;letter-spacing:.02em}
   .hand-tools .pile:hover .pv{border:0}
   .hand-tools .ht-spacer{flex:1 1 auto}
   .hand-tools .turn-btn{position:static;flex:0 0 auto;min-width:104px;min-height:44px;padding:8px 15px;font-size:13px;border-radius:6px;letter-spacing:.06em;box-shadow:0 3px 0 #05070a,inset 0 1px 0 rgba(255,255,255,.08)}
   .hand-tools .turn-btn.waiting{min-width:104px;font-size:12px;color:#e6c96a}
   .hand{min-height:0;flex:1 1 auto;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:5px 2px 2px;align-items:flex-end;justify-content:flex-start;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-  .hand .card{flex:0 0 auto;width:23vh;min-width:64px;max-width:108px;scroll-snap-align:center;touch-action:manipulation}
+  .hand .card{flex:0 0 auto;width:25vh;min-width:68px;max-width:112px;scroll-snap-align:center;touch-action:manipulation}
   .hand .card:first-child{margin-left:auto}
   .hand .card:last-child{margin-right:auto}
   .card{height:29vh;max-height:132px;padding:6px 6px 5px}
-  .card .cname{font-size:10px;min-height:21px;line-height:1.25}
-  .card .ctext{font-size:9.5px;line-height:1.4}
+  .card .cname{font-size:10.5px;min-height:22px;line-height:1.25}
+  .card .ctext{font-size:10px;line-height:1.4}
   .card .ctype{font-size:7px}
   .card .cost{width:22px;height:22px;font-size:12px;left:-5px;top:-5px}
   .card .cbot{font-size:6.5px}
@@ -647,7 +676,7 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .card.selected{transform:translateY(-6px) scale(1.01)}
   .pile .pv,.card{-webkit-touch-callout:none}
   #mp-overlay #mp-modal{width:98vw;max-height:88vh;padding:12px 13px;border-radius:8px}
-  #mp-hud{left:auto!important;right:calc(8px + env(safe-area-inset-right))!important;top:calc(72px + env(safe-area-inset-top))!important;bottom:auto!important;width:190px!important;min-width:0!important;max-width:44vw!important;height:auto!important;max-height:34vh!important;overflow:auto!important;padding:6px 8px!important;font-size:10px!important;z-index:60;opacity:.96}
+  #mp-hud{left:auto!important;right:calc(6px + env(safe-area-inset-right))!important;top:calc(46px + env(safe-area-inset-top))!important;bottom:auto!important;width:160px!important;min-width:0!important;max-width:36vw!important;height:auto!important;max-height:34vh!important;overflow:auto!important;padding:5px 7px!important;font-size:10px!important;z-index:60;opacity:.96}
   #mp-hud .hud-head{gap:6px;margin-bottom:3px;font-size:10px!important;flex-wrap:nowrap}
   #mp-hud .hud-head span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #mp-hud .hud-head button{flex:0 0 auto;white-space:nowrap}
@@ -673,6 +702,18 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .rest-opts{gap:8px;margin-top:10px}
   .rest-btn{padding:9px 13px;font-size:12px;min-height:44px}
   .rest-btn span{font-size:10px}
+  .node{width:46px;height:46px;margin:-23px 0 0 -23px;font-size:16px}
+  .node.boss{width:60px;height:60px;margin:-30px 0 0 -30px;font-size:22px}
+  .node svg{width:26px;height:26px}
+  .node .lbl{font-size:9px;bottom:-13px}
+  .char-card .btn.sm{min-width:30px;min-height:28px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+  .char-card{padding:8px 10px}
+  .char-card h3{font-size:13px}
+  .char-card .blurb{font-size:10.5px;line-height:1.5}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-width:640px){
+  .tb-phone{gap:6px}
+  .tb-phone .tph-char{display:none}
 }
 /* ===== 动画系统 ===== */
 #fx-layer{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
@@ -9052,7 +9093,14 @@ function renderTop(){
   var potionCap='药水 '+r.potions.length+'/'+potionSlots;
   var relics=r.relics.map(function(rl,i){ return '<div class="mini-icon" data-act="relic" data-i="'+i+'" data-relic="'+esc(rl.name)+'" data-tip="'+esc(rl.name)+'|'+esc(rl.desc||'')+'">'+itemIcon(rl.name,'rel',22)+'</div>'; }).join('');
   var ch=D.chars[r.char];
-  tb.innerHTML='<div class="tb-main">'+
+  var phoneBar='<div class="tb-phone">'+
+    '<div class="stat">'+iconSvg('hp',14)+'<span class="hpbar"><i style="width:'+pct+'%"></i>'+hpStatusLayers(r.hp,r.maxHp,topPoison,0)+'</span><b>'+r.hp+'/'+r.maxHp+'</b></div>'+
+    '<div class="stat">'+iconSvg('gold',14)+'<b>'+r.gold+'</b></div>'+
+    '<div class="stat tph-char" style="color:'+ch.color+'">'+esc(ch.name)+'</div>'+
+    '<div class="stat tph-floor">'+r.act+'幕'+r.floor+'楼</div>'+
+    (potionSlots>0?'<div class="tph-pots">'+potions+'</div>':'')+
+    '<button class="btn sm tph-menu" data-act="phone-menu" aria-label="打开菜单">☰</button></div>';
+  tb.innerHTML=phoneBar+'<div class="tb-main">'+
     '<div class="brand">尖塔双代</div>'+
     '<div class="stat">'+iconSvg('hp',17)+'<span class="hpbar"><i style="width:'+pct+'%"></i>'+hpStatusLayers(r.hp,r.maxHp,topPoison,0)+'</span><b>'+r.hp+'/'+r.maxHp+'</b></div>'+
     '<div class="stat">'+iconSvg('gold',17)+'<b>'+r.gold+'</b></div>'+
@@ -9083,11 +9131,33 @@ function renderTop(){
   ensureRunClock();
 }
 
+/* 手机端：把顶栏按钮收进抽屉式菜单 */
+function phoneMenu(){
+  var r=E.run; if(!r) return;
+  var canRestart=!!(E.roomSnap&&(E.S==='combat'||E.S==='event'||E.S==='eventresult'||E.S==='shop'||E.S==='gameover'));
+  var relics=r.relics.length?r.relics.map(function(rl,i){
+    return '<button class="ph-relic" data-act="relic" data-i="'+i+'" data-relic="'+esc(rl.name)+'" data-tip="'+esc(rl.name)+'|'+esc(rl.desc||'')+'">'+itemIcon(rl.name,'rel',26)+'</button>';
+  }).join(''):'<span class="ph-empty">这一局还没有遗物</span>';
+  var ch=D.chars[r.char];
+  modal('<div class="ph-sheet"><div class="ph-head"><h2>菜单</h2><button class="btn sm" data-act="close-modal">关闭</button></div>'+
+    '<p class="ph-sub" style="color:'+ch.color+'">'+esc(ch.name)+' · 第 '+r.act+' 幕 第 '+r.floor+' 楼 · '+r.hp+'/'+r.maxHp+' 生命 · '+r.gold+' 金币</p>'+
+    '<div class="ph-grid">'+
+    '<button class="btn ph-btn" data-act="deck">牌组<small>'+r.deck.length+' 张</small></button>'+
+    '<button class="btn ph-btn" data-act="map-open">地图</button>'+
+    '<button class="btn ph-btn" data-act="stats-open">统计</button>'+
+    '<button class="btn ph-btn" data-act="help">机制</button>'+
+    '<button class="btn ph-btn" data-act="loadout">配装</button>'+
+    '<button class="btn ph-btn" data-act="restart-room" '+(canRestart?'':'disabled')+'>重开<small>本场重来</small></button>'+
+    '</div><h3 class="ph-relic-h">遗物 <span>'+r.relics.length+'</span></h3><div class="ph-relics">'+relics+'</div>'+
+    '<div class="ph-foot"><button class="btn danger" data-act="to-menu">返回主菜单</button><button class="btn" data-act="close-modal">继续游戏</button></div></div>');
+}
+
 /* ---------- 主菜单 ---------- */
 function genTagOf(c){
   return c.gen===1?'<span class="tag blood">1 代</span>':c.gen===0?'<span class="tag" style="border-color:#9a7ad0;color:#b79ad8">深渊</span>':'<span class="tag jade">2 代</span>';
 }
 function menuScreen(){
+  var touch=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
   var order=['iron','silent','defect','watcher','regent','necro','fool','warden','shade','arcanist','beast','wuj'];
   var wheel=order.map(function(k){
     var c=D.chars[k], n=D.cards[k].length;
@@ -9115,7 +9185,7 @@ function menuScreen(){
     '<button class="btn" data-act="cm-open" style="width:100%;padding:10px;margin-top:6px;border-color:#8a6f16;color:#e6c96a">自定义模式 · 特效 / 种子 / 进阶</button>'+
     '<button class="btn" id="mp-entry" onclick="SPIRE_MP.open()" style="width:100%;padding:10px;margin-top:6px;border-color:#c9a227;color:#e6c96a">联机合作 · 回合同步 · 最多10人</button>'+
     '<button class="btn" data-act="stats-open" style="width:100%;padding:9px;margin-top:6px;border-color:#5b6a52;color:#b7d0a8">统计数据 · 战绩 / 记录 / 对局历史</button>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><h2 style="font-size:15px;color:#a9b3bb;letter-spacing:.2em">选择角色 <span style="font-size:10px;color:#6f7b85;letter-spacing:.1em">滚轮浏览 · 点击攀登</span></h2>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><h2 style="font-size:15px;color:#a9b3bb;letter-spacing:.2em">选择角色 <span style="font-size:10px;color:#6f7b85;letter-spacing:.1em">'+(touch?'左右滑动浏览 · 点击攀登':'滚轮浏览 · 点击攀登')+'</span></h2>'+
     '<button class="btn sm" data-act="codex" data-tab="cards">图鉴</button></div>'+
     '<div class="char-wheel">'+wheel+'</div>'+
     '</div></div>';
@@ -9854,7 +9924,7 @@ function battleScreen(){
     endBtn='<button class="btn primary turn-btn'+(mpT.ended?' waiting':'')+'" data-act="endturn" '+((mpT.ended||!b.playerTurn)?'disabled':'')+'>'+
       (mpT.ended?('等待队友 '+mpT.done+'/'+mpT.total):'结束回合')+'</button>';
   } else {
-    endBtn='<button class="btn primary turn-btn" data-act="endturn" '+(b.playerTurn?'':'disabled')+'>结束回合 (E)</button>';
+    endBtn='<button class="btn primary turn-btn" data-act="endturn" '+(b.playerTurn?'':'disabled')+'>结束回合<span class="key-hint"> (E)</span></button>';
   }
   $('screen').innerHTML='<div class="battle'+stanceCls+(act4?' act4':'')+'">'+
     '<div class="battle-stage'+(b.flank?' flank-layout':'')+'">'+stageBg+'<div class="battle-hud"><b>'+ACT_NAMES[E.run.act-1]+'</b> · 第 '+E.run.floor+' 楼 · '+({boss:'首领战',elite:'精英战'}[b.tier]||'普通战斗')+' · 回合 '+b.turn+'</div>'+
@@ -10994,6 +11064,7 @@ function onClick(e){
   if(act==='codex'){ codexOpen=true; E.codexTab=t.getAttribute('data-tab')||E.codexTab; closeModal(); render(); return; }
   if(act==='codex-close'){ codexOpen=false; render(); return; }
   if(act==='codex-char'){ E.codexChar=t.getAttribute('data-char'); render(); return; }
+  if(act==='phone-menu'){ phoneMenu(); return; }
   if(act==='help'){ helpModal(); return; }
   if(act==='deck'){ deckModal(); return; }
   if(act==='pile'){ pileModal(t.getAttribute('data-pile')); return; }
@@ -11621,8 +11692,8 @@ try{
     var tl=turnLockState();
     hud.classList.add('show');
     if(tl) hud.classList.toggle('waiting',!!tl.ended);
-    hud.innerHTML='<div class="hud-head"><span>联机 · '+esc(MP.room)+' · 第 '+(tl?tl.round:1)+' 回合</span><button data-mp-act="hud-open">房间</button></div>'+
-      (tl?'<div class="mp-hud-turn'+(tl.ended?' done':'')+'">'+(tl.ended?('你已结束回合 · 等待队友 '+tl.done+'/'+tl.total):('本回合已结束 '+tl.done+'/'+tl.total))+'</div>':'')+
+    hud.innerHTML='<div class="hud-head"><span>联机 · '+esc(MP.room)+'</span><button data-mp-act="hud-open">房间</button></div>'+
+      (tl?'<div class="mp-hud-turn'+(tl.ended?' done':'')+'">第 '+tl.round+' 回合 · '+(tl.ended?('你已结束 · 等待队友 '+tl.done+'/'+tl.total):('已结束 '+tl.done+'/'+tl.total))+'</div>':'')+
       MP.players.map(function(p){return '<div class="mp-hud-row'+(p.ended?' ended':'')+'"><span>'+(p.ended?'✓ ':'')+esc(p.name)+(p.id===MP.myId?'（你）':'')+'</span><b>'+esc(p.hp||0)+'/'+esc(p.maxHp||0)+'</b></div>';}).join('')+(enemy?'<div class="mp-hud-enemy">'+enemy+'</div>':'');
   }
   document.addEventListener('click',function(e){
