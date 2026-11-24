@@ -48,10 +48,10 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .frame{background:linear-gradient(160deg,#1b232a,#141a1f);border:1px solid var(--line);border-radius:3px;
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.08),0 8px 24px rgba(0,0,0,.5);}
 .scrim{position:fixed;inset:0;background:rgba(3,5,7,.78);backdrop-filter:blur(3px);z-index:80;
-  display:flex;align-items:center;justify-content:center;padding:24px;animation:fade .2s ease}
+  display:flex;align-items:center;justify-content:center;padding:calc(var(--tb-h,84px) + 10px) 24px 24px;animation:fade .2s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.modal{width:min(980px,96vw);max-height:92vh;overflow:auto;padding:26px 30px;
+.modal{width:min(980px,96vw);max-height:calc(100dvh - var(--tb-h,84px) - 48px);overflow:auto;padding:26px 30px;
   background:linear-gradient(165deg,#1d252c,#12171c 70%);border:1px solid #3c4750;
   box-shadow:0 30px 80px rgba(0,0,0,.7), inset 0 0 0 1px rgba(201,162,39,.12);
   border-radius:4px;animation:rise .22s ease;position:relative;}
@@ -62,7 +62,7 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .close-x{position:absolute;right:14px;top:10px;background:none;border:0;color:#76838d;font-size:22px}
 .close-x:hover{color:#fff}
 .topbar{display:flex;flex-direction:column;align-items:stretch;gap:0;padding:8px 18px 6px;border-bottom:1px solid #2a333b;
-  background:linear-gradient(#141a20,#0e1216);z-index:20;flex:0 0 auto;}
+  background:linear-gradient(#141a20,#0e1216);z-index:90;position:relative;flex:0 0 auto;}
 .tb-main{display:flex;align-items:center;gap:16px;min-width:0}
 .tb-sub{display:flex;align-items:center;margin-top:4px;min-height:26px}
 .tb-main .tb-floor{align-self:flex-start}
@@ -374,6 +374,13 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:14px}
 .price{font-size:11px;color:#e0c07a;text-align:center;margin-top:4px}
 .event-art{height:150px;border:1px solid #313b43;background:radial-gradient(circle at 50% 30%,#232c33,#0d1216);display:flex;align-items:center;justify-content:center;margin:12px 0 4px;position:relative;overflow:hidden}
+.rest-wrap{flex:1;min-height:0;display:grid;place-items:center;overflow:auto;padding:10px}
+.rest-inner{text-align:center;max-width:680px;padding:20px}
+.rest-art{width:200px;height:200px;margin:0 auto 10px;border:1px solid #3c4750;border-radius:4px;overflow:hidden}
+.rest-title{font-size:24px}
+.rest-quote{color:#8b969f;font-size:13px}
+.rest-opts{display:flex;gap:14px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+.rest-btn{padding:16px 26px}
 .event-art svg{height:100%;width:auto;max-width:100%;display:block;opacity:.95}
 .event-art::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(8,11,14,.55),transparent 22%,transparent 78%,rgba(8,11,14,.55))}
 .opt-list{display:flex;flex-direction:column;gap:9px;margin-top:16px}
@@ -483,9 +490,9 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .topbar .pot-strip{gap:2px}
   .topbar .btn.sm{padding:3px 6px;font-size:10px;letter-spacing:0}
   .btn{padding:5px 9px;font-size:10px}
-  .scrim{padding:5px}
+  .scrim{padding:calc(var(--tb-h,54px) + 4px) 5px 5px}
   .modal{max-height:96vh;padding:10px 12px}
-  .scrim .modal{max-height:98vh!important;padding:8px 12px!important}
+  .scrim .modal{max-height:calc(100vh - var(--tb-h,60px) - 12px)!important;padding:8px 12px!important}
   .scrim .modal h3{font-size:14px!important}
   .scrim .modal input{font-size:10px!important;padding:4px!important}
   .scrim .modal .btn.sm{padding:3px 6px!important;font-size:9px!important}
@@ -584,6 +591,11 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   .shop-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-top:6px}
   .price{font-size:9px}
   .event-art{height:96px;margin:5px 0}
+  .rest-art{width:110px;height:110px;margin-bottom:6px}
+  .rest-title{font-size:18px}
+  .rest-quote{font-size:11px}
+  .rest-opts{gap:8px;margin-top:10px}
+  .rest-btn{padding:9px 13px;font-size:11px}
   .event-art svg{height:100%;width:auto}
   .opt-list{gap:5px;margin-top:7px}
   .opt{padding:5px 8px}
@@ -641,8 +653,26 @@ h1,h2,h3,h4{font-family:var(--font-t);font-weight:700;margin:0;letter-spacing:.0
   #mp-hud .hud-head button{flex:0 0 auto;white-space:nowrap}
   #mp-hud .mp-hud-row{line-height:1.45;font-size:10px}
   #mp-hud .mp-hud-enemy{font-size:9.5px}
-  .modal{max-height:calc(100dvh - 12px)}
-  .scrim{padding:calc(6px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))}
+  .modal{max-height:calc(100dvh - var(--tb-h,70px) - 18px)}
+  .scrim{padding:calc(var(--tb-h,70px) + 6px) calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))}
+  .scrim .modal{max-height:calc(100dvh - var(--tb-h,70px) - 18px)!important}
+  .modal h2,.modal.ev h2{font-size:17px;margin-bottom:4px}
+  .modal p,.modal.ev p{font-size:11.5px;line-height:1.6;margin:4px 0}
+  .modal.ev{width:96vw}
+  .modal.ev .event-art{height:min(20vh,72px);width:min(62vw,330px);margin:4px auto}
+  .opt-list{gap:5px;margin-top:6px}
+  .opt{padding:7px 10px;gap:8px}
+  .opt .ot{font-size:12px}
+  .opt .oe{font-size:10px}
+  .close-x{width:40px;height:40px;right:4px;top:2px;font-size:24px;display:flex;align-items:center;justify-content:center}
+  .rest-wrap{place-items:start center;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+  .rest-inner{padding:6px 8px}
+  .rest-art{width:min(26vh,110px);height:min(26vh,110px);margin-bottom:5px}
+  .rest-title{font-size:18px}
+  .rest-quote{font-size:11px;line-height:1.6;margin:4px 0}
+  .rest-opts{gap:8px;margin-top:10px}
+  .rest-btn{padding:9px 13px;font-size:12px;min-height:44px}
+  .rest-btn span{font-size:10px}
 }
 /* ===== 动画系统 ===== */
 #fx-layer{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
@@ -9006,12 +9036,12 @@ function hpBarText(hp,maxHp){
 }
 function renderTop(){
   var tb=$('topbar');
-  if(!E.run || E.S==='title' || codexOpen){ tb.style.display='none'; tb.innerHTML=''; tb.style.zIndex=''; tb.style.pointerEvents=''; return; }
+  if(!E.run || E.S==='title' || codexOpen){ tb.style.display='none'; tb.innerHTML=''; tb.style.zIndex=''; tb.style.pointerEvents=''; try{ document.documentElement.style.setProperty('--tb-h','0px'); }catch(e){} return; }
   tb.style.display='flex';
   // 有弹窗遮罩时把顶栏抬到遮罩之上，保证牌组/菜单等入口始终可点
   var overlayState=(E.S==='event'||E.S==='eventresult'||E.S==='chest'||E.S==='reward'||E.S==='neow'||E.S==='ancient'||!!E.picker||statsOpen||loOpen||mapModalOpen);
   tb.style.zIndex=overlayState?'90':'';
-  tb.style.pointerEvents=overlayState?'none':'';
+  tb.style.pointerEvents='';
   var r=E.run, pct=Math.max(0,Math.round(r.hp/r.maxHp*100));
   var topPoison=(E.b&&E.b.buff&&E.b.buff.poi)||0;
   var potionSlots=Math.max(0,Number(r.potionSlots)||0);
@@ -9049,6 +9079,7 @@ function renderTop(){
     paintRelicFlash(n,false);
   });
   updateRunClock();
+  try{ document.documentElement.style.setProperty('--tb-h',tb.offsetHeight+'px'); }catch(e){}
   ensureRunClock();
 }
 
@@ -9930,17 +9961,17 @@ function shopScreen(){
 function restScreen(){
   var r=E.run, heal=Math.floor(r.maxHp*0.3);
   var extra='';
-  if(E.hasRelic('壶铃')&&r.girya<3) extra+='<button class="btn" style="padding:16px 22px" data-act="rest-girya">举重<br><span style="font-size:11px;opacity:.8">+1 永久力量（'+r.girya+'/3）</span></button>';
-  if(E.hasRelic('宁静烟斗')) extra+='<button class="btn" style="padding:16px 22px" data-act="rest-pipe">抽烟<br><span style="font-size:11px;opacity:.8">移除一张牌</span></button>';
-  if(E.hasRelic('铲子')) extra+='<button class="btn" style="padding:16px 22px" data-act="rest-shovel">挖掘<br><span style="font-size:11px;opacity:.8">获得一件遗物</span></button>';
-  if(r.deck.some(function(c){var d=E.cardDef(c);return d&&d.name==='拜尔多尼斯蛋';})) extra+='<button class="btn" style="padding:16px 22px" data-act="rest-hatch">孵化鸟蛋<br><span style="font-size:11px;opacity:.8">蛋化为遗物</span></button>';
-  if(r.deck.some(function(c){return ENCH.has(c,'clone')&&!c.enchState.cloned;})) extra+='<button class="btn" style="padding:16px 22px" data-act="rest-clone">克隆<br><span style="font-size:11px;opacity:.8">复制一张带「克隆」附魔的牌</span></button>';
-  $('screen').innerHTML='<div style="flex:1;display:grid;place-items:center"><div style="text-align:center;max-width:680px;padding:20px">'+
-    '<div style="width:200px;height:200px;margin:0 auto 10px;border:1px solid #3c4750;border-radius:4px;overflow:hidden">'+runeSvg('campfire','#e0a05a')+'</div>'+
-    '<h2 style="font-size:24px">营火</h2><p style="color:#8b969f;font-size:13px">火焰在石堆里轻轻爆响。喘一口气，或把武器重新锻打。</p>'+
-    '<div style="display:flex;gap:14px;justify-content:center;margin-top:22px;flex-wrap:wrap">'+
-    '<button class="btn primary" style="padding:16px 26px" data-act="rest-heal">休息<br><span style="font-size:11px;opacity:.8">回复 '+heal+' 点生命</span></button>'+
-    '<button class="btn" style="padding:16px 26px" data-act="rest-smith">锻造<br><span style="font-size:11px;opacity:.8">升级一张牌</span></button>'+extra+'<button class="btn" style="padding:16px 26px;opacity:.85" data-act="rest-skip">跳过<br><span style="font-size:11px;opacity:.8">不休息直接离开</span></button></div></div></div>';
+  if(E.hasRelic('壶铃')&&r.girya<3) extra+='<button class="btn rest-btn" data-act="rest-girya">举重<br><span style="font-size:11px;opacity:.8">+1 永久力量（'+r.girya+'/3）</span></button>';
+  if(E.hasRelic('宁静烟斗')) extra+='<button class="btn rest-btn" data-act="rest-pipe">抽烟<br><span style="font-size:11px;opacity:.8">移除一张牌</span></button>';
+  if(E.hasRelic('铲子')) extra+='<button class="btn rest-btn" data-act="rest-shovel">挖掘<br><span style="font-size:11px;opacity:.8">获得一件遗物</span></button>';
+  if(r.deck.some(function(c){var d=E.cardDef(c);return d&&d.name==='拜尔多尼斯蛋';})) extra+='<button class="btn rest-btn" data-act="rest-hatch">孵化鸟蛋<br><span style="font-size:11px;opacity:.8">蛋化为遗物</span></button>';
+  if(r.deck.some(function(c){return ENCH.has(c,'clone')&&!c.enchState.cloned;})) extra+='<button class="btn rest-btn" data-act="rest-clone">克隆<br><span style="font-size:11px;opacity:.8">复制一张带「克隆」附魔的牌</span></button>';
+  $('screen').innerHTML='<div class="rest-wrap"><div class="rest-inner">'+
+    '<div class="rest-art">'+runeSvg('campfire','#e0a05a')+'</div>'+
+    '<h2 class="rest-title">营火</h2><p class="rest-quote">火焰在石堆里轻轻爆响。喘一口气，或把武器重新锻打。</p>'+
+    '<div class="rest-opts">'+
+    '<button class="btn primary rest-btn" data-act="rest-heal">休息<br><span style="font-size:11px;opacity:.8">回复 '+heal+' 点生命</span></button>'+
+    '<button class="btn rest-btn" data-act="rest-smith">锻造<br><span style="font-size:11px;opacity:.8">升级一张牌</span></button>'+extra+'<button class="btn rest-btn" style="opacity:.85" data-act="rest-skip">跳过<br><span style="font-size:11px;opacity:.8">不休息直接离开</span></button></div></div></div>';
 }
 function blessingModal(){
   var bl=E.run && E.run.blessing; if(!bl) return;
