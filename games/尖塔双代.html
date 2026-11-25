@@ -1391,7 +1391,8 @@ var CURSE_LINES = [
   '寄生|C|9|none|NOUP',
   '怀疑|C|9|none|NOUP',
   '扭动|C|9|none|INN,NOUP',
-  '受伤|C|9|none|NOUP'
+  '受伤|C|9|none|NOUP',
+  '愧疚|C|9|none|NOUP'
 ];
 
 var CARD_LINES = {};
@@ -3012,7 +3013,8 @@ var CURSE_DESC={
   '诅咒·坏死':'被消耗时，将一张复制加入手牌。',
   '凡庸':'每回合最多打出 3 张牌。',
   '怀疑':'回合结束时获得 1 层虚弱。',
-  '扭动':'固有。'
+  '扭动':'固有。',
+  '愧疚':'5 场战斗后自动从牌组移除。'
 };
 var curses = CURSE_LINES.map(function(l,i){
   var p = l.split('|');
@@ -3125,6 +3127,12 @@ var SITE_LEGACY_NAMES={};
       if(d.name==='计策'){
         d.effects=[{k:'shuffleChoice',v:1}];
         d.upgrade=[{k:'shuffleChoice',v:1}];
+      }
+      if(d.name==='连射'){
+        d.cost='X';
+        d.upCost=null;
+        d.effects=[{k:'ra',v:10,hits:'X'}];
+        d.upgrade=[{k:'ra',v:14,hits:'X'}];
       }
       d.siteDesc=fixGainText(r.d,d,false);
       d.siteDescUp=fixGainText(r.du||r.d,d,true);
@@ -3545,16 +3553,28 @@ var BY_ID = {
   sown:      {name:'播种', en:'Sown', kind:'any', desc:'每场战斗首次打出，获得 1 点能量。'},
   spiral:    {name:'涡旋', en:'Spiral', kind:'any', desc:'获得重放 1。'},
   steady:    {name:'稳定', en:'Steady', kind:'any', desc:'这张牌获得保留。'},
-  swift:     {name:'迅速', en:'Swift', kind:'any', desc:'每场战斗首次打出，抽 1 张牌。'},
+  swift:     {name:'迅捷', en:'Swift', kind:'any', desc:'每场战斗首次打出，抽 1 张牌。'},
   ember:     {name:'特兹卡塔拉的余烬', en:'Tezcataras Ember', kind:'atk', desc:'费用为 0，伤害值 +3。'},
   vigorous:  {name:'活力', en:'Vigorous', kind:'atk', desc:'每场战斗首次打出，造成 8 点额外伤害。'}
 };
 var BY_NAME = {};
 Object.keys(BY_ID).forEach(function(k){ BY_NAME[BY_ID[k].name] = k; });
+BY_NAME['迅速'] = 'swift';   // 旧文案兼容：迅速 = 迅捷
 function byName(n){ return BY_NAME[n] || (BY_ID[n] ? n : null); }
 function info(id){ return BY_ID[id] || null; }
 function label(id){ var e = BY_ID[id]; if(!e && BY_NAME[id]) e = BY_ID[BY_NAME[id]]; return e ? e.name : (id==null?'':String(id)); }
-function descOf(inst){ var e = BY_ID[inst && inst.ench]; if(!e && inst && BY_NAME[inst.ench]) e=BY_ID[BY_NAME[inst.ench]]; return e ? e.desc : ''; }
+function descOf(inst){
+  var id=idOf(inst), e = BY_ID[id];
+  if(!e && inst && BY_NAME[inst.ench]) e=BY_ID[BY_NAME[inst.ench]];
+  if(!e) return '';
+  if(id==='swift') return '每场战斗首次打出，抽 '+(inst.enchLevel||1)+' 张牌。';
+  return e.desc;
+}
+function labelFor(inst){
+  var id=idOf(inst), s=label(id);
+  if(id==='swift' && (inst.enchLevel||1)>1) s += ' '+(inst.enchLevel||1);
+  return s;
+}
 function any(inst){ return !!(inst && inst.ench); }
 function idOf(inst){
   var raw=inst&&inst.ench;
@@ -3573,7 +3593,7 @@ function st(inst){
   if(!inst.enchState) inst.enchState = {};
   return inst.enchState;
 }
-function apply(inst, id, def){
+function apply(inst, id, def, level){
   var key=id;
   if(!BY_ID[key] && BY_NAME[id]) key=BY_NAME[id];
   if(!inst || !BY_ID[key]) return false;
@@ -3589,9 +3609,12 @@ function apply(inst, id, def){
       ss.glamStacks=(ss.glamStacks||1)+1;
       if(!ss.firstDone) ss.replays=(ss.replays||0)+1;
     }
+    // 同一张牌重复获得迅捷时，取更高的迅捷等级。
+    if(key==='swift' && level) inst.enchLevel=Math.max(inst.enchLevel||1, level);
     return true;
   }
   inst.ench = key;
+  inst.enchLevel = level||1;
   inst.enchState = {};
   if(key==='glam') inst.enchState.glamStacks=1;
   STATS.add('cardsEnchanted',1); STATS.map('cardEnchanted',key,1);
@@ -3607,7 +3630,7 @@ function resetCombat(inst){
   // 黏糊的永久格挡跨战斗保留，其余每战重置
 }
 function allIds(){ return Object.keys(BY_ID); }
-return {BY_ID:BY_ID, byName:byName, info:info, label:label, descOf:descOf,
+return {BY_ID:BY_ID, byName:byName, info:info, label:label, labelFor:labelFor, descOf:descOf,
         any:any, has:has, idOf:idOf, st:st, apply:apply, resetCombat:resetCombat, allIds:allIds};
 })();
 </script>
@@ -4100,6 +4123,13 @@ function relicStat(key){
 function relicHook(evt, ctx){
   if(!run) return;
   run.relics.forEach(function(r){
+    // 菲涅耳透镜：新加入牌组的带格挡牌立即获得灵巧（灵巧2 = 格挡 +2）
+    if(evt==='addcard' && r.name==='菲涅耳透镜' && ctx && ctx.card){
+      applyFresnelLens(ctx.card);
+      return;
+    }
+    // 这些遗物的旧 addcard 自动附魔钩子已废弃，避免旧存档继续错误附魔。
+    if(evt==='addcard' && ['华美手镯','亮片','羽翼护符','营养汤','拳刃','扭曲锤子','放电异虾','木札','三刃回旋镖','佩尔的增生组织','王室印章'].indexOf(r.name)>=0) return;
     var hs = r.hooks[evt];
     if(!hs) return;
     // 象牙麻将牌只在高费牌（耗能≥3）打出时触发和闪光。
@@ -4113,12 +4143,67 @@ function applyHairGlamReward(cards){
   if(!run || !run.hairGlam) return 0;
   var id=ENCH.byName('华彩'); if(!id) return 0;
   var n=0;
-  (cards||[]).forEach(function(c){ var d=cardDef(c); if(ENCH.apply(c,id,d)) n++; });
+  (cards||[]).forEach(function(c){ if(c && !ENCH.any(c)){ var d=cardDef(c); if(ENCH.apply(c,id,d)) n++; } });
   if(n){ run.hairGlam=false; addLog('华美发束：'+n+' 张卡牌奖励附魔「华彩」。'); }
+  return n;
+}
+function enchantRandomDeckCards(n, enchName, level){
+  var id=ENCH.byName(enchName); if(!id) return 0;
+  var pool=run.deck.filter(function(c){
+    var d=cardDef(c);
+    return d && !d.curse && !d.token && !ENCH.any(c);
+  });
+  if(!pool.length) return 0;
+  shuffle(pool);
+  var cnt=0;
+  for(var i=0;i<Math.min(n||1,pool.length);i++){
+    var c=pool[i], d=cardDef(c);
+    if(ENCH.apply(c,id,d,level)) cnt++;
+  }
+  if(cnt) addLog('华美手镯：'+cnt+' 张牌附魔「'+ENCH.label(id)+(level>1?' '+level:'')+'」。');
+  return cnt;
+}
+function cardGivesBlock(d){
+  if(!d) return false;
+  var lists=[d.effects||[], d.upgrade||[]];
+  var found=false;
+  function walk(ops){
+    (ops||[]).forEach(function(e){
+      if(e.k==='b') found=true;
+      if(e.ops) walk(e.ops);
+    });
+  }
+  lists.forEach(walk);
+  return found;
+}
+function applyFresnelLens(inst){
+  if(!run || !hasRelic('菲涅耳透镜') || !inst) return false;
+  var d=cardDef(inst);
+  if(!d || d.curse || d.token || ENCH.any(inst)) return false;
+  if(!cardGivesBlock(d)) return false;
+  // 灵巧的 +2 只作用于 b 类格挡，但允许附到带格挡的攻击牌上（不传 def 以跳过技能牌限制）。
+  if(ENCH.apply(inst,'nimble')){
+    addLog('菲涅耳透镜：'+d.name+' 附魔「灵巧」。');
+    if(__deckAnimDepth===0 && !picker && typeof SPIRE_UI!=='undefined' && SPIRE_UI.deckAnim){
+      SPIRE_UI.deckAnim('遗物 · 菲涅耳透镜',[{t:'enchant',i:0,name:d.name,label:'附魔「灵巧」'}]);
+    }
+    return true;
+  }
+  return false;
+}
+function applyGlitterReward(cards){
+  var id=ENCH.byName('华彩'); if(!id) return 0;
+  var n=0;
+  (cards||[]).forEach(function(c){
+    if(c && !ENCH.any(c) && ENCH.apply(c,id,cardDef(c))) n++;
+  });
+  if(n) addLog('亮片：'+n+' 张卡牌奖励附魔「华彩」。');
   return n;
 }
 function addRelic(r){
   if(!r) return;
+  var _deckBefore=deckSnapshot();
+  var _deckPrev=deckAnimBegin('遗物 · '+r.name);
   run.relics.push(r);
   STATS.map('relicsGained',r.name,1);
   addLog('获得遗物：'+r.name);
@@ -4138,7 +4223,7 @@ function addRelic(r){
       case 'warPaint': upgradeRandomType('skl',2); break;
       case 'whetstone': upgradeRandomType('atk',2); break;
       case 'pandora': transformStrikesDefends(); break;
-      case 'orrery': for(var k=0;k<5;k++) run.deck.push(makeRewardCard()); break;
+      case 'orrery': for(var k=0;k<5;k++) deckPush(makeRewardCard()); break;
       case 'frozenEgg': case 'moltenEgg': case 'toxicEgg': break; // 在 addCard 时处理
       case 'lament3': run.lament = 3; break;
       case 'energy1': break; // 回合能量在 startPlayerTurn 计算
@@ -4149,8 +4234,8 @@ function addRelic(r){
       case 'tinyHouse': gainPotion(choice(D.potions)); gainGold(50); run.maxHp+=5; run.hp+=5; upgradeRandomAny(1); break;
       case 'nlothFace': run.nlothFace=true; break;
       case 'alchemize4': { run.potionSlots += (op.v||4); for(var al=0;al<(op.v||4);al++) gainPotion(choice(D.potions)); break; }
-      case 'rareCard': { var rp=[]; Object.keys(D.cards).forEach(function(ck){D.cards[ck].forEach(function(d,idx){ if(d.rarity==='R'&&!d.token) rp.push([ck,idx]); });}); if(rp.length){ var rpick=rp[Math.floor(CMOD.rnd()*rp.length)]; run.deck.push(makeCard(rpick[0],rpick[1])); } break; }
-      case 'charCards3': { var cc=[]; (D.cards[op.v]||[]).forEach(function(d,idx){ if(!d.token) cc.push(idx); }); for(var ci=0;ci<3&&cc.length;ci++){ run.deck.push(makeCard(op.v,cc[Math.floor(CMOD.rnd()*cc.length)])); } break; }
+      case 'rareCard': { var rp=[]; Object.keys(D.cards).forEach(function(ck){D.cards[ck].forEach(function(d,idx){ if(d.rarity==='R'&&!d.token) rp.push([ck,idx]); });}); if(rp.length){ var rpick=rp[Math.floor(CMOD.rnd()*rp.length)]; deckPush(makeCard(rpick[0],rpick[1])); } break; }
+      case 'charCards3': { var cc=[]; (D.cards[op.v]||[]).forEach(function(d,idx){ if(!d.token) cc.push(idx); }); for(var ci=0;ci<3&&cc.length;ci++){ deckPush(makeCard(op.v,cc[Math.floor(CMOD.rnd()*cc.length)])); } break; }
       case 'healPct': healHp(Math.floor(run.maxHp*(op.v||0)/100)); break;
       case 'lhpUp': run.hp=Math.max(1,run.hp-(op.v||0)); upgradeRandomAny(op.n||1); break;
       case 'upgradeN': upgradeRandomAny(op.v||1); break;
@@ -4189,6 +4274,10 @@ function addRelic(r){
       }
     }
   });});
+  // 旧版 RELIC_TXT 的 addcard 自动附魔遗留钩子：这些遗物已改为拾取时/奖励时触发，先清掉旧钩子。
+  if(['华美手镯','菲涅耳透镜','亮片','羽翼护符','营养汤'].indexOf(r.name)>=0 && r.hooks){
+    delete r.hooks.addcard;
+  }
   // 拾起时选择牌附魔的遗物
   var _pickEnch={
     '拳刃':['动量',1,['atk']],
@@ -4208,6 +4297,9 @@ function addRelic(r){
       openPicker({mode:'enchant',enchId:_pid,n:_pe[1],title:r.name+'：选择牌附魔 '+ENCH.label(_pid),allow:_pe[2].length?_pe[2]:null});
     }
   }
+  if(r.name==='华美手镯'){
+    enchantRandomDeckCards(4,'迅捷',2);
+  }
   if(r.name==='华美发束'){
     var _hairGold = Math.max(0, run.gold||0);
     run.gold = 0;
@@ -4224,6 +4316,7 @@ function addRelic(r){
   if(r.name==='皮草大衣'){ run.furCoat=8; }
   if(r.name==='石之剑'){ run.swordKills=0; }
   if(r.name==='旺购神秘券'){ run.wonBuy=0; }
+  deckAnimFinish(_deckPrev,_deckBefore);
   save();
 }
 function relicTierPick(pool){
@@ -4266,6 +4359,126 @@ function transformStrikesDefends(){
   });
 }
 
+/* ---------- 牌组变动动画（遗物 / 药水 / 事件） ---------- */
+var __deckAnimDepth=0, __deckAnimSrc='', __deckAnimKind='', __deckAnimTarget='';
+function deckSnapshot(){
+  if(!run || !run.deck) return [];
+  var counters={};
+  return run.deck.map(function(c,i){
+    var d=cardDef(c)||{};
+    var base=String(c.uid||('x-'+d.name));
+    counters[base]=(counters[base]||0)+1;
+    var eid=ENCH.idOf(c)||'';
+    return {k:base+'#'+counters[base], uid:c.uid, i:i, name:d.name||'?',
+      card:c,
+      ups:c.ups||0, ench:eid, level:(c.enchLevel||1),
+      glam:(eid==='glam'?((ENCH.st(c).glamStacks||1)):1),
+      innate:!!(c.innate||d.innate), cost:(c.cost==null?'':c.cost),
+      starCost:(c.starCost||0), freePlay:!!c.freePlay};
+  });
+}
+function deckChangeLabel(e,o){
+  var tags=[];
+  if(e.name!==o.name) tags.push('变为「'+e.name+'」');
+  if(e.ups!==o.ups) tags.push('升级');
+  if(e.ench!==o.ench){
+    var _l=ENCH.label(e.ench)||e.ench;
+    if(e.ench==='swift' && (e.level||1)>1) _l+=' '+(e.level||1);
+    tags.push('附魔「'+_l+'」');
+  } else if(e.level!==o.level){
+    tags.push((ENCH.label(e.ench)||'附魔')+' '+(e.level||1));
+  }
+  if(e.glam!==o.glam) tags.push('华彩 ×'+(e.glam||1));
+  if(e.innate!==o.innate) tags.push(e.innate?'固有':'取消固有');
+  if(e.cost!==o.cost) tags.push('耗能 '+(o.cost===''?'X':o.cost)+' → '+(e.cost===''?'X':e.cost));
+  if(e.starCost!==o.starCost) tags.push('辉星耗能 '+o.starCost+' → '+e.starCost);
+  if(e.freePlay!==o.freePlay) tags.push(e.freePlay?'本回合免费':'取消免费');
+  return tags.length?tags.join(' · '):'调整';
+}
+function deckDiff(before,after){
+  var bBy={}, aBy={}, removed=[], added=[], items=[];
+  (before||[]).forEach(function(e){ bBy[e.k]=e; });
+  (after||[]).forEach(function(e){ aBy[e.k]=e; });
+  (after||[]).forEach(function(e){
+    var o=bBy[e.k];
+    if(!o){ added.push(e); return; }
+    if(e.name!==o.name || e.ups!==o.ups || e.ench!==o.ench || e.level!==o.level ||
+       e.glam!==o.glam || e.innate!==o.innate || e.cost!==o.cost ||
+       e.starCost!==o.starCost || e.freePlay!==o.freePlay){
+      var label=deckChangeLabel(e,o);
+      var onlyEnch=(e.ench!==o.ench || e.level!==o.level || e.glam!==o.glam) &&
+        e.ups===o.ups && e.innate===o.innate && e.cost===o.cost &&
+        e.starCost===o.starCost && e.freePlay===o.freePlay && e.name===o.name;
+      var onlyUp=(e.ups!==o.ups) && e.ench===o.ench && e.level===o.level &&
+        e.glam===o.glam && e.innate===o.innate && e.cost===o.cost &&
+        e.starCost===o.starCost && e.freePlay===o.freePlay && e.name===o.name;
+      items.push({t:onlyUp?'upgrade':onlyEnch?'enchant':'modify', i:e.i, name:e.name, label:label, card:e.card, oldCard:o.card});
+    }
+  });
+  (before||[]).forEach(function(e){ if(!aBy[e.k]) removed.push(e); });
+  // 同一位置被替换：按“变化”展示，而不是一增一减。
+  for(var ri=removed.length-1; ri>=0; ri--){
+    var r=removed[ri];
+    var ai=added.findIndex(function(a){ return a.i===r.i; });
+    if(ai>=0){
+      var a=added[ai];
+      items.push({t:'transform', i:r.i, from:r.name, to:a.name, fromCard:r.card, toCard:a.card});
+      added.splice(ai,1);
+      removed.splice(ri,1);
+    }
+  }
+  added.forEach(function(e){ items.push({t:'add', i:e.i, name:e.name, card:e.card}); });
+  removed.forEach(function(e){ items.push({t:'remove', i:e.i, name:e.name, card:e.card}); });
+  items.sort(function(a,b){ return (a.i||0)-(b.i||0); });
+  return items;
+}
+function deckAnimBegin(src,kind,target){
+  var prev={src:__deckAnimSrc, depth:__deckAnimDepth, kind:__deckAnimKind, target:__deckAnimTarget};
+  __deckAnimDepth++;
+  __deckAnimSrc=src||'';
+  __deckAnimKind=kind||'';
+  __deckAnimTarget=target||'deck';
+  return prev;
+}
+function deckAnimFinish(prev,before){
+  if(__deckAnimDepth>0) __deckAnimDepth--;
+  var src=__deckAnimSrc, kind=__deckAnimKind, target=__deckAnimTarget;
+  if(__deckAnimDepth===0){
+    var changes=deckDiff(before,deckSnapshot());
+    if(changes.length && typeof SPIRE_UI!=='undefined' && SPIRE_UI.deckAnim) SPIRE_UI.deckAnim(src||'牌组变动',changes,{kind:kind,target:target});
+  }
+  __deckAnimSrc=prev.src; __deckAnimDepth=prev.depth; __deckAnimKind=prev.kind; __deckAnimTarget=prev.target;
+}
+function deckAnimAfterPicker(before,src){
+  if(!before || !src) return;
+  var changes=deckDiff(before,deckSnapshot());
+  if(changes.length && typeof SPIRE_UI!=='undefined' && SPIRE_UI.deckAnim) SPIRE_UI.deckAnim(src,changes);
+}
+/* 战斗中获得卡牌（药水生成手牌等）：只统计新出现的 uid，避免把“抽牌”误判为获得。 */
+function combatCardMap(){
+  var out={};
+  if(!b || !b.hand) return out;
+  ['hand','draw','discard','exhaust'].forEach(function(p){
+    (b[p]||[]).forEach(function(c){ if(c && c.uid!=null) out[c.uid]=1; });
+  });
+  return out;
+}
+function combatNewCards(before,piles){
+  var out=[];
+  if(!b) return out;
+  (piles||['hand']).forEach(function(p){
+    (b[p]||[]).forEach(function(c){ if(c && c.uid!=null && !before[c.uid]) out.push(c); });
+  });
+  return out;
+}
+function combatGainFx(src,before,piles){
+  if(!before) return;
+  var cards=combatNewCards(before,piles);
+  if(!cards.length || typeof SPIRE_UI==='undefined' || !SPIRE_UI.deckAnim) return;
+  var changes=cards.map(function(c){ return {t:'add',name:(cardDef(c)||{}).name||'?',card:c}; });
+  SPIRE_UI.deckAnim(src||'获得卡牌',changes,{kind:'gain',target:'hand'});
+}
+
 /* ---------- 卡牌实例 ---------- */
 function cardDef(inst){
   if(inst.token) return D.tokens[inst.name];
@@ -4297,6 +4510,8 @@ function makeToken(name){
 function makeCurse(cidx){
   if(run.omamori && run.omamori>0){ run.omamori--; addLog('御守抵消了一张诅咒。'); return null; }
   var c = {uid:uid(), curse:true, cidx:(cidx==null?randInt(0,D.curses.length-1):cidx), ups:0};
+  var cd = D.curses[c.cidx];
+  if(cd && cd.name==='愧疚') c.guilt=5;
   if(hasRelic('黑石护符')){ run.maxHp+=6; run.hp+=6; }
   return c;
 }
@@ -4316,6 +4531,12 @@ function ensureSpecialTokens(){
   mk('神化',2,[{k:'upAllDeck',v:1}],[{k:'upAllDeck',v:1}]);
   mk('灵体',1,[{k:'intang',v:1}],[{k:'intang',v:1}],{ethereal:true});
   mk('冷光',0,[{k:'draw',v:1}],[{k:'draw',v:2}]);
+  // 事件 / 遗物专属牌：补齐数据，避免 addDeckCard 静默失败。
+  mk('至亮之焰',0,[{k:'en',v:2},{k:'draw',v:2},{k:'maxhpDown',v:1}],[{k:'en',v:3},{k:'draw',v:3},{k:'maxhpDown',v:1}],{rarity:'L',type:'skl',exhaust:false});
+  mk('探寻',0,[{k:'seek',v:1}],[{k:'seek',v:1}],{rarity:'R',type:'skl'});
+  mk('吹哨',2,[{k:'a',v:33},{k:'stun',v:1}],[{k:'a',v:44},{k:'stun',v:1}],{rarity:'L',type:'atk'});
+  mk('放松',3,[{k:'b',v:16},{k:'Ndraw',v:2},{k:'Nen',v:2}],[{k:'b',v:18},{k:'Ndraw',v:3},{k:'Nen',v:3}],{rarity:'L',type:'skl'});
+  mk('涅奥之怒',1,[{k:'a',v:10},{k:'fromDisc',v:2}],[{k:'a',v:14},{k:'fromDisc',v:3}],{rarity:'L',type:'atk'});
 }
 ensureSpecialTokens();
 function applyCardFlagFixes(){
@@ -4334,6 +4555,9 @@ function applyCardFlagFixes(){
 applyCardFlagFixes();
 function makeCardByName(name){
   if(D.tokens[name]) return makeToken(name);
+  if(D.curses){
+    for(var ci=0;ci<D.curses.length;ci++){ if(D.curses[ci].name===name) return makeCurse(ci); }
+  }
   var keys=Object.keys(D.cards);
   for(var ki=0;ki<keys.length;ki++){
     var arr=D.cards[keys[ki]];
@@ -5082,15 +5306,78 @@ function linkMapRows(rows, startRow){
     });
   }
 }
+// 地图约束：精英房之间、商店房之间不能直接相连。优先改线，必要时才转换房间类型，保证地图仍然连通。
+function mapEdgeConflict(a,b){
+  return !!(a && b && a.type===b.type && (a.type==='elite'||a.type==='shop'));
+}
+function mapIncomingCount(prev, nxt, idx){
+  var n=0;
+  prev.forEach(function(p){ if((p.next||[]).indexOf(idx)>=0) n++; });
+  return n;
+}
+function mapNeutralType(type){ return type==='elite'?'combat':(type==='shop'?'event':type); }
+function fixSameTypeAdjacency(rows){
+  if(!rows || rows.length<2) return;
+  for(var r=0;r<rows.length-1;r++){
+    var A=rows[r], B=rows[r+1], guard=0;
+    while(guard++ < A.length*B.length*4){
+      var pi=-1, ci=-1;
+      for(var i=0;i<A.length && pi<0;i++){
+        var links=A[i].next||[];
+        for(var j=0;j<links.length;j++){
+          var q=links[j];
+          if(B[q] && mapEdgeConflict(A[i],B[q])){ pi=i; ci=q; break; }
+        }
+      }
+      if(pi<0) break;
+      var p=A[pi], c=B[ci], alt=-1;
+      // 找一个不冲突、且还没连过的后继节点
+      for(var q2=0;q2<B.length;q2++){
+        if(q2===ci || (p.next||[]).indexOf(q2)>=0) continue;
+        if(mapEdgeConflict(p,B[q2])) continue;
+        if(alt<0 || Math.abs(q2-pi)<Math.abs(alt-pi)) alt=q2;
+      }
+      if(alt>=0){
+        var oldNext=(p.next||[]).slice();
+        p.next=(p.next||[]).filter(function(x){return x!==ci;});
+        p.next.push(alt);
+        if(mapIncomingCount(A,B,ci)===0){
+          var fixed=false;
+          // 目标失去最后一条入线时，从另一个前层节点借一条线过去
+          for(var ai=0;ai<A.length && !fixed;ai++){
+            if(ai===pi) continue;
+            var a2=A[ai];
+            for(var k=0;k<(a2.next||[]).length && !fixed;k++){
+              var q3=a2.next[k];
+              if(q3===ci || mapIncomingCount(A,B,q3)<=1) continue;
+              if(mapEdgeConflict(a2,B[ci])) continue;
+              a2.next.splice(k,1); a2.next.push(ci); fixed=true;
+            }
+          }
+          if(!fixed){
+            p.next=oldNext;
+            c.type=mapNeutralType(c.type);
+          }
+        }
+      } else {
+        // 没有可替换的后继，只能把后继改成中性房间
+        c.type=mapNeutralType(c.type);
+      }
+    }
+  }
+}
 function genAct(act){
   if(act===4){
     if(run){ run.bossId=choice(BOSSES[4]||BOSSES[1]); run.bossAct=4; }
-    return {act:4, linksVersion:1, rows:[
+    // 固定路线：休息 → 商店 → 精英 → Boss，商店与精英相邻是允许的
+    var rows4=[
       [{type:'rest',x:0}],
       [{type:'shop',x:0}],
       [{type:'elite',x:0}],
       [{type:'boss',x:0}]
-    ]};
+    ];
+    linkMapRows(rows4,0);
+    return {act:4, linksVersion:1, rows:rows4};
   }
   var ROWS = 16;
   var rows = [];
@@ -5125,17 +5412,21 @@ function genAct(act){
     rows.push(row);
   }
   linkMapRows(rows,0);
+  fixSameTypeAdjacency(rows);
   if(run){ run.bossId=choice(BOSSES[act]||BOSSES[1]); run.bossAct=act; }
   return {act:act, linksVersion:1, rows:rows};
 }
 // 旧存档迁移：把原先“全连接”的地图补成真实分支，并保留当前楼层已开放的选择
 function ensureMapLinks(){
-  if(!run || !run.map || !run.map.rows || run.map.linksVersion) return;
-  linkMapRows(run.map.rows,0);
-  run.map.linksVersion=1;
-  if(run.floor>0 && run.node && run.map.rows[run.floor]){
-    run.node.next=run.map.rows[run.floor].map(function(_,i){return i;});
+  if(!run || !run.map || !run.map.rows) return;
+  if(!run.map.linksVersion){
+    linkMapRows(run.map.rows,0);
+    run.map.linksVersion=1;
+    if(run.floor>0 && run.node && run.map.rows[run.floor]){
+      run.node.next=run.map.rows[run.floor].map(function(_,i){return i;});
+    }
   }
+  fixSameTypeAdjacency(run.map.rows);
 }
 function nodeOptions(){
   if(!run.map) return [];
@@ -5399,7 +5690,17 @@ function pickMove(e){
     default: return t%M;
   }
 }
-function commitMove(e){ if(!e||e.hp<=0)return; e.nextMove=pickMove(e); }
+function commitMove(e){
+  if(!e||e.hp<=0)return;
+  // 眩晕只推迟当前招式：眩晕期间任何重算都保持原来的 nextMove，不替换成别的招
+  if(e.stunned && e.stunnedMove!=null){ e.nextMove=e.stunnedMove; return; }
+  e.nextMove=pickMove(e);
+}
+function applyStun(e){
+  if(!e||e.hp<=0) return;
+  if(!e.stunned) e.stunnedMove=(e.nextMove!=null?e.nextMove:null);
+  e.stunned=true;
+}
 /* ---------- 战斗 ---------- */
 function makeEnemy(def){
   def = ascDef(def);
@@ -5416,7 +5717,7 @@ function makeEnemy(def){
     doom:0, moveIdx:0, traits:(def.traits||[]).slice(),
     impaled:false, impaleHits:0, corpse:false, talk:0,
     strTemp:0, sleepLeft:0, hitCount:0, damageTakenTurn:0,
-    phase:0, escaped:false, sandpit:null, stingHits:2, thnGrow:0, hist:[], nextMove:null, rollD:0, slot:0, ascDmg:ascDmgBonus(def.tier),
+    phase:0, escaped:false, sandpit:null, stingHits:2, thnGrow:0, hist:[], nextMove:null, stunned:false, stunnedMove:null, rollD:0, slot:0, ascDmg:ascDmgBonus(def.tier),
     invincibleLeft:0, modeShift:false, flyPerm:false
   };
   if(def.traits && def.traits.indexOf('slow')>=0) e.slow=true;
@@ -5463,7 +5764,7 @@ function startCombat(enemyDef, groupIds, groupDefs){
     melodies:{wah:0,cho:0,ki:0}, melodyDone:{wah:false,cho:false,ki:false}, melodyShield:0,
     hand:[], draw:[], discard:[], exhaust:[],
     persist:[], triggers:[], turnTriggers:[], powers:[],
-    next:{en:0,draw:0,block:0,stars:0,summon:0,seek:0,dblAll:false,collect:0},
+    next:{en:0,draw:0,block:0,blockSrc:null,stars:0,summon:0,seek:0,dblAll:false,collect:0},
     cardsPlayed:0, attacksPlayed:0, skillsPlayed:0, powersPlayed:0,
     atkTurn:0, sklTurn:0, cardsDrawnTurn:0, starsGainedTurn:0, ethPlayed:0,
     sadCreated:0, ostyAttackedTurn:false, ostyFirstDone:false, dislodgesTurn:0,
@@ -5481,7 +5782,7 @@ function startCombat(enemyDef, groupIds, groupDefs){
     symbiosis:0, showOff:0, bounce:0, tune:false, playCheapest:false,
     tarotUp:false, doomAppliedTurn:false, ostySacPending:false,
     enemyStrBonus:0, cardCapThisTurn:0, cardsPlayedThisTurn:0, ceremonialRingTurns:0,
-    lastCard:null, playedThisTurn:[], enemyTurnDone:false, flank:null, primaryBossUids:[]
+    lastCard:null, playedThisTurn:[], enemyTurnDone:false, flank:null, flankLayout:null, primaryBossUids:[]
   };
   b.maxEnergy = ch.energy + relicStat('energy1');
   // 自定义模式：致命（双方+3力量）、身患绝症（5 覆甲）
@@ -5551,9 +5852,12 @@ function flankGroupIds(){
 function initFlank(){
   if(!b){ return; }
   b.flank=null;
+  b.flankLayout=null;
   if(!flankGroupIds()) return;
   var al=aliveEnemies(); if(al.length<2) return;
   b.flank={left:al[0].uid, right:al[al.length-1].uid, facing:al[al.length-1].uid};
+  // 独立记录夹击站位：即使其中一名敌人死亡、夹击效果解除，左右站位也保持不变
+  b.flankLayout={left:b.flank.left, right:b.flank.right, facing:b.flank.facing};
   addLog('夹击：你被两名敌人包围，默认面朝右侧；背对一侧的攻击伤害 +50%。');
 }
 function flankMember(e){
@@ -5592,7 +5896,8 @@ function enemyGroup(def){
     reptomancer:[def, D.enemies.find(function(e){return e.id==='dagger';}), D.enemies.find(function(e){return e.id==='dagger';})],
     awakened:[def, D.enemies.find(function(e){return e.id==='cultist';}), D.enemies.find(function(e){return e.id==='cultist';})],
     spire_shield:[def, D.enemies.find(function(e){return e.id==='spire_spear';})],
-    spire_spear:[def, D.enemies.find(function(e){return e.id==='spire_shield';})],
+    // 尖塔之矛与盾：盾固定在左侧，矛在右侧（夹击默认面朝右侧的矛）
+    spire_spear:[D.enemies.find(function(e){return e.id==='spire_shield';}), def],
     jawhorde:[def, def, def],
     toadpole:[def, def],
     tworat:[def, def]
@@ -5620,7 +5925,7 @@ function processLifelinkRevives(){
     if(e.reviveIn>0){ addLog(e.name+' 生命链接：还需 '+e.reviveIn+' 回合复活。'); return; }
     var other=b.enemies.some(function(o){ return o.uid!==e.uid && o.hp>0 && !o.escaped; });
     if(!other){ e.reviveIn=0; addLog(e.name+' 生命链接失效：场上没有其他敌人存活。'); return; }
-    e.reviveIn=0; e.revived=true; e.stunned=false; e.block=0;
+    e.reviveIn=0; e.revived=true; e.stunned=false; e.stunnedMove=null; e.block=0;
     e.hp=Math.max(1,Math.floor(e.maxHp*0.5));
     var ki=b.killed.indexOf(e.uid); if(ki>=0) b.killed.splice(ki,1);
     commitMove(e);
@@ -5647,7 +5952,7 @@ function startPlayerTurn(){
   b.endTurnDiscarded=null;
   b.playedTypes={}; b.pelletsDone=false; b.lostHpThisTurn=false;
   // 巨人头「迟缓」：每回合重新累计，清零后本回合第一张牌不享受加成
-  b.enemies.forEach(function(e){ if(e.slow) e.slowStacks=0; });
+  b.enemies.forEach(function(e){ if(e.slow) e.slowStacks=0; var _ic=invincibleCap(e); if(_ic>0) e.invincibleLeft=_ic; });
   b.melodies={wah:0,cho:0,ki:0}; b.melodyDone={wah:false,cho:false,ki:false};
   b.turnTriggers=[]; b.choke=null; b.reflect=false; b.bladeDblTurn=false;
   b.noDraw=false; b.bulletTime=false; b.nextEthFree=false; b.swivel=false;
@@ -5707,6 +6012,7 @@ function startPlayerTurn(){
   if(hasRelic('情感芯片') && b.lostHpLastTurn) orbPassives();
   // 下回合格挡/召唤/辉星
   if(b.next.block){ gainBlock(b.next.block); b.next.block=0; }
+  b.next.blockSrc=null;
   if(b.next.stars){ gainStars(b.next.stars); b.next.stars=0; }
   if(b.next.summon){ summonOsty(b.next.summon); b.next.summon=0; }
   if(b.next.seek){
@@ -5929,7 +6235,7 @@ function enemyTurn(){
       return;
     }
     // 眩晕
-    if(e.stunned){ e.stunned=false; addLog(e.name+' 眩晕中，跳过回合。'); setTimeout(step,60); return; }
+    if(e.stunned){ e.stunned=false; e.stunnedMove=null; addLog(e.name+' 眩晕中，当前招式推迟到下一回合。'); setTimeout(step,60); return; }
     // 意图执行
     var mi = (e.nextMove!=null)?e.nextMove:(e.moveIdx % e.def.moves.length);
     var mv = e.def.moves[mi];
@@ -6104,7 +6410,7 @@ function finishEnemyTurn(){
     if(e.buff.plat>0){ e.block += e.buff.plat; }   // 覆甲：回合结束获得等同层数的格挡
     // 再生：敌人回合结束时回复生命并减 1 层
     if(e.buff.reg>0 && e.hp>0){ e.hp=Math.min(e.maxHp, e.hp+e.buff.reg); e.buff.reg--; }
-    e.invincibleLeft=0; e.slowStacks=0; e.damageTakenTurn=0;
+    e.invincibleLeft=invincibleCap(e); e.slowStacks=0; e.damageTakenTurn=0;
     if(e.traits.indexOf('intangOdd')>=0){ e.buff.intang=(b.turn%2===1)?1:0; }
     if(e.id==='timeeater'&&!e.hasteUsed&&e.hp>0&&e.hp<e.maxHp/2){ e.hastePending=true; commitMove(e); }
     if(e.id==='champ'&&e.phase===0&&e.hp>0&&e.hp<e.maxHp/2){ e.phase=1; e.champStep=0; commitMove(e); addLog('冠军进入狂暴阶段！'); }
@@ -6204,15 +6510,21 @@ function playerAttack(base, hits, ctx, opts){
   if(b.nextAtkTriple && ctx && ctx.card && cardDef(ctx.card).type==='atk') b.nextAtkTriple=false;
   return totalUnblocked;
 }
+function invincibleCap(e){
+  if(!e || !e.traits) return 0;
+  if(e.traits.indexOf('invincible300')>=0) return 300;
+  if(e.traits.indexOf('invincible200')>=0) return 200;
+  return 0;
+}
 function damageEnemy(e, dmg, opts){
   opts=opts||{};
   if(e.hp<=0) return 0;
   if(e.slippery && e.slippery>0 && opts.attack){ dmg=1; e.slippery--; }
   if(e.buff.intang>0 && dmg>0) dmg=1;
   if(opts.attack && e.buff.mark>0) dmg += e.buff.mark;
-  if(e.traits.indexOf('invincible300')>=0||e.traits.indexOf('invincible200')>=0){
-    var cap=e.traits.indexOf('invincible300')>=0?300:(e.def.ascBeat2?200:200);
-    if(e.invincibleLeft<=0) e.invincibleLeft=cap;
+  var invCap=invincibleCap(e);
+  if(invCap>0){
+    if(e.invincibleLeft==null) e.invincibleLeft=invCap;
     if(dmg>e.invincibleLeft) dmg=e.invincibleLeft;
     e.invincibleLeft-=dmg;
   }
@@ -6237,9 +6549,10 @@ function damageEnemy(e, dmg, opts){
   if(hpDmg>0 && e.traits.indexOf('ringhalf')>=0 && !e.ringed && e.hp<=150){
     e.ringed=true; e.hp=Math.max(1,e.hp);
     e.buff.str=0; e.buff.vul=0; e.buff.weak=0; e.buff.frail=0;
-    e.stunned=true; e.hist=[]; e.moveIdx=0;
+    e.stunned=true; e.stunnedMove=null; e.hist=[]; e.moveIdx=0;
     b.ceremonialRingTurns=1;
     commitMove(e);
+    e.stunnedMove=e.nextMove;
     addLog(e.name+' 的犁铧折断，进入鸣响！此后每回合你只能打出 1 张牌。');
   }
   e.damageTakenTurn += dmg;
@@ -6247,9 +6560,9 @@ function damageEnemy(e, dmg, opts){
   if(opts.attack && e.traits.indexOf('angry1')>=0 && hpDmg>0){ e.buff.str+=1; }
   if(opts.attack && hpDmg>0 && (e.traits.indexOf('painful')>=0||e.painful)){ b.discard.push(makeToken('伤口')); }
   if(opts.attack && hpDmg>0 && e.traits.indexOf('reactive')>=0){ commitMove(e); }
-  if(opts.attack && e.fly>0 && hpDmg>0){ e.fly--; if(e.fly<=0){ e.stunned=true; e.knock=1; commitMove(e); addLog(e.name+' 被打落，眩晕！'); } }
-  if(hpDmg>0 && e.asleep && e.traits.indexOf('lagavulin')>=0){ e.asleep=false; e.sleepLeft=0; e.buff.met=0; e.stunned=true; commitMove(e); addLog(e.name+' 被惊醒，眩晕一回合！'); }
-  if(opts.attack && e.buff.plat>0 && hpDmg>0){ e.buff.plat=Math.max(0,e.buff.plat-1); if(e.buff.plat===0 && e.id==='parasite'){ e.stunned=true; commitMove(e); addLog(e.name+' 覆甲破碎，眩晕！'); } }
+  if(opts.attack && e.fly>0 && hpDmg>0){ e.fly--; if(e.fly<=0){ e.knock=1; commitMove(e); applyStun(e); addLog(e.name+' 被打落，眩晕！'); } }
+  if(hpDmg>0 && e.asleep && e.traits.indexOf('lagavulin')>=0){ e.asleep=false; e.sleepLeft=0; e.buff.met=0; applyStun(e); commitMove(e); addLog(e.name+' 被惊醒，眩晕一回合！'); }
+  if(opts.attack && e.buff.plat>0 && hpDmg>0){ e.buff.plat=Math.max(0,e.buff.plat-1); if(e.buff.plat===0 && e.id==='parasite'){ applyStun(e); commitMove(e); addLog(e.name+' 覆甲破碎，眩晕！'); } }
   if(opts.attack && e.traits.indexOf('malleable')>=0){ e.block+=3; }
   if(hpDmg>0){
     STATS.add('dmgDealt',hpDmg);
@@ -6695,6 +7008,15 @@ function discardPotion(i){ var p=run.potions[i]; if(!p) return; run.potions.spli
 function finishBattle(){
   roomSnap=null;
   b.over=true; b.won=true;
+  // 愧疚：战斗结束时计数，5 场战斗后自行离开牌组。
+  if(run.deck && run.deck.length){
+    var _guiltGone=[];
+    run.deck.forEach(function(c){ if(c.guilt!=null){ c.guilt--; if(c.guilt<=0) _guiltGone.push(c); } });
+    if(_guiltGone.length){
+      run.deck=run.deck.filter(function(c){ return _guiltGone.indexOf(c)<0; });
+      addLog('愧疚从牌组中消散了。');
+    }
+  }
   // 腐化之心是尖塔终点：击杀后直接通关，不进入金币/卡牌/药水/遗物结算
   if(b.enemies.some(function(e){return e.id==='heart' && e.hp<=0;})){
     addLog('腐化之心停止了跳动，尖塔的循环被斩断。');
@@ -6767,11 +7089,14 @@ function finishBattle(){
   }
   if(hasRelic('羽翼护符')){
     var _wingPool=(reward.cards||[]).concat(reward.cards2||[]).filter(function(c){return c && !c.ench;});
-    if(_wingPool.length){ var _wid=ENCH.byName('迅速'); var _wc=_wingPool[randInt(0,_wingPool.length-1)]; if(_wid) ENCH.apply(_wc,_wid,cardDef(_wc)); }
+    if(_wingPool.length){ var _wid=ENCH.byName('迅捷'); var _wc=_wingPool[randInt(0,_wingPool.length-1)]; if(_wid) ENCH.apply(_wc,_wid,cardDef(_wc),1); }
   }
   if(run.hairGlam && ((reward.cards&&reward.cards.length)||(reward.cards2&&reward.cards2.length))){
     reward.hairGlamApplied = true;
     applyHairGlamReward((reward.cards||[]).concat(reward.cards2||[]));
+  }
+  if(hasRelic('亮片')){
+    applyGlitterReward((reward.cards||[]).concat(reward.cards2||[]));
   }
   if(b.tier==='elite'){ reward.relic = rollRelicSilent(); if(hasRelic('黑星')) reward.relic2=rollRelicSilent(); }
   if(b.tier==='boss'){
@@ -7000,7 +7325,12 @@ function openChest(){
   S='chest'; save(); render();
 }
 function openPicker(cfg){
+  var _prevPicker=picker;
+  var _inheritedSrc=(_prevPicker&&_prevPicker.deckAnimSrc)||__deckAnimSrc||'';
+  var _inheritedSnap=(_prevPicker&&_prevPicker.deckSnapBefore)||null;
   picker = cfg;
+  picker.deckAnimSrc = cfg.deckAnimSrc || _inheritedSrc || '';
+  picker.deckSnapBefore = cfg.deckSnapBefore || _inheritedSnap || deckSnapshot();
   picker.selected = [];
   if(b) b.pickerOpen = true;
   if(cfg.cards){
@@ -7078,11 +7408,17 @@ function pickChoice(i){
   render();
 }
 function finishOpPick(sel){
+  var _deckBefore=picker&&picker.deckSnapBefore;
+  var _deckSrc=picker&&picker.deckAnimSrc;
+  var _gainBefore=picker&&picker.gainBefore;
+  var _gainSrc=picker&&picker.gainSrc;
   var cb=picker&&picker.onPick;
   var endAfter=!!(b&&b._endAfterPick);
   picker=null;
   if(b) b.pickerOpen=false;
   if(cb) cb(sel||[]);
+  deckAnimAfterPicker(_deckBefore,_deckSrc);
+  combatGainFx(_gainSrc,_gainBefore,['hand']);
   if(endAfter && b){ b._endAfterPick=false; endTurn(); return; }
   save(); render();
 }
@@ -7181,6 +7517,10 @@ function pickerClick(i){
   if(mode==='thinkahead'){ var ta=picker.cards[i].inst; var ai=b.hand.indexOf(ta); if(ai>=0){b.hand.splice(ai,1); b.draw.unshift(ta);} closePicker(); return; }
 }
 function closePicker(cancel){
+  var _deckBefore=picker&&picker.deckSnapBefore;
+  var _deckSrc=picker&&picker.deckAnimSrc;
+  var _gainBefore=picker&&picker.gainBefore;
+  var _gainSrc=picker&&picker.gainSrc;
   var after=picker&&picker.after;
   var lockRest=picker&&picker.lockRest;
   picker=null;
@@ -7188,28 +7528,42 @@ function closePicker(cancel){
   if(cancel){ save(); render(); return; }
   if(after) after();
   else { save(); render(); }
+  deckAnimAfterPicker(_deckBefore,_deckSrc);
+  combatGainFx(_gainSrc,_gainBefore,['hand']);
 }
 
 /* ---------- 奖励领取 ---------- */
-function deckPush(inst){
-  run.deck.push(inst);
-  STATS.add('cardsAdded',1); STATS.map('cardAcquired',(cardDef(inst)||{}).name||'?',1);
-  // 囤积癖：每次加牌额外复制 2 张（诅咒不复制以符合规则平衡）
-  if(cmOn('hoarder')){
-    var d=cardDef(inst);
-    if(!d || !d.curse){ run.deck.push(cloneCard(inst)); run.deck.push(cloneCard(inst)); }
+function deckPush(inst, opts){
+  var _noFx=!!(opts && opts.noFx);
+  var _deckBefore=null, _deckPrev=null;
+  if(_noFx) __deckAnimDepth++;
+  if(!_noFx && __deckAnimDepth===0 && !picker && run && run.deck){
+    _deckBefore=deckSnapshot();
+    _deckPrev=deckAnimBegin('获得卡牌','gain','deck');
   }
-  // 宾邦：每次向牌组添加卡牌时，额外添加一张同名复制品（诅咒不复制）
-  if(hasRelic('宾邦') && !inst._bingeCopy){
-    var bd=cardDef(inst);
-    if(bd && !bd.curse){ var bc=cloneCard(inst); bc._bingeCopy=true; run.deck.push(bc); }
+  try {
+    run.deck.push(inst);
+    STATS.add('cardsAdded',1); STATS.map('cardAcquired',(cardDef(inst)||{}).name||'?',1);
+    // 囤积癖：每次加牌额外复制 2 张（诅咒不复制以符合规则平衡）
+    if(cmOn('hoarder')){
+      var d=cardDef(inst);
+      if(!d || !d.curse){ run.deck.push(cloneCard(inst)); run.deck.push(cloneCard(inst)); }
+    }
+    // 宾邦：每次向牌组添加卡牌时，额外添加一张同名复制品（诅咒不复制）
+    if(hasRelic('宾邦') && !inst._bingeCopy){
+      var bd=cardDef(inst);
+      if(bd && !bd.curse){ var bc=cloneCard(inst); bc._bingeCopy=true; run.deck.push(bc); }
+    }
+    // 五轮书：每累计加入 5 张牌，回复 20 点生命
+    if(hasRelic('五轮书')){
+      run.fiveBook=(run.fiveBook||0)+1;
+      if(run.fiveBook%5===0) healHp(20);
+    }
+    relicHook('addcard', {card:inst});   // 附魔遗物需要拿到新卡
+  } finally {
+    if(_noFx) __deckAnimDepth--;
+    if(_deckBefore) deckAnimFinish(_deckPrev,_deckBefore);
   }
-  // 五轮书：每累计加入 5 张牌，回复 20 点生命
-  if(hasRelic('五轮书')){
-    run.fiveBook=(run.fiveBook||0)+1;
-    if(run.fiveBook%5===0) healHp(20);
-  }
-  relicHook('addcard', {card:inst});   // 附魔遗物需要拿到新卡
 }
 function takeRewardHp(){ if(!reward||reward.cardTaken) return; run.maxHp+=2; run.hp+=2; reward.cardTaken=true; reward.cards=[]; toast('颂钵：最大生命 +2。'); save(); render(); }
 function pickerToggle(i){ if(!picker||(picker.mode!=='gamble'&&picker.mode!=='purity'&&picker.mode!=='cmseal'&&picker.mode!=='opmulti')) return; var s=picker.selected; var k=s.indexOf(i); if(k>=0)s.splice(k,1); else { var max=(picker.mode==='opmulti')?(picker.max||picker.n||1):((picker.mode==='purity'||picker.mode==='cmseal')?(picker.n||3):999); if(s.length>=max) return; s.push(i); } render(); }
@@ -7233,7 +7587,7 @@ function pickerConfirm(){
 function takeRewardCard(i){
   if(!reward || reward.cardTaken) return;
   var c=reward.cards[i];
-  if(c){ deckPush(c); reward.cardTaken=true; reward.cards=[]; addLog('获得卡牌：'+cardDef(c).name); }
+  if(c){ deckPush(c,{noFx:true}); reward.cardTaken=true; reward.cards=[]; addLog('获得卡牌：'+cardDef(c).name); }
   render();
 }
 function takeRewardRelic(){
@@ -7266,10 +7620,16 @@ function chooseEvent(i){
   }
   run.eventResolved=true;   // 事件每次遭遇只能结算一次，避免反复领取
   STATS.map('eventChoices',(ev.title||'?')+'#'+i,1);
-  applyOps(opt.effects, {event:ev}, true);
+  var _deckBefore=deckSnapshot();
+  var _deckPrev=deckAnimBegin('事件 · '+(ev.title||'事件'));
+  try {
+    applyOps(opt.effects, {event:ev}, true);
+  } finally {
+    deckAnimFinish(_deckPrev,_deckBefore);
+  }
   if(!picker && S!=='combat') advanceFloorDone();
 }
-function buyCard(i){ var c=shop.cards[i]; if(!c)return; var p=shopPrice(c.price); if(run.gold<p){toast('金币不足。');return;} run.gold-=p; run.mawSpent=true; run.pigDisabled=true; STATS.add('goldSpent',p); deckPush(c); if(hasRelic('送货员')){ var nc=shopRestockCard(c); if(nc) shop.cards[i]=nc; else shop.cards.splice(i,1); } else shop.cards.splice(i,1); save(); render(); }
+function buyCard(i){ var c=shop.cards[i]; if(!c)return; var p=shopPrice(c.price); if(run.gold<p){toast('金币不足。');return;} run.gold-=p; run.mawSpent=true; run.pigDisabled=true; STATS.add('goldSpent',p); deckPush(c,{noFx:true}); if(hasRelic('送货员')){ var nc=shopRestockCard(c); if(nc) shop.cards[i]=nc; else shop.cards.splice(i,1); } else shop.cards.splice(i,1); save(); render(); }
 function buyRelic(i){ var r=shop.relics[i]; if(!r)return; var p=shopPrice(r.price); if(run.gold<p){toast('金币不足。');return;} run.gold-=p; run.mawSpent=true; run.pigDisabled=true; STATS.add('goldSpent',p); addRelic(r); if(hasRelic('送货员')){ var _ex=shop.relics.filter(Boolean).map(function(x){return x.name;}); var nr=rollRelicSilent(null,_ex); if(nr){ nr.price=randInt(140,180); shop.relics[i]=nr; } else shop.relics.splice(i,1); } else shop.relics.splice(i,1); save(); render(); }
 function buyPotion(i){ var po=shop.potions[i]; if(!po)return; var p=shopPrice(po.price); if(run.gold<p){toast('金币不足。');return;} if(run.potions.length>=run.potionSlots){toast('药水栏已满。');return;} run.gold-=p; run.mawSpent=true; run.pigDisabled=true; STATS.add('goldSpent',p); gainPotion(po); if(hasRelic('送货员')){ var np=JSON.parse(JSON.stringify(choice(D.potions))); np.price=randInt(48,60); shop.potions[i]=np; } else shop.potions.splice(i,1); save(); render(); }
 function buyRemove(){ if(shop.removeUsed){toast('本次已移除过。');return;} var p=cardRemovalPrice(); if(run.gold<p){toast('金币不足。');return;} openPicker({mode:'remove',n:1,title:'移除一张牌',after:function(){shop.removeUsed=true;run.cardRemoves=(run.cardRemoves||0)+1;run.gold-=p;run.mawSpent=true; run.pigDisabled=true;STATS.add('goldSpent',p);save();render();}}); }
@@ -7299,9 +7659,19 @@ return {
   restHeal:restHeal, restSmith:restSmith, restClone:restClone, restSkip:restSkip, openShop:openShop, shopPrice:shopPrice, cardRemovalPrice:cardRemovalPrice, restartRoom:restartRoom, discardPotion:discardPotion,
   chestTake:chestTake, chestSkip:chestSkip, chestSkipAll:chestSkipAll,
   openPicker:openPicker, pickerClick:pickerClick, pickChoice:pickChoice, closePicker:closePicker, pickerToggle:pickerToggle, pickerConfirm:pickerConfirm, takeRewardHp:takeRewardHp,
-  chooseBlessing:function(i){ var bl=run&&run.blessing; if(!bl||!bl.opts||!bl.opts[i]) return; STATS.map('blessings',bl.opts[i].id,1); if(STATS.cur()){ if(bl.kind==='neow') STATS.cur().neow=bl.opts[i].id; else STATS.cur().ancients.push((bl.who||'')+'：'+bl.opts[i].id); } BLESSING.apply(bl.opts[i].id); },
+  chooseBlessing:function(i){ var bl=run&&run.blessing; if(!bl||!bl.opts||!bl.opts[i]) return; STATS.map('blessings',bl.opts[i].id,1); if(STATS.cur()){ if(bl.kind==='neow') STATS.cur().neow=bl.opts[i].id; else STATS.cur().ancients.push((bl.who||'')+'：'+bl.opts[i].id); } var _deckBefore=deckSnapshot(); var _deckPrev=deckAnimBegin('事件 · '+(bl.title||bl.who||'祝福')); try { BLESSING.apply(bl.opts[i].id); } finally { deckAnimFinish(_deckPrev,_deckBefore); } },
   takeRewardCard:takeRewardCard, takeRewardRelic:takeRewardRelic, takeRewardBossRelic:takeRewardBossRelic, skipReward:skipReward,
-  gainPotion:gainPotion, usePotion:function(i,t){ SPIRE_ENGINE_CARDS.usePotion(i,t); },
+  gainPotion:gainPotion, usePotion:function(i,t){
+    var _p=run&&run.potions&&run.potions[i];
+    var _deckBefore=deckSnapshot();
+    var _combatBefore=combatCardMap();
+    var _deckPrev=deckAnimBegin('药水 · '+(_p&&_p.name?_p.name:'药水'));
+    try { SPIRE_ENGINE_CARDS.usePotion(i,t); }
+    finally { deckAnimFinish(_deckPrev,_deckBefore); }
+    var _src='药水 · '+(_p&&_p.name?_p.name:'药水');
+    if(picker && !picker.gainBefore){ picker.gainBefore=_combatBefore; picker.gainSrc=_src; }
+    else combatGainFx(_src,_combatBefore,['hand']);
+  },
   hasRelic:hasRelic, weakApplies:weakApplies, relicStat:relicStat, addRelic:addRelic, rollRelic:rollRelic, relicHook:relicHook, toast:toast,
   makeRewardCard:makeRewardCard, makeToken:makeToken, makeCard:makeCard, makeCurse:makeCurse,
   toast:toast, addLog:addLog, render:function(){ if(typeof SPIRE_UI!=='undefined') SPIRE_UI.render(); },
@@ -7473,7 +7843,7 @@ function applyOps(ops, ctx, relicMode){
       case 'aLow': { var _le=I.lowestHpEnemy(); if(_le) B.lastUnblocked=I.playerAttack(v,op.hits||1,Object.assign({},ctx,{target:_le})); break; }
       case 'goldDmg': { var gdPer=(v>1?v:20), gdHits=Math.floor((run().gold||0)/gdPer); if(gdHits>0) B.lastUnblocked=I.playerAttack(1,gdHits,ctx); break; }
       case 'm': B.lastUnblocked=I.playerAttack(v, op.hits||1, ctx, {all:true}); break;
-      case 'ra': I.playerAttack(v, op.hits||1, ctx, {random:true}); break;
+      case 'ra': { var raHits=(op.hits==='X'?(ctx.x||0):(op.hits||1)); if(raHits>0) I.playerAttack(v, raHits, ctx, {random:true}); break; }
       case 'ap': if(e){ var dm=I.playerDamageValue(v,ctx,e); I.damageEnemy(e,dm,{pierce:true,attack:true,ctx:ctx}); } break;
       case 'ax': I.playerAttack(v*(ctx.x||0),1,ctx); break;
       case 'mx': I.playerAttack(v*(ctx.x||0),1,ctx,{all:true}); break;
@@ -7646,6 +8016,7 @@ case 'beetle4': B.beetleTurns=4; break;
       case 'hp': I.healHp(relicMode&&v<0&&E.ascOn(15)?Math.floor(v*1.3):v); break;
       case 'lhp': { var lr=run(); I.loseHp(Math.min(v, Math.max(0,lr.hp)),'card'); break; }
       case 'mhp': run().maxHp+=v; run().hp+=v; break;
+      case 'maxhpDown': { var mr=run(); var nm=Math.max(1,mr.maxHp-v); mr.maxHp=nm; if(mr.hp>nm) mr.hp=nm; break; }
       case 'gold': I.gainGold(relicMode&&v>0&&E.ascOn(15)?Math.floor(v*0.7):v); break;
       case 'pig12': if(!run().pigDisabled) I.gainGold(v); break;
       case 'blur': B.keepBlock+=v; break;
@@ -7728,7 +8099,7 @@ case 'beetle4': B.beetleTurns=4; break;
       case 'doomExec': al().forEach(function(x){ if(x.doom>=x.hp) I.killEnemy(x,true); }); break;
       case 'noEscape': if(e) I.addDebuff(e,'doom',v+5*Math.floor((e.doom||0)/10)); break;
       case 'pressure': if(e){ e.mark=(e.mark||0)+v; al().forEach(function(x){ if(x.mark) I.damageEnemy(x,x.mark,{}); }); } break;
-      case 'stun': if(e) e.stunned=true; break;
+      case 'stun': if(e){ if(!e.stunned) e.stunnedMove=(e.nextMove!=null?e.nextMove:null); e.stunned=true; } break;
       case 'poiMult': if(e) e.buff.poi*=v; break;
       case 'spreadDebuffs': if(e){ al().forEach(function(x){ if(x!==e){ ['vul','weak','frail','poi'].forEach(function(kk){ x.buff[kk]+=e.buff[kk]; }); x.doom+=e.doom; } }); } break;
       case 'choke': if(e) B.choke={uid:e.uid,n:v}; break;
@@ -8031,11 +8402,12 @@ case 'orbDFull': for(var odf=0;odf<B.orbSlots;odf++) I.channelOrb('dark'); break
       }
       case 'randCommon': { var pool=[]; Object.keys(D.cards).forEach(function(ck){D.cards[ck].forEach(function(d,idx){if(d.rarity==='C')pool.push({char:ck,idx:idx});});}); for(var rci=0;rci<Math.max(1,v||1);rci++){ var p=pool[Math.floor(CMOD.rnd()*pool.length)]; var inst=E.makeCard(p.char,p.idx); B.hand.push(inst); fireCreate(inst); } break; }
       case 'addRandColor': {
-        if((ctx.card && /从3张随机无色牌中选择1张/.test(cardTextOf(ctx.card))) || relicMode){
+        // 只对“从3张随机无色牌中选择1张”的牌/工具箱打开选择器；橙色团块等直接加 v 张随机无色牌
+        if((ctx.card && /从3张随机无色牌中选择1张/.test(cardTextOf(ctx.card))) || (relicMode && v===1)){
           var copts=chooseTypeCards(null,3,'colorless','选择一张无色牌');
           E.openPicker({mode:'discover',cards:copts,title:'从3张随机无色牌中选择一张',noFree:true});
         } else {
-          for(var ac=0;ac<v;ac++){ if(D.cards.colorless&&D.cards.colorless.length){ B.hand.push(E.makeCard('colorless',Math.floor(CMOD.rnd()*D.cards.colorless.length))); } }
+          for(var ac=0;ac<v;ac++){ if(D.cards.colorless&&D.cards.colorless.length){ var acd=E.makeCard('colorless',Math.floor(CMOD.rnd()*D.cards.colorless.length)); B.hand.push(acd); fireCreate(acd); } }
         }
         break;
       }
@@ -8243,7 +8615,7 @@ case 'orbDFull': for(var odf=0;odf<B.orbSlots;odf++) I.channelOrb('dark'); break
       case 'deckDmg': I.playerAttack(B.cardsPlayed||0,1,ctx); break;
       case 'randColorless': { var rcn=ctx.card&&ctx.card.ups?2:1; for(var rc=0;rc<rcn;rc++){ if(!D.cards.colorless||!D.cards.colorless.length)break; var rcc=E.makeCard('colorless',Math.floor(CMOD.rnd()*D.cards.colorless.length)); B.hand.push(rcc); fireCreate(rcc); } break; }
       case 'mimicBlock': I.gainBlock(B.block); break;
-      case 'NdrawBlock': B.next.block += B.block; break;
+      case 'NdrawBlock': B.next.block += B.block; B.next.blockSrc='延伸'; break;
       case 'rockGrow': { B.rockDmg=ctx.card&&ctx.card.ups?10:5; B.persist.push({when:'turn',ops:[{k:'rockHit'}]}); break; }
       case 'rockHit': { var rd=B.rockDmg||5; al().forEach(function(x){damageEnemy(x,rd,{attack:true});}); B.rockDmg=rd+5; break; }
       case 'shivUpgrade': B.shivUpgrade=true; break;
@@ -8517,7 +8889,7 @@ function playCard(inst, opts){
   if(ENCH.any(inst)){
     var _aes = ENCH.st(inst), _af = !_aes.firstDone;
     if(ENCH.has(inst,'sown') && _af) B.energy += 1;
-    if(ENCH.has(inst,'swift') && _af) I.drawCards(1);
+    if(ENCH.has(inst,'swift') && _af) I.drawCards(inst.enchLevel||1);
     if(ENCH.has(inst,'adroit')) I.gainBlock(3);
     if(ENCH.has(inst,'inky')) B.enemies.forEach(function(_ne){ if(_ne.hp>0) I.addDebuff(_ne,'weak',1); });
     if(ENCH.has(inst,'corrupted')) I.loseHp(2,'card');
@@ -8695,6 +9067,7 @@ var OP_TEXT = {
   shoot:function(o){return '射出一箭，造成 '+o.v+' 点伤害'+(o.hits>1?'，共 '+o.hits+' 次':'')+'。';},
   hp:function(o){return '回复 '+o.v+' 点生命。';},
   lhp:function(o){return '失去 '+o.v+' 点生命。';},
+  maxhpDown:function(o){return '失去 '+o.v+' 点最大生命。';},
   gold:function(o){return '获得 '+o.v+' 金币。';},
   orbL:function(o){return '引导 '+o.v+' 个闪电充能球。';},
   orbF:function(o){return '引导 '+o.v+' 个冰霜充能球。';},
@@ -8757,7 +9130,7 @@ function describe(inst){
   if(d.dynCost==='mel') s+='每当任何角色死亡，费用-1。';
   if(d.dynCost==='evis') s+='本回合每丢弃1张牌，费用-1。';
   if(d.dynCost==='blood') s+='本场每失去1次生命，费用-1。';
-  if(ENCH.any(inst)) s += ' 【'+ENCH.label(inst.ench)+(ENCH.idOf&&ENCH.idOf(inst)==='glam'&&(ENCH.st(inst).glamStacks||1)>1?' ×'+ENCH.st(inst).glamStacks:'')+'】'+ENCH.descOf(inst);
+  if(ENCH.any(inst)) s += ' 【'+ENCH.labelFor(inst)+(ENCH.idOf&&ENCH.idOf(inst)==='glam'&&(ENCH.st(inst).glamStacks||1)>1?' ×'+ENCH.st(inst).glamStacks:'')+'】'+ENCH.descOf(inst);
   return s;
 }
 function describeOp(o){
@@ -8796,7 +9169,7 @@ function describeOp(o){
     discAll:'弃掉所有手牌。', drawSame:'抽等量的牌。', drawTo:'抽牌直到手牌有 '+o.v+' 张。',
     exhRand:'随机消耗 '+o.v+' 张手牌。', exhNonAtk:function(o){ return o.v>0?'消耗所有非攻击手牌，每张获得 '+o.v+' 格挡。':'消耗所有非攻击手牌。'; },
     exhAll:'消耗所有手牌。', fiendFire:'消耗所有手牌，每张造成 '+o.v+' 伤害。',
-    seek:'将抽牌堆顶 '+o.v+' 张取回手牌。', fromDisc:'将弃牌堆 '+o.v+' 张取回手牌。',
+    seek:'从抽牌堆选择 '+o.v+' 张加入手牌。', fromDisc:'将弃牌堆 '+o.v+' 张取回手牌。',
     fromExh:'将消耗堆 1 张取回手牌。', discToTop:'将一张手牌置于抽牌堆顶。',
     selfToDrawTop:'将此牌置于抽牌堆顶。', selfReturnHand:'将此牌返回手牌。',
     redo:'将上一张打出的牌返回手牌。', rebound:'下一张打出的牌返回抽牌堆顶。',
@@ -8876,7 +9249,7 @@ function describeOp(o){
     vula:'所有敌人获得 '+o.v+' 易伤。', weaka:'所有敌人获得 '+o.v+' 虚弱。', fraila:'所有敌人获得 '+o.v+' 破甲。',
     poia:'所有敌人获得 '+o.v+' 中毒。', doomRand:'随机敌人获得 '+o.v+' 末日。',
     noEscape:'施加 '+o.v+'+每 10 末日额外 5 末日。', loseHp2:'失去生命。',
-    Nen:'下回合获得 '+o.v+' 能量。', Ndraw:'下回合多抽 '+o.v+'。', Nb:'下回合获得 '+o.v+' 格挡。',
+    Nen:'下回合获得 '+o.v+' 能量。', Ndraw:'下回合多抽 '+o.v+' 张牌。', Nb:'下回合获得 '+o.v+' 格挡。',
     Nstars:'下回合获得 '+o.v+' 辉星。', Nsummon:'下回合召唤 '+o.v+'。', Nseek:'下回合取回 '+o.v+' 张。',
     smite:'将 '+o.v+' 张惩击加入手牌。', miracle3:'将 3 张奇迹加入手牌。', joySad:'将 1 快乐与 1 悲伤加入手牌。',
     addMelody3Free:'将哇/啾/叽各 1 张加入手牌，本回合免费。', randCommon:'将 '+(o.v||1)+' 张随机普通牌加入手牌。',
@@ -9301,8 +9674,8 @@ function isNoCostCard(d){
 /* 兼容单附魔与旧存档/批量附魔字段，类型行统一显示全部附魔标签。 */
 function cardEnchantLabels(inst){
   var out=[], seen={};
-  function put(id){
-    var label=ENCH.label(id)||String(id==null?'':id);
+  function put(id, labelOverride){
+    var label=labelOverride||ENCH.label(id)||String(id==null?'':id);
     if(!label) return;
     var key=ENCH.idOf({ench:id});
     if(key==='glam'){
@@ -9311,7 +9684,7 @@ function cardEnchantLabels(inst){
     }
     if(!seen[label]){ seen[label]=1; out.push(label); }
   }
-  if(inst&&inst.ench){ (Array.isArray(inst.ench)?inst.ench:[inst.ench]).forEach(put); }
+  if(inst&&inst.ench){ (Array.isArray(inst.ench)?inst.ench:[inst.ench]).forEach(function(id){ put(id, Array.isArray(inst.ench)?null:ENCH.labelFor(inst)); }); }
   if(inst&&Array.isArray(inst.enchants)) inst.enchants.forEach(put);
   return out;
 }
@@ -9375,6 +9748,7 @@ function extraStateChips(){
   if(b.noBlockTurns>0) put('无法格挡','接下来 '+b.noBlockTurns+' 回合无法获得格挡。');
   if(b.cardCapThisTurn>0 && b.cardCapThisTurn<99) put('出牌限制','本回合最多打出 '+b.cardCapThisTurn+' 张牌。');
   if(b.next && b.next.draw<0) put('下回合少抽','下回合少抽 '+(-b.next.draw)+' 张牌。');
+  if(b.next && b.next.block>0) put((b.next.blockSrc||'下回合格挡'),'下回合开始时获得 '+b.next.block+' 点格挡。',b.next.block,true);
   if(b.hand && b.hand.some(function(c){ var d=E.cardDef(c); return d && d.name==='诅咒·疼痛'; }))
     put('疼痛','手牌中有「诅咒·疼痛」：每打出一张牌失去 1 点生命。');
   return out.join('');
@@ -9419,8 +9793,10 @@ function enemyAbilityChips(e){
       put('死亡律动 '+bd,'每打出一张牌受到 '+bd+' 点伤害；先由格挡抵消，未挡住的伤害才扣生命。',false); return;
     }
     if(k==='invincible'){
-      var cap=(e.traits.indexOf('invincible300')>=0?300:(e.def.ascBeat2?200:200));
-      put('无敌 '+cap,'单回合最多承受 '+cap+' 点伤害，超过部分无效。',true); return;
+      var cap=(e.traits.indexOf('invincible300')>=0?300:(e.traits.indexOf('invincible200')>=0?200:v));
+      var left=(e.invincibleLeft!=null?e.invincibleLeft:cap);
+      left=Math.max(0,Math.min(cap,left));
+      put('无敌 '+left+'/'+cap,'本回合还可承受 '+left+' 点伤害（已消耗 '+(cap-left)+'/'+cap+'）；上限 '+cap+'，敌人回合结束后重置。',left>0); return;
     }
     if(k==='intangOdd'){
       if(!(e.buff&&e.buff.intang>0)) put('无实体·偶数回合','偶数回合进入无实体，受到的伤害降为 1。',true);
@@ -9459,7 +9835,7 @@ function enemyStateChips(e){
   }
   if(e.asleep) put('沉睡','处于沉睡，受到攻击会惊醒并眩晕一回合。');
   if(e.sleepLeft>0 && !e.asleep) put('沉睡','还需沉睡 '+e.sleepLeft+' 回合；期间只会使用沉睡动作。',e.sleepLeft,true);
-  if(e.stunned) put('眩晕','本回合无法行动。');
+  if(e.stunned) put('眩晕','本回合无法行动，当前招式会推迟到下一回合。');
   if(e.modeShift) put('防御模式','切换为防御形态，获得额外格挡与尖皮。');
   if(e.traits && e.traits.indexOf('modeshift30')>=0 && !e.modeShift){
     var _gt=e.shiftLimit||(30+(e.def.ascShift||0));
@@ -9508,11 +9884,16 @@ function powerChips(){
 /* ---------- 敌人意图 ---------- */
 function enemyIntent(e){
   if(E.hasRelic('符文圆顶')) return null;
-  if(e.stunned) return {cls:'buf',html:'<span class="il">眩晕</span>'};
+  var stunned=!!e.stunned;
+  function withDelay(it){
+    if(!it) return it;
+    if(!stunned) return it;
+    return {cls:(it.cls?it.cls+' ':'')+'delayed', html:'<span class="il">推迟</span>'+it.html};
+  }
   var mv = (e.nextMove!=null)?e.def.moves[e.nextMove]:(e.sleepLeft>0 ? e.def.moves[Math.min(e.moveIdx,e.def.moves.length-1)] : e.def.moves[e.moveIdx%e.def.moves.length]);
-  if(e.asleep) return {cls:'buf',html:'<span class="il">沉睡</span>'};
-  if(!mv) return null;
-  if(!e.hasSplit && e.hp>0 && e.hp<=e.maxHp/2 && (e.traits.indexOf('split')>=0||e.traits.indexOf('splitboss')>=0)) return {cls:'buf',html:'<span class="il">分裂</span>'};
+  if(e.asleep) return withDelay({cls:'buf',html:'<span class="il">沉睡</span>'});
+  if(!mv) return withDelay({cls:'buf',html:'<span class="il">眩晕</span>'});
+  if(!e.hasSplit && e.hp>0 && e.hp<=e.maxHp/2 && (e.traits.indexOf('split')>=0||e.traits.indexOf('splitboss')>=0)) return withDelay({cls:'buf',html:'<span class="il">分裂</span>'});
   // atk 只记录"单次伤害"，hits 记录段数，渲染时统一显示 atk×hits（与原版意图一致）。
   // 不要在 atk 里再乘段数，否则多段攻击会被重复放大（如六角幽灵分割误显示成 42×6）。
   var atk=0,hits=0,blk=0,steal=0,buf=[],deb=[],other=[],segs=[];
@@ -9556,13 +9937,13 @@ function enemyIntent(e){
     if(blk>0) h+='<span class="il">+甲</span>';
     if(deb.length) h+='<span class="il">+减益</span>';
     if(steal>0) h+='<span class="il">+偷金</span>';
-    return {cls:'',html:h};
+    return withDelay({cls:'',html:h});
   }
-  if(blk>0) return {cls:'def',html:'<span class="il">防御</span><b>'+blk+'</b>'};
-  if(buf.length) return {cls:'buf',html:'<span class="il">强化</span>'};
-  if(deb.length) return {cls:'deb',html:'<span class="il">减益</span>'};
-  if(other.length) return {cls:'buf',html:'<span class="il">'+esc(other[0])+'</span>'};
-  return {cls:'buf',html:'<span class="il">'+esc(mv.name)+'</span>'};
+  if(blk>0) return withDelay({cls:'def',html:'<span class="il">防御</span><b>'+blk+'</b>'});
+  if(buf.length) return withDelay({cls:'buf',html:'<span class="il">强化</span>'});
+  if(deb.length) return withDelay({cls:'deb',html:'<span class="il">减益</span>'});
+  if(other.length) return withDelay({cls:'buf',html:'<span class="il">'+esc(other[0])+'</span>'});
+  return withDelay({cls:'buf',html:'<span class="il">'+esc(mv.name)+'</span>'});
 }
 
 /* ---------- 顶栏 ---------- */
@@ -9719,6 +10100,8 @@ function menuScreen(){
   var touch=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
   var prevPhoneScroll=0; var _pg=document && document.querySelector ? document.querySelector('.phh-grid') : null;
   if(_pg) prevPhoneScroll=_pg.scrollTop;
+  var prevWheelScroll=0; var _cw=document && document.querySelector ? document.querySelector('.char-wheel') : null;
+  if(_cw) prevWheelScroll=_cw.scrollTop;
   var order=['iron','silent','defect','watcher','regent','necro','fool','warden','shade','arcanist','beast','wuj'];
   var wheel=order.map(function(k){
     var c=D.chars[k], n=D.cards[k].length;
@@ -9769,7 +10152,7 @@ function menuScreen(){
       '<section class="phh-right"><div class="phh-head"><h2>选择角色</h2><span class="phh-hint">上下滑动 · 点角色即开始</span></div>'+
         '<div class="phh-grid">'+phWheel+'</div></section></div>';
     var _ng=document.querySelector('.phh-grid');
-    if(_ng&&prevPhoneScroll) _ng.scrollTop=prevPhoneScroll;
+    if(_ng&&prevPhoneScroll){ _ng.scrollTop=prevPhoneScroll; requestAnimationFrame(function(){ if(_ng) _ng.scrollTop=prevPhoneScroll; }); }
     return;
   }
   $('screen').innerHTML='<div class="menu"><div class="menu-left"><div class="tower">'+towerSvg()+'</div>'+
@@ -9787,6 +10170,11 @@ function menuScreen(){
     '<button class="btn sm" data-act="codex" data-tab="cards">图鉴</button></div>'+
     '<div class="char-wheel">'+wheel+'</div>'+
     '</div></div>';
+  var _nw=document.querySelector('.char-wheel');
+  if(_nw&&prevWheelScroll){
+    _nw.scrollTop=prevWheelScroll;
+    requestAnimationFrame(function(){ if(_nw) _nw.scrollTop=prevWheelScroll; });
+  }
 }
 
 /* ---------- 地图 ---------- */
@@ -10527,9 +10915,10 @@ function battleScreen(){
     '<div class="pp-bars"><div class="hp-row"><div class="pp-hp"><i style="width:'+Math.max(0,E.run.hp/E.run.maxHp*100)+'%"></i>'+hpStatusLayers(E.run.hp,E.run.maxHp,playerPoison,0)+hpBarText(E.run.hp,E.run.maxHp)+'</div>'+(b.block>0?'<span class="hp-block" data-tip="格挡|优先抵消攻击伤害，回合开始清空。">'+b.block+'</span>':'')+'</div>'+(playerTags?'<div class="pp-hpnum">'+playerTags+'</div>':'')+
     '<div class="chips pp-chips">'+buffChips(b.buff)+extraStateChips()+powerChips()+flankChips()+'</div></div></div>'+mechPanel()+'</div>';
   var stageBody=playerPanel+'<div class="enemy-row">'+enemies+'</div>';
-  if(b.flank){
-    var li=b.enemies.findIndex(function(e){return e.uid===b.flank.left;});
-    var ri=b.enemies.findIndex(function(e){return e.uid===b.flank.right;});
+  var flankView=b.flank||b.flankLayout;
+  if(flankView){
+    var li=b.enemies.findIndex(function(e){return e.uid===flankView.left;});
+    var ri=b.enemies.findIndex(function(e){return e.uid===flankView.right;});
     if(li>=0&&ri>=0){
       stageBody='<div class="flank-slot left">'+enemyCards[li]+'</div>'+playerPanel+'<div class="flank-slot right">'+enemyCards[ri]+'</div>';
     }
@@ -10547,7 +10936,7 @@ function battleScreen(){
     '</div><div class="bt-turn">第 '+b.turn+' 回合</div></div>';
   $('screen').innerHTML='<div class="battle'+stanceCls+(act4?' act4':'')+'">'+
     relicBar+
-    '<div class="battle-stage'+(b.flank?' flank-layout':'')+'">'+stageBg+
+    '<div class="battle-stage'+(flankView?' flank-layout':'')+'">'+stageBg+
     '<div class="bt-floor"></div><div class="bt-torch l"></div><div class="bt-torch r"></div>'+
     '<div class="battle-hud"><b>'+ACT_NAMES[E.run.act-1]+'</b> · 第 '+E.run.floor+' 楼 · '+({boss:'首领战',elite:'精英战'}[b.tier]||'普通战斗')+' · 回合 '+b.turn+'</div>'+
     '<div class="stage-tower">'+towerSvg()+'</div><div class="arena"></div><div class="log">'+log+'</div>'+
@@ -10661,7 +11050,7 @@ function cardInfoModal(inst, opts){
   if(d.retain||d.name==='打捞'&&inst.ups>0||d.name==='苦难'&&inst.ups>0) kws.push(['保留','回合结束时不会被弃置，留在手中。']);
   if(d.innate||(d.innateUp&&inst.ups>0)) kws.push(['固有','战斗开始时必定出现在起始手牌中。']);
   if(d.sly) kws.push(['狡诈','被弃置时触发它的额外效果。']);
-  if(inst.ench) kws.push(['附魔 · '+ENCH.label(inst.ench)+(ENCH.idOf&&ENCH.idOf(inst)==='glam'&&(ENCH.st(inst).glamStacks||1)>1?' ×'+ENCH.st(inst).glamStacks:''),ENCH.descOf(inst)||'']);
+  if(inst.ench) kws.push(['附魔 · '+ENCH.labelFor(inst)+(ENCH.idOf&&ENCH.idOf(inst)==='glam'&&(ENCH.st(inst).glamStacks||1)>1?' ×'+ENCH.st(inst).glamStacks:''),ENCH.descOf(inst)||'']);
   var kwHtml=kws.map(function(k){ return '<div><b>'+esc(k[0])+'</b>'+(k[1]?'：'+esc(k[1]):'')+'</div>'; }).join('');
   function pill(t){ return '<span class="ci-pill">'+esc(t)+'</span>'; }
   modal('<h2>卡牌详情 · '+esc(d.name)+'</h2>'+
@@ -10972,6 +11361,7 @@ function opText(o){
     lhp:function(){ return '失去 '+nv+' 生命'; },
     lhpPct:function(){ return '失去 '+nv+'% 生命'; },
     mhp:function(){ return (nv>=0?'生命上限 +':'生命上限 ')+nv; },
+    maxhpDown:function(){ return '生命上限 -'+nv; },
     mhpPct:function(){ return (nv>=0?'生命上限 +':'生命上限 ')+nv+'%'; },
     maxhp:function(){ return '生命上限 '+nv; },
     str:function(){ return '力量 '+nv; }, dex:function(){ return '敏捷 '+nv; },
@@ -11951,7 +12341,7 @@ function onClick(e){
   if(act==='op-confirm'){ E.pickerConfirm(); render(); return; }
   if(act==='cmseal-confirm'){ E.pickerConfirm(); render(); return; }
   if(act==='reward-hp'){ E.takeRewardHp(); if(!rewardPending(E.reward)){ E.skipReward(); } render(); return; }
-  if(act==='reward-card2'){ var rw=E.reward; if(rw&&rw.cards2){ var c=rw.cards2[+t.getAttribute('data-i')]; if(c){ E.run.deck.push(c); E.relicHook('addcard'); rw.cards2=[]; } } if(!rewardPending(E.reward)){ E.skipReward(); } render(); return; }
+  if(act==='reward-card2'){ var rw=E.reward; if(rw&&rw.cards2){ var c=rw.cards2[+t.getAttribute('data-i')]; if(c){ E.run.deck.push(c); E.relicHook('addcard',{card:c}); rw.cards2=[]; } } if(!rewardPending(E.reward)){ E.skipReward(); } render(); return; }
   if(act==='upgrade-back'){ upgPreview=null; render(); return; }
   if(act==='picker-done'){ upgPreview=null; E.closePicker(); render(); return; }
   if(act==='picker-cancel'){ upgPreview=null; E.closePicker(true); render(); return; }
@@ -12012,7 +12402,7 @@ function bind(){
     if(t&&t.classList&&t.classList.contains('hand')) handScrollT=Date.now();
   },true);
 }
-return {render:render,bind:bind,toast:toast,sel:sel,flashRelic:flashRelic,bossAvatar:bossAvatar,monsterAvatar:monsterAvatar,needsTarget:needsTarget,
+return {render:render,bind:bind,toast:toast,sel:sel,flashRelic:flashRelic,bossAvatar:bossAvatar,monsterAvatar:monsterAvatar,needsTarget:needsTarget,cardHTML:cardHTML,
   openStats:function(){ statsOpen=true; render(); },
   closeStats:function(){ statsOpen=false; render(); },
   setStatsView:function(tab,scope){ if(tab) statsTab=tab; if(scope) statsScope=scope; if(statsOpen) render(); }};
@@ -12028,6 +12418,115 @@ if(typeof SPIRE_UI==='undefined'||typeof SPIRE_ENGINE==='undefined') return;
 var E=SPIRE_ENGINE, U=SPIRE_UI;
 var layer=document.createElement('div'); layer.id='fx-layer'; document.body.appendChild(layer);
 var flash=document.createElement('div'); flash.id='fx-flash'; document.body.appendChild(flash);
+var deckFxStyle=document.createElement('style'); deckFxStyle.id='deckfx-style';
+deckFxStyle.textContent=`
+#deckfx{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:none;opacity:0;transition:opacity .2s ease}
+#deckfx.on{opacity:1}
+#deckfx.out{opacity:0;transition:opacity .42s ease}
+#deckfx .dfx-back{position:absolute;inset:0;background:radial-gradient(circle at 50% 48%,rgba(8,10,11,0),rgba(8,10,11,.26) 52%,rgba(4,6,7,.46));opacity:0;transition:opacity .3s ease}
+#deckfx.on .dfx-back{opacity:1}
+#deckfx .dfx-panel{position:relative;width:auto;min-width:min(480px,92vw);max-width:min(780px,94vw);padding:14px 20px 13px;border:1px solid rgba(201,162,39,.48);border-radius:12px;background:linear-gradient(158deg,rgba(26,30,32,.975),rgba(8,11,12,.98));box-shadow:0 26px 80px rgba(0,0,0,.75),0 0 40px rgba(201,162,39,.08),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:dfxPanel .42s cubic-bezier(.18,.9,.2,1.05) both;font-family:var(--font-b)}
+#deckfx .dfx-panel::before{content:"";position:absolute;left:18px;right:18px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(230,201,106,.85),transparent)}
+#deckfx.out .dfx-panel{animation:dfxOut .42s ease forwards}
+#deckfx .dfx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
+#deckfx .dfx-kicker{font-size:9px;line-height:1;letter-spacing:.24em;color:#7c878e;margin-bottom:5px}
+#deckfx .dfx-title{font:700 19px/1.15 var(--font-t);letter-spacing:.1em;color:#f2e7c7}
+#deckfx .dfx-src{max-width:58%;font-size:10.5px;line-height:1.4;color:#d8b95d;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:1px}
+#deckfx .dfx-cards{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin-top:13px;padding-top:8px;min-height:214px;max-width:100%;overflow:visible}
+#deckfx .dfx-cardwrap{--c:#9aa4aa;position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 auto;animation:dfxCard .48s cubic-bezier(.2,.8,.3,1) both}
+#deckfx .dfx-cardwrap.t-add{--c:#6dbb91}
+#deckfx .dfx-cardwrap.t-remove{--c:#c06a62}
+#deckfx .dfx-cardwrap.t-upgrade{--c:#d5b04c}
+#deckfx .dfx-cardwrap.t-enchant{--c:#9a86d8}
+#deckfx .dfx-cardwrap.t-transform{--c:#6ba5c8}
+#deckfx .dfx-cardwrap.t-modify{--c:#b7a98d}
+#deckfx .dfx-cardwrap .card{width:150px;height:206px;cursor:default;transform:none!important;box-shadow:0 14px 34px rgba(0,0,0,.62),inset 0 0 0 1px rgba(255,255,255,.04);border-color:color-mix(in srgb,var(--c) 48%,#3b464f)}
+#deckfx .dfx-cardwrap .card:hover{transform:none!important;box-shadow:0 14px 34px rgba(0,0,0,.62),inset 0 0 0 1px rgba(255,255,255,.04)}
+#deckfx .dfx-cardwrap.t-remove .card{filter:saturate(.42) brightness(.7);opacity:.8}
+#deckfx .dfx-badge{display:flex;align-items:center;gap:5px;max-width:150px;padding:3px 8px 2px;border:1px solid color-mix(in srgb,var(--c) 42%,transparent);border-radius:999px;background:rgba(9,12,14,.9);color:#e8e1d2;font-size:9.5px;line-height:1.25;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+#deckfx .dfx-badge .dfx-ic{color:var(--c);font:700 12px/1 var(--font-t);text-shadow:0 0 8px color-mix(in srgb,var(--c) 45%,transparent)}
+#deckfx .dfx-badge b{color:var(--c);font-weight:700;margin-left:1px}
+#deckfx .dfx-foot{display:flex;justify-content:space-between;gap:12px;margin-top:13px;font-size:9px;letter-spacing:.13em;color:#758189}
+#deckfx .dfx-bar{height:1px;margin-top:9px;background:#293136;overflow:hidden}
+#deckfx .dfx-bar i{display:block;height:100%;transform-origin:left;background:linear-gradient(90deg,#6f5c25,#e6c96a,#6f5c25);animation:dfxBar 1.45s .08s cubic-bezier(.2,.8,.2,1) both}
+@keyframes dfxPanel{0%{opacity:0;transform:translateY(14px) scale(.9);filter:blur(2px)}100%{opacity:1;transform:none;filter:none}}
+@keyframes dfxCard{0%{opacity:0;transform:translateY(16px) scale(.9)}100%{opacity:1;transform:none}}
+@keyframes dfxOut{to{opacity:0;transform:translateY(-8px) scale(.97)}}
+@keyframes dfxBar{0%{transform:scaleX(0);opacity:.2}100%{transform:scaleX(1);opacity:1}}
+@media (max-width:760px){#deckfx .dfx-panel{padding:13px 14px 12px;border-radius:10px;min-width:min(430px,94vw);max-width:min(720px,94vw)}#deckfx .dfx-title{font-size:16px}#deckfx .dfx-cards{gap:8px;min-height:196px}#deckfx .dfx-cardwrap .card{width:140px;height:196px}#deckfx .dfx-badge{max-width:140px;font-size:9px;padding:2px 6px 2px}}
+@media (max-width:520px){#deckfx .dfx-cards{gap:6px;min-height:182px}#deckfx .dfx-cardwrap .card{width:130px;height:182px;padding:7px}#deckfx .dfx-cardwrap .card .cname{font-size:10px;min-height:26px}#deckfx .dfx-cardwrap .card .ctype{font-size:7.5px;padding:1px 0}#deckfx .dfx-cardwrap .card .ctext{font-size:9px;line-height:1.45;margin-top:4px}#deckfx .dfx-cardwrap .card .cost{width:23px;height:23px;font-size:11.5px}#deckfx .dfx-badge{max-width:130px;font-size:8.5px;padding:2px 5px 1px}#deckfx .dfx-badge .dfx-ic{font-size:10px}}
+@media (prefers-reduced-motion:reduce){#deckfx .dfx-panel,#deckfx .dfx-cardwrap,#deckfx .dfx-bar i{animation-duration:.01s!important;animation-delay:0s!important}}
+`;
+document.head.appendChild(deckFxStyle);
+
+function deckFxEsc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function deckAnimFx(src,changes,opts){
+  if(!changes||!changes.length) return;
+  opts=opts||{};
+  var isGain=opts.kind==='gain';
+  var isHand=opts.target==='hand';
+  var title=isGain?'获得卡牌':'牌组变动';
+  var kicker=isGain?'CARD GAIN':'DECK UPDATE';
+  var old=document.getElementById('deckfx'); if(old) old.remove();
+  var groups={}, order=[];
+  changes.forEach(function(c){
+    var key=[c.t,c.name||'',c.from||'',c.to||'',c.label||''].join('|');
+    if(!groups[key]){ groups[key]={t:c.t,name:c.name,from:c.from,to:c.to,label:c.label,card:c.card||c.toCard||c.fromCard,oldCard:c.oldCard||c.fromCard,n:0}; order.push(key); }
+    groups[key].n++;
+  });
+  var maxShow=window.innerWidth<430?2:(window.innerWidth<760?3:4);
+  // 每张实际变化的牌都展示完整牌面；只有超出展示上限时才合并计数。
+  var display=[], shown=0;
+  order.forEach(function(k){
+    var g=groups[k], take=Math.min(g.n,maxShow-shown);
+    for(var j=0;j<take;j++){
+      display.push({t:g.t,name:g.name,from:g.from,to:g.to,label:g.label,card:g.card,oldCard:g.oldCard,nTotal:g.n,nShow:take,copy:j});
+    }
+    shown+=take;
+  });
+  var rest=changes.length-shown;
+  function badge(c){
+    var ic='✎', label='';
+    if(c.t==='add'){ ic='+'; label=isHand?'加入手牌':'加入牌组'; }
+    else if(c.t==='remove'){ ic='−'; label='移出牌组'; }
+    else if(c.t==='upgrade'){ ic='↑'; label='升级'; }
+    else if(c.t==='enchant'){ ic='✦'; label=c.label||'附魔'; }
+    else if(c.t==='transform'){ ic='⇄'; label=(c.from||'?')+' → '+(c.to||'?'); }
+    else { ic='✎'; label=c.label||'调整'; }
+    var cnt=(c.nTotal>1 && c.nTotal>c.nShow && c.copy===0)?'<b>×'+c.nTotal+'</b>':'';
+    return '<div class="dfx-badge"><span class="dfx-ic">'+ic+'</span><span>'+deckFxEsc(label)+'</span>'+cnt+'</div>';
+  }
+  function cardFace(c,idx){
+    var inst=c.card||c.oldCard;
+    if(!inst) return '';
+    var html=(U.cardHTML?U.cardHTML(inst,{reward:true}):'');
+    if(!html) return '';
+    return '<div class="dfx-cardwrap t-'+(c.t||'modify')+'" style="animation-delay:'+(idx*65)+'ms">'+
+      badge(c)+'<div class="dfx-cardface">'+html+'</div></div>';
+  }
+  // 完整牌面：不再用文字 chip；每张变化直接展示卡牌本体。
+  var faces=display.map(cardFace).join('');
+  if(!faces) return;
+  var root=document.createElement('div'); root.id='deckfx';
+  root.innerHTML='<div class="dfx-back"></div><div class="dfx-panel">'+
+    '<div class="dfx-head"><div><div class="dfx-kicker">'+kicker+'</div><div class="dfx-title">'+title+'</div></div>'+
+    '<div class="dfx-src">'+deckFxEsc(src||'牌组')+'</div></div>'+
+    '<div class="dfx-cards">'+faces+'</div>'+
+    '<div class="dfx-foot"><span>'+changes.length+' 张牌'+(isGain?'获得':'变化')+'</span><span>'+(rest?'另有 '+rest+' 项已更新':(isHand?'已加入手牌':'已写入牌组'))+'</span></div>'+
+    '<div class="dfx-bar"><i></i></div></div>';
+  document.body.appendChild(root);
+  requestAnimationFrame(function(){ root.classList.add('on'); });
+  setTimeout(function(){
+    if(!root.parentNode) return;
+    root.classList.add('out');
+    setTimeout(function(){ if(root.parentNode) root.remove(); },480);
+  },1900);
+}
+U.deckAnim=deckAnimFx;
 var deadSeen={}, lastPT=null, lastTurn=null;
 
 function q(sel){ return document.querySelector(sel); }
