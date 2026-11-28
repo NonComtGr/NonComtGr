@@ -110,14 +110,19 @@ canvas { touch-action: none; }
                 flex: 1 1 0;
                 min-height: 0;                 /* ★ 核心修复 */
                 min-width: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                /* 两张画布用 grid 叠在同一格里：都在文档流里（容器不会被撑塌），又天然上下重叠 */
+                display: grid;
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr;
+                place-items: center;
                 overflow: hidden;
             }
-            .canvas-wrap > #gameCanvas {
-                width: auto;
-                height: auto;
+            .canvas-wrap > canvas {
+                /* 显示尺寸由 JS 按可用区域等比计算（fitCanvasDisplay / applyPixelPerfect），
+                   保证 1 CSS 像素 = 定值，鼠标坐标换算才准确，也方便全屏时铺满 */
+                grid-area: 1 / 1;
+                width: 1280px;
+                height: 800px;
                 max-width: 100%;
                 max-height: 100%;
                 border-radius: 0;
@@ -125,6 +130,8 @@ canvas { touch-action: none; }
                 cursor: default;
                 touch-action: none;
             }
+            .canvas-wrap > #staticCanvas { z-index: 0; pointer-events: none; }
+            .canvas-wrap > #gameCanvas { z-index: 1; }
 
             .save-bar {
                 flex: 0 0 auto;
@@ -241,6 +248,68 @@ canvas { touch-action: none; }
             .ai-log { max-height:22vh; }
         }
 
+    /* ===== 显示设置（分辨率 / 全屏）悬浮入口 ===== */
+    #dispFab {
+        position: fixed; left: 10px; top: 50%; transform: translateY(-50%); z-index: 60;
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 1px solid #2b4a63; background: rgba(12,22,34,.88); color: #8ed4ff;
+        font-size: 18px; line-height: 1; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 14px rgba(0,0,0,.45);
+    }
+    #dispFab:hover { background: #163247; color: #cfe8ff; }
+    .disp-panel {
+        position: fixed; left: 64px; top: 50%; transform: translateY(-50%); z-index: 61;
+        width: 300px; padding: 12px 14px 14px;
+        background: rgba(9,17,27,.97); border: 1px solid #2b4a63; border-radius: 12px;
+        color: #cfe8ff; font-size: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+    }
+    .disp-panel.hidden { display: none; }
+    .disp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+    .disp-head button { background: none; border: 0; color: #7fa6c4; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+    .disp-head button:hover { color: #cfe8ff; }
+    .disp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .disp-row button {
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        padding: 7px 4px; border-radius: 8px; cursor: pointer;
+        border: 1px solid #26455c; background: #0d1a26; color: #bcd8ee; font-size: 12px;
+    }
+    .disp-row button small { color: #6d90a8; font-size: 10px; }
+    .disp-row button.active {
+        border-color: #4aa3e0; background: #12314a; color: #e6f4ff;
+        box-shadow: inset 0 0 0 1px rgba(74,163,224,.35);
+    }
+    .disp-info { margin: 10px 0 6px; color: #8fb6d0; font-size: 11px; text-align: center; }
+    .disp-tip { color: #6d90a8; font-size: 11px; line-height: 1.5; margin-bottom: 10px; }
+    .disp-full {
+        width: 100%; padding: 8px; border-radius: 8px; cursor: pointer;
+        border: 1px solid #26455c; background: #0d1a26; color: #bcd8ee; font-size: 12px;
+    }
+    /* 桌面（非触屏）也要两张画布叠在一起：补一份不依赖媒体查询的规则，
+       否则它们会按普通块级元素上下各占一行 */
+    .canvas-wrap {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        place-items: center;
+        max-width: 100%;
+        max-height: 100%;
+        overflow: hidden;
+    }
+    .canvas-wrap > canvas {
+        grid-area: 1 / 1;
+        width: 1280px;
+        height: 800px;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        cursor: default;
+        touch-action: none;
+        background: transparent;   /* 关键：上层画布必须透明，否则它的元素底色会把下层静态层整个盖住 */
+    }
+    .canvas-wrap > #staticCanvas { z-index: 0; pointer-events: none; background: #05080f; }
+    .canvas-wrap > #gameCanvas { z-index: 1; }
     </style>
 </head>
 <body>
@@ -253,6 +322,8 @@ canvas { touch-action: none; }
 <div class="game-wrapper">
     <h1 id="gameTitle" class="hidden">⚡ 防御阵型 · 觉醒 ⚡</h1>
                 <div class="canvas-wrap">
+                <!-- 静态层：背景 + 底板 + 路线发光带，只在进图/平移/改分辨率时画一次，之后由合成器复用 -->
+                <canvas id="staticCanvas" width="1480" height="1000"></canvas>
                 <canvas id="gameCanvas" width="1480" height="1000"></canvas>
             </div>
         <div class="save-bar">
@@ -306,10 +377,243 @@ canvas { touch-action: none; }
     </label>
 </div>
 <div id="towerTip" class="tower-tip hidden"></div>
+<button type="button" id="dispFab" title="显示设置（分辨率 / 全屏）">⛶</button>
+<div id="dispPanel" class="disp-panel hidden" role="dialog" aria-label="显示设置">
+    <div class="disp-head"><strong>显示 / 画质</strong><button type="button" id="dispClose" title="关闭">×</button></div>
+    <div class="disp-row">
+        <button type="button" data-res="saving">流畅<small>0.6×</small></button>
+        <button type="button" data-res="normal">标准<small>1.0×</small></button>
+        <button type="button" data-res="sharp">清晰<small>1.3×</small></button>
+        <button type="button" data-res="auto">像素对齐<small>1:1</small></button>
+    </div>
+    <div class="disp-info" id="dispInfo">—</div>
+    <div class="disp-tip">档位只改渲染像素数，不改游戏画面布局：数值越小越省显卡、画面越软，掉帧时先降这一档。</div>
+    <button type="button" class="disp-full" id="dispFullscreen">进入全屏</button>
+</div>
 <script>
     (function() {
         const canvas = document.getElementById('gameCanvas');
+        // ===== 逻辑分辨率与实际渲染分辨率解耦 =====
+        // 所有绘制代码都在 1480×1000 这个"设计空间"里算坐标（VW/VH），地图格子、图层缓存因此永不重排。
+        // 真正的画布位图 = 设计尺寸 × renderScale，由 ctx.setTransform 一次性放大/缩小，
+        // 于是"画质档位"只是改位图像素数，游戏逻辑与布局完全不受影响。
+        const VW = 1480, VH = 1000;
+        let renderScale = 1;
+        // 静态层（背景 / 地板 / 岩壁 / 网格 / 路线发光带）：只在进图、平移、改分辨率时绘制。
+        // 上层只画会动的东西并保持透明，静态那 148 万像素因此永远不再被重写。
+        const staticCanvas = document.getElementById('staticCanvas');
+        const sctx = staticCanvas ? staticCanvas.getContext('2d', { alpha: false }) : null;
+        let _staticDirty = true, _lastMapOffX = null, _lastMapOffY = null, _lastPreview = null, _lastRouteOverlay = null;
+        // 上层画布必须透明：它叠在静态层之上，只负责动态内容
         const ctx = canvas.getContext('2d');
+        // 掉帧降档时把「全场景模糊」一次性掐掉：ctx.shadowBlur 的每次赋值都会被拦下改成 0。
+        // 屏幕 150% 缩放时画布要铺满 333 万物理像素，而每一处 shadowBlur 都是一次独立的离屏高斯模糊
+        //（敌人、塔、基地、炮弹、HUD 文本加起来每帧几十次），是整帧里最贵的一类绘制。
+        let _noBlur = false;
+        let _noBlurSticky = false;   // 本局一旦因为掉帧关掉模糊，就不再恢复（避免档位在阈值边缘来回跳，塔的发光忽明忽暗）
+        try {
+            const _sbDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), 'shadowBlur');
+            if (_sbDesc && _sbDesc.get && _sbDesc.set) {
+                Object.defineProperty(ctx, 'shadowBlur', {
+                    configurable: true,
+                    get() { return _sbDesc.get.call(ctx); },
+                    set(v) { _sbDesc.set.call(ctx, _noBlur ? 0 : v); }
+                });
+            }
+        } catch (e) { /* 某些平台不让改就保持原样，不影响游戏 */ }
+
+        // ===== 显示设置：渲染分辨率档位 + 全屏 =====
+        const RES_PRESETS = [
+            { key: 'saving', label: '流畅', scale: 0.6 },
+            { key: 'normal', label: '标准', scale: 1.0 },
+            { key: 'sharp',  label: '清晰', scale: 1.3 },
+            { key: 'auto',   label: '像素对齐', scale: 0 }
+        ];
+        let resMode = 'auto';
+        let drScale = 1;               // 动态分辨率乘数：帧率撑不住时自动把位图缩小（显示尺寸不变），先保帧率
+        let _drBad = 0, _drGood = 0;
+        const MAX_BACKING = 4096;      // 单边上限，防止 4K + 高 dpr 超出浏览器/显卡位图限制
+
+        // 把「后备位图像素」与「屏幕上实际显示的物理像素」对齐成 1:1：
+        // 先按可用区域等比算出显示尺寸 → × devicePixelRatio 得到位图尺寸 → 再把 CSS 尺寸钉成 位图/dpr。
+        // 这样浏览器完全不做放大或缩小采样，1 个画布像素正好落在 1 个物理像素上，画面最锐利。
+        // drScale < 1 时位图主动缩小（画面会软一点），这是保证全程不掉帧的兜底手段。
+        function applyPixelPerfect() {
+            const wrap = canvas.parentElement;
+            if (!wrap) return;
+            const dpr = window.devicePixelRatio || 1;
+            const cw = wrap.clientWidth, ch = wrap.clientHeight;
+            if (cw <= 0 || ch <= 0) return;
+            let cssW = Math.round(cw), cssH = Math.round(cw * VH / VW);   // 先按 1480:1000 等比 contain
+            if (cssH > ch) { cssH = Math.round(ch); cssW = Math.round(ch * VW / VH); }
+            let bw = Math.round(cssW * dpr * drScale);
+            if (bw > MAX_BACKING) bw = MAX_BACKING;    // 极端高 dpr 时退让，此时会有一点缩放
+            const bh = Math.round(bw * VH / VW);
+            const s = bw / VW;                         // 有效倍率（1 表示设计空间的原生像素）
+            renderScale = s;
+            if (canvas.width !== bw || canvas.height !== bh) {
+                canvas.width = bw;
+                canvas.height = bh;
+            }
+            canvas.style.width = cssW + 'px';          // 显示尺寸恒定，drScale 只改位图 → 掉帧时自动变软而不变形
+            canvas.style.height = cssH + 'px';
+            ctx.setTransform(s, 0, 0, s, 0, 0);
+            syncStaticCanvasSize();
+            _staticDirty = true;       // 位图尺寸/显示尺寸变了，静态层要按新尺寸重画
+            syncDisplayPanel();
+        }
+
+        function syncStaticCanvasSize() {
+            if (!staticCanvas) return false;
+            let changed = false;
+            if (staticCanvas.width !== canvas.width || staticCanvas.height !== canvas.height) {
+                staticCanvas.width = canvas.width;      // 设置尺寸会清空画布，所以算"变了"
+                staticCanvas.height = canvas.height;
+                changed = true;
+            }
+            staticCanvas.style.width = canvas.style.width;
+            staticCanvas.style.height = canvas.style.height;
+            return changed;
+        }
+
+        // 只画不动的部分：背景渐变 + 烘焙好的地板层 + 烘好的路线发光带。
+        // 这是"整屏重写"被消掉的关键——它一局只跑几次，而不是每帧一次。
+        let _sbgGrad = null;
+        function redrawStaticLayer(skipRoute) {
+            if (!sctx) return;
+            syncStaticCanvasSize();
+            const s = renderScale;
+            sctx.setTransform(s, 0, 0, s, 0, 0);
+            if (!_sbgGrad) {
+                _sbgGrad = sctx.createLinearGradient(0, 0, 0, VH);
+                _sbgGrad.addColorStop(0, '#04070e');
+                _sbgGrad.addColorStop(0.5, '#060a14');
+                _sbgGrad.addColorStop(1, '#03060c');
+            }
+            sctx.fillStyle = _sbgGrad;
+            sctx.fillRect(0, 0, VW, VH);
+            if (bgCanvas) sctx.drawImage(bgCanvas, mapOffX, mapOffY);
+            if (!skipRoute && showRouteOverlay && routeCanvas) {
+                sctx.drawImage(routeCanvas, mapOffX, mapOffY, COLS * CELL, ROWS * CELL);
+            }
+        }
+
+        // 静态层只在「位置 / 尺寸 / 静态内容 / 路线开关 / 建造预览状态」真的变化时重画
+        function ensureStaticLayer(previewChanged) {
+            if (mapOffX !== _lastMapOffX || mapOffY !== _lastMapOffY) {
+                _lastMapOffX = mapOffX; _lastMapOffY = mapOffY;
+                _staticDirty = true;
+            }
+            if (showRouteOverlay !== _lastRouteOverlay) {
+                _lastRouteOverlay = showRouteOverlay;
+                _staticDirty = true;
+            }
+            if (previewChanged !== _lastPreview) {
+                _lastPreview = previewChanged;
+                _staticDirty = true;
+            }
+            if (!_staticDirty) return;
+            _staticDirty = false;
+            redrawStaticLayer(!!previewChanged);
+        }
+
+        function fitCanvasDisplay() {
+            const wrap = canvas.parentElement;
+            if (!wrap) return;
+            const cw = wrap.clientWidth, ch = wrap.clientHeight;
+            if (cw <= 0 || ch <= 0) return;
+            let w = cw, h = cw * VH / VW;
+            if (h > ch) { h = ch; w = ch * VW / VH; }
+            canvas.style.width = Math.floor(w) + 'px';
+            canvas.style.height = Math.floor(h) + 'px';
+        }
+
+        function syncDisplayPanel() {
+            const info = document.getElementById('dispInfo');
+            if (info) {
+                const bw = canvas.width, bh = canvas.height;
+                info.textContent = bw + '×' + bh
+                    + ' · ' + Math.round(bw * bh / 10000) + ' 万像素'
+                    + ' · ×' + (bw / VW).toFixed(2)
+                    + (resMode === 'auto' ? (drScale >= 0.99 ? ' · 1:1 像素' : ' · 自适应 ×' + drScale.toFixed(2)) : '');
+            }
+            const btns = document.querySelectorAll('#dispPanel [data-res]');
+            for (let i = 0; i < btns.length; i++) {
+                btns[i].classList.toggle('active', btns[i].getAttribute('data-res') === resMode);
+            }
+            const fsBtn = document.getElementById('dispFullscreen');
+            if (fsBtn) fsBtn.textContent = document.fullscreenElement ? '退出全屏（Esc）' : '进入全屏';
+        }
+
+        // 只改位图尺寸，不动任何布局：绘制坐标仍是 1480×1000
+        function applyRenderScale(rawScale) {
+            renderScale = Math.round(Math.max(0.5, Math.min(2, rawScale)) * 100) / 100;
+            const w = Math.round(VW * renderScale), h = Math.round(VH * renderScale);
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+            ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+            syncStaticCanvasSize();
+            _staticDirty = true;       // 位图尺寸/显示尺寸变了，静态层要按新尺寸重画
+            syncDisplayPanel();
+        }
+
+        function refreshDisplay() {
+            if (resMode === 'auto') applyPixelPerfect();
+            else fitCanvasDisplay();
+            syncDisplayPanel();
+        }
+
+        function setResMode(key, persist) {
+            if (!RES_PRESETS.some(p => p.key === key)) key = 'auto';
+            resMode = key;
+            if (key === 'auto') {
+                applyPixelPerfect();
+            } else {
+                const preset = RES_PRESETS.find(p => p.key === key);
+                fitCanvasDisplay();
+                applyRenderScale(preset.scale);
+            }
+            if (persist !== false) { try { localStorage.setItem('df_resMode', key); } catch (e) {} }
+            syncDisplayPanel();
+        }
+
+        (function initDisplayPanel() {
+            const fab = document.getElementById('dispFab');
+            const panel = document.getElementById('dispPanel');
+            if (fab && panel) {
+                fab.addEventListener('click', () => {
+                    const opening = panel.classList.contains('hidden');
+                    panel.classList.toggle('hidden');
+                    if (opening) refreshDisplay();
+                });
+            }
+            const closeBtn = document.getElementById('dispClose');
+            if (closeBtn && panel) closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
+            if (panel) {
+                panel.addEventListener('click', (e) => {
+                    const resBtn = e.target.closest('[data-res]');
+                    if (resBtn) { setResMode(resBtn.getAttribute('data-res')); return; }
+                    if (e.target.closest('#dispFullscreen')) {
+                        const root = document.documentElement;
+                        if (!document.fullscreenElement) {
+                            if (root.requestFullscreen) root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+                        } else if (document.exitFullscreen) {
+                            document.exitFullscreen().catch(() => {});
+                        }
+                    }
+                });
+            }
+            document.addEventListener('fullscreenchange', () => {
+                setTimeout(refreshDisplay, 60);
+            });
+            window.addEventListener('resize', refreshDisplay);
+
+            let saved = null;
+            try { saved = localStorage.getItem('df_resMode'); } catch (e) {}
+            setResMode(saved && RES_PRESETS.some(p => p.key === saved) ? saved : 'auto', false);
+        })();
         const moneyDisplay = document.getElementById('moneyDisplay');
         const coreDisplay = document.getElementById('coreDisplay');
         const waveDisplay = document.getElementById('waveDisplay');
@@ -1324,6 +1628,7 @@ function makeDraftRng(seed, waveNo, kind, seq) {
             rebuildPaths();
             rebuildActiveBaseField();
             rebuildBackground();
+            buildRouteLayer(COLS * CELL, ROWS * CELL);
             updateUI();
             updateTimeDisplay();
             setScreen('game');
@@ -1637,39 +1942,6 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         "#####################"
     ]
 },
-            {
-    name: '地下禁地', startMoney: 1500,
-    cols: 32, rows: 27,
-    map: [
-        "################################",
-        "############oo#####oo###########",
-        "#########S..o...C...o..S########",
-        "############o.#####.o###########",
-        "############oo#####oo###########",
-        "###########oooooooooo###########",
-        "###X##XXooooooooXoXXoooooooXX###",
-        "###X##oooXoXoXXoXooXooXoooooo###",
-        "###ooooXooXooooooooooo##oXXXo###",
-        "###ooXooooooooooXoXoXo##oXooo###",
-        "###XoXoXXooooXXoXooooooXoooXo###",
-        "###ooooooooXoXXoooXooXooooooo###",
-        "###ooo##XXoXooooXoooo##oooXoX###",
-        "###XoX##XXooo##ooXoXo##XoooXo###",
-        "###oooXooXoXo##oooooooooooooo###",
-        "###ooooooooXoXXXooXooXooXoooo###",
-        "###XooXooooXoXXXoooXooooooooX###",
-        "###ooXoooXoooXXXooooXooXooXoX###",
-        "###oooooXXooooooooXooooooXooo###",
-        "###XooXoXXoooXooooooooXoooooo###",
-        "###oooXooooXoooo##oooooXooXoo###",
-        "###ooXXoooXXooXo##oo##ooXoooX###",
-        "###XoooooooXoXoooXoX##ooooooX###",
-        "###oooXooooooXoXooooooXoooooo###",
-        "#E.ooXooooXXoooooXoooooooXooo.S#",
-        "###ooooXooooXXooooXXooooXXooo###",
-        "################################"
-    ]
-},
     {
     name: '地下电站', startMoney: 450, 
     cols: 15, rows: 13,
@@ -1706,39 +1978,6 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         "#.ooX.X#XXo#XXo..#Xo#",
         "#o.C#o.o.o.o.o.o..oo#",
         "#####################"
-    ]
-},
-            {
-    name: 'Out of Control', startMoney: 1500,
-    cols: 26, rows: 27,
-    map: [
-        "##########################",
-        "#########.o.o.############",
-        "#########..o..############",
-        "########..###..###########",
-        "########..XXX..###########",
-        "####.....##X#..###########",
-        "####......o....###########",
-        "#####ooo..oooo.ooooo######",
-        "#####ooo.#####ooooo.o.####",
-        "####ooo.#ooooo#ooooooo####",
-        "###ooo.#oo###oo###.#ooo###",
-        "##ooo.#oooooooooo#.#oo.o##",
-        "#oooo#ooooo#ooooo#.##oooo#",
-        "#oooo#oooo###oooo#.###ooo#",
-        "#.####ooo#...#ooooo###ooo#",
-        "#.####ooo#.C..ooooo###oo.#",
-        "#.....ooo#...#oooo....ooo#",
-        "#.############ooooo###ooo#",
-        "#o######.o..o########o..X#",
-        "#ooo....oooX..........oX##",
-        "#ooo####.o.ooo..#####ooX##",
-        "#.o.....o..o..o######XX###",
-        "#########.###.############",
-        "#########.#X#.############",
-        "#########.#X#.############",
-        "#########S###E############",
-        "##########################"
     ]
 },
     {
@@ -2115,6 +2354,170 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         ]
     },
     {
+    name: 'Suffering Succotash', startMoney: 1500,
+    cols: 32, rows: 33,
+    map: [
+        "################################",
+        "#####oooooooooo#################",
+        "#####ooooo#oo#oooo##############",
+        "#####oooooooooo#ooooooooo#######",
+        "#####ooooo###oooo#ooooo#o..#####",
+        "###..ooooo..###oooo#ooooo#.#####",
+        "###.#######.###.#oooo#o###.#####",
+        "###.#....##.###.###oooo#oo.#####",
+        "###.#.##.##.###.#####.##ooo#####",
+        "###...##ooooo##.#####.##oooo####",
+        "#####.##oo#oo...#####.###oooo###",
+        "#####.##ooooo########.####oooo##",
+        "#####.####ooo########.#####oooo#",
+        "#####.######.###.....+....##ooo#",
+        "#####.######.###.####.#X#.##ooo#",
+        "#####.######.###.####.#X#.##ooo#",
+        "#####.#XX#S#.###.####.#X#.##ooo#",
+        "#####.#XX#.#.###.####.###.##ooo#",
+        "#####.#XX#.#....+....o#X#.##ooo#",
+        "#####.#XX#.#####.####.###.##ooo#",
+        "#####.####.#####.####.#X#.##ooo#",
+        "#####...o...C###.####.#X#.##ooo#",
+        "############.###.####.#X#.##ooo#",
+        "##ooooooooooo###.####.....##ooo#",
+        "##ooooooooooo###.####.#####oooo#",
+        "##ooooooooooo###E####.####oooo##",
+        "##ooooooooooo########.###oooo###",
+        "##ooooooooooo.........#ooooo####",
+        "#Sooooooooooo##########oooo#####",
+        "##ooooooooooo#########oooo######",
+        "##ooooooooooo.........ooo#######",
+        "######################ooo#######",
+        "################################"
+    ]
+},
+{
+    name: 'Green X - razcle', startMoney: 1500,
+    cols: 49, rows: 37,
+    map: [
+        "#################################################",
+        "######################.......####################",
+        "###########...ooooooo..XXXXX..ooooooo...#########",
+        "##########..###oooooo.XXXXXXX.oooooo###..########",
+        "#########..##...ooXoo.ooooooo.ooXoo...##..#######",
+        "#########.##..###ooooooooooooooooo###..##.#######",
+        "#########.#..##...ooooooooooooooo...##..#.#######",
+        "#########o#.##..###ooooXoooXoooo###..##.#o#######",
+        "#########oo.#..####.ooooooooooo.####..#.oo...####",
+        "#########ooo#.#####.#ooooXoooo#.#####.#ooo##o####",
+        "#########oooo.####..#.ooooooo.#..####.oooo##.####",
+        "#########ooXoo###..##.#ooooo#.##..###ooXoo##.####",
+        "#####....oooooo...##..#.ooo.#..##...oooooo.....S#",
+        "#####.###ooooooo###..##.#o#.##..###ooooooo##o####",
+        "#####.###...ooooo...##..#.#..##...ooooo...##.####",
+        "#####.##..Xooooooo###..##.##..###oooooooX..#.####",
+        "####ooo#.XXoooXoooo...#o...o#...ooooXoooXX.#.####",
+        "####ooo#.XXooooooooo###.....###oooooooooXX.#.####",
+        "#E.oooo#.XXoooooXoooo....C....ooooXoooooXX.#o####",
+        "####ooo#.XXooooooooo###.....###oooooooooXX.#.####",
+        "####ooo#.XXoooXoooo...#o...o#...ooooXoooXX.#.####",
+        "#####.##..Xooooooo###..##.##..###oooooooX..#.####",
+        "#####.###...ooooo...##..#.#..##...ooooo...##.####",
+        "#####.###ooooooo###..##.#o#.##..###ooooooo##o####",
+        "#####....oooooo...##..#.ooo.#..##...oooooo.....S#",
+        "#########ooXoo###..##.#ooooo#.##..###ooXoo##.####",
+        "#########oooo.####..#.ooooooo.#..####.oooo##.####",
+        "#########ooo#.#####.#ooooXoooo#.#####.#ooo##o####",
+        "#########oo.#..####.ooooooooooo.####..#.oo...####",
+        "#########o#.##..###ooooXoooXoooo###..##.#o#######",
+        "#########.#..##...ooooooooooooooo...##..#.#######",
+        "#########.##..###ooooooooooooooooo###..##.#######",
+        "#########..##...ooXoo.ooooooo.ooXoo...##..#######",
+        "##########..###oooooo.XXXXXXX.oooooo###.#########",
+        "###########...ooooooo..XXXXX..ooooooo...#########",
+        "######################.......####################",
+        "#################################################"
+    ]
+},
+{
+    name: 'A Moment In Time - originalglenn', startMoney: 1500,
+    cols: 19, rows: 35,
+    map: [
+        "###################",
+        "##########C########",
+        "##########.########",
+        "##########.########",
+        "##########.########",
+        "#####ooooooooooooo#",
+        "#####ooooooooooooo#",
+        "#....ooooooooooooo#",
+        "#.#####ooooooo#.###",
+        "#.###..ooooooo#.###",
+        "#.###.##.###.##.###",
+        "#.###.##.###.##.###",
+        "#.###.##ooooo##.###",
+        "#.###.##ooooo##.###",
+        "#.###.##ooooo##.###",
+        "#.###.##ooooo##.###",
+        "#.###.#..#.#.##.###",
+        "#.###.#.##.#.##.###",
+        "#ooooo#.##.#.##.###",
+        "#ooooo#.##.#.##.###",
+        "#ooooo#.##.#.##.###",
+        "#.##.##.##.#.##.###",
+        "#.##.#..##.#oooo###",
+        "#.##.#.###.#oooo###",
+        "#.##.#.###.#oooo###",
+        "#.##.#ooooo#.##.###",
+        "#.##.#ooooo#.##.###",
+        "#.##.#ooooo#.##.###",
+        "#ooooooooooooooo###",
+        "#ooooooooooooooo###",
+        "#ooooooooooooooo###",
+        "########.##########",
+        "########.##########",
+        "########S##########",
+        "###################"
+    ]
+},
+{
+    name: 'A Burr in Your Boxers - razcle', startMoney: 1500,
+    cols: 31, rows: 35,
+    map: [
+        "###############################",
+        "########XX#S###E###S#XX########",
+        "#######XX#ooooooooooo#XX#######",
+        "######XX##ooooooooooo##XX######",
+        "##########ooooooooooo##########",
+        "##########ooooooooooo##########",
+        "##########ooooooooooo##########",
+        "########ooooooooooooooo########",
+        "########oooo#######oooo########",
+        "########ooooooooooooooo########",
+        "########ooooooooooooooo########",
+        "###############.###############",
+        "######o.......ooo.......o######",
+        "######.#X######o######X#.######",
+        "######.Xo.....ooo.....oX.######",
+        "######.#.#X####o####X#.#.######",
+        "######.#.Xo...ooo...oX.#.######",
+        "######.#.#.#X##o##X#.#.#.######",
+        "####S#.#.#.Xo.ooo.oX.#.#.#S####",
+        "###ooo.#.#.#.##.##.#.#.#.ooo###",
+        "###oooo#o#o#o##.##o#o#o#oooo###",
+        "##ooooooooooo..C..ooooooooooo##",
+        "##ooooo#o#o#o##.##o#o#o#ooooo##",
+        "#ooooo.#.#.#.##.##.#.#.#.ooooo#",
+        "#oooo#.#.#.Xo.ooo.oX.#.#.#oooo#",
+        "#oooo#.#.#.#X##o##X#.#.#.#oooo#",
+        "######.#.Xo...ooo...oX.#.######",
+        "######.#.#X####o####X#.#.######",
+        "######.Xo.....ooo.....oX.######",
+        "######.#X######o######X#.######",
+        "######o.......ooo.......o######",
+        "###############################",
+        "#############XX#XX#############",
+        "############X#####X############",
+        "###############################"
+    ]
+},
+    {
     name: '寒冰裂谷', startMoney: 1500,
     cols: 29, rows: 25,
     map: [
@@ -2445,6 +2848,119 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         "#......o......#oooooo#",
         "#......o......#o..o.o#",
         "######################"
+    ]
+},
+{
+    name: 'Waterfall - Shark@tak', startMoney: 1500,
+    cols: 33, rows: 20,
+    map: [
+        "#################################",
+        "############....oooooSoo#########",
+        "####oSoooo##.###oooooooo#########",
+        "####ooooo....###o#oooo#o#########",
+        "####oooooo######oooooooo#########",
+        "#X#.oooooo##C##########.#########",
+        "###.#####o#X.X#ooooooooo#########",
+        "###..o..####.##.###.##oo#########",
+        "###o###.#o#X.X#o###o###o.o....###",
+        "###.###o#ooo.oo.ooo.o.o.o.o.#.###",
+        "#...o.o.ooo###oo###o###o###o#.#X#",
+        "#.###.###oo###oo###.###o###.#.#X#",
+        "#.X##.#X#o....o..o..o.o.o..o#.#X#",
+        "#.XX#.#######################.###",
+        "#....+........................###",
+        "#####.###########################",
+        "#####.#XXX#######XXX#####XXX#####",
+        "#####.###########################",
+        "#####E###########################",
+        "#################################"
+    ]
+},
+{
+    name: 'Zone - originalglenn', startMoney: 1500,
+    cols: 45, rows: 47,
+    map: [
+        "#############################################",
+        "#.................................###########",
+        "#.###############################.###########",
+        "#.################ooo############.###########",
+        "#.################ooo#####oooooo#.###########",
+        "#.################ooo.....oooooo#.###########",
+        "#........C........ooo######ooooo#.###########",
+        "##################ooo#######oooo#.###########",
+        "##################oooo#######oo.#.###########",
+        "##################oooo#######.#.#.###########",
+        "##################.##.#######.#.#.###########",
+        "##################.##.#######.#.#.###########",
+        "##################.##.#######.#.#.###########",
+        "###############ooooooo####oooo#.#.###########",
+        "##oooooo.......ooooooo....oooo#.#.###########",
+        "##oooooo#######ooooooo####oooo..#.###########",
+        "##oooooo##########.#######oooo###.###########",
+        "##oooooo..................oooo###.###########",
+        "####.##.####################.####.###########",
+        "####.##.####################.####.###########",
+        "####.##.####################.####.###########",
+        "####oooo####################.####.##oooooooo#",
+        "####oooo####################oooo.+..oooooooo#",
+        "####oooo####################oooo#.##oooooooo#",
+        "####oooo....................oooo#.##oooooooo#",
+        "####oooo####################oooo#.###.#.#####",
+        "####oooo#########################.###.#.#####",
+        "####oooo#########################.###.#.#####",
+        "#######.#########################.###.#.#####",
+        "#######.#########################.###.#.#####",
+        "#######.#########################.##oooo#####",
+        "#####oooo.........oooo###########.##oooo....#",
+        "#....oooo#########oooo###########.##oooo###.#",
+        "#.###oooo#########oooo###########.##oooo###.#",
+        "#.###oooo.........oooo###########.##oooo###.#",
+        "#.#####.#############.###########.##oooo###.#",
+        "#.#####.#############.###########.###.#####.#",
+        "#.#####.#############.###########.###.#####.#",
+        "#.##oooo#############.###########.###.#####.#",
+        "#.##oooo#############.###########.###oooo##.#",
+        "#...oooo............ooo..#..ooo......oooo...#",
+        "####oooo############ooo#.#.#ooo######oooo####",
+        "####oooo################.#.##########oooo####",
+        "####oooo################.#.##########oooo####",
+        "####################ooo#.#.#ooo##############",
+        "#E..................ooo..#..ooo............S#",
+        "#############################################"
+    ]
+},
+{
+    name: 'Tritons Trident - razcle', startMoney: 1500,
+    cols: 29, rows: 28,
+    map: [
+        "#############################",
+        "##E########ooooooooooooo#####",
+        "##.########ooooooooooooo#####",
+        "##.########ooooooooooooo#####",
+        "##.########ooooooooooooo#####",
+        "#o.oo##########o####oooo#####",
+        "#oooo########..o..##oooo...S#",
+        "#oooooooo####.#.#.###o#o#####",
+        "#oooooooo..o.o.C.o..oooo#####",
+        "#oooooooo##.#.#.#.#ooooo#####",
+        "#ooooo##o##.#.#.#.#ooooo#####",
+        "#ooooo##o##.#..o..##.########",
+        "#oooooooo##.###.####oooo#####",
+        "####.##oo##....o....oooo#####",
+        "#ooooo#oo######.######oo...S#",
+        "#ooooo####ooooooooooo########",
+        "#o#ooo####o##oo###ooo########",
+        "#o#oooooo#o##oooooooo####oo##",
+        "#o#oo##oo#oooooooooooooooooo#",
+        "#oooooooo#oooooo##oo###ooooo#",
+        "######ooo#oooooooooo###ooooo#",
+        "######ooo####ooooooo###ooooo#",
+        "######ooo....oooooooooooooo##",
+        "#############ooooooooooooo###",
+        "#############ooooooo#########",
+        "##############ooooo##########",
+        "###############ooo###########",
+        "#############################"
     ]
 },
 {
@@ -2961,41 +3477,6 @@ function makeDraftRng(seed, waveNo, kind, seq) {
     ]
 },
 {
-    name: '毒沼峡谷', startMoney: 1500,
-    cols: 29, rows: 29,
-    map: [
-        "#############################",
-        "#oo.oo.oo..o.oX.o...#....ooo#",
-        "#.#.oXXXoX##X....oXoo.X.X#o.#",
-        "#oXoX..o.o#oo.#oo...#.oo..#.#",
-        "#.o.X..X#.XoXoX.###o#.XX.o#o#",
-        "#..oo.X...ooX.o+.oX.X.X..oX.#",
-        "##X#Xo.oXXXo#.XoX.#..oo.o...#",
-        "#oo..oo..oX.X.o.#...oo.oC.o.#",
-        "#.#.o.#.ooX..Xoo.X#o#o#.#oo.#",
-        "#...#.X..o.o..oooo.oSo#S...o#",
-        "#X#oX.XX#.oX#.XXXX.ooo#oX##.#",
-        "#.o.#.o.o.X.o...o...#.Xo.o.o#",
-        "#oX#oo.XXoX.oo###o#.X.###...#",
-        "#.#.o..o#..ooo#o..o.X.oo..X.#",
-        "#.Xoo..o.#Xooo#o#.CXXXXo....#",
-        "#o#.X..o..ooXo....#.oo#.Xooo#",
-        "#oXoo#Xo#o..oo#.XXooX.#.#..o#",
-        "#.X..o.+o..oX..oo.ooo+ooX.#o#",
-        "#.#X#X#o#.XoXXo#.XXX#o#oXo.E#",
-        "#.X.o...X.X.ooo..o.o..X.o.X.#",
-        "#oXoX.X.oo#.X.ooooX.ooX.###o#",
-        "#oo....oo.Xo..X..oo..oX.....#",
-        "#.Xo#.#oXo###XXooo#.oX#X##XC#",
-        "#oooX.#..o..o.o.o.o.X..S..X.#",
-        "#oX.#.Xo#XXo.o.#ooooX.#X..#.#",
-        "#...#...o..oX...X.X.oooo#oXo#",
-        "#o#.oXo.#.oX#.X.X.X#XXo.o.o.#",
-        "#oo.o..o....ooX.o..o.o.oo...#",
-        "#############################"
-    ]
-},
-{
     name: '虚空港口', startMoney: 1500,
     cols: 13, rows: 29,
     map: [
@@ -3126,38 +3607,59 @@ function makeDraftRng(seed, waveNo, kind, seq) {
     ]
 },
 {
-    name: '地下防线', startMoney: 1500,
-    cols: 39, rows: 29,
+    name: 'H', startMoney: 1500,
+    cols: 23, rows: 17,
     map: [
-        "#######################################",
-        "#.o..o.....oo.oo.oC.ooXo.oooo.#oo.....#",
-        "#o#XooXo#..oX.#oXo..oo.ooXX.X.Xoo.ooXo#",
-        "#oo.o.oo..#.o.ooX.#.#.oo..X.#..oX..o..#",
-        "#.#X.o#oo.#X#ooo.ooo##ooo.#oo#XXX.o#o##",
-        "#o..#.oooo..X.ooX.oo.o.o..X..oo.X.#oo.#",
-        "#XXo#.Xo.o#o#.#X###oooXoXooooo#.X.XoX.#",
-        "#..oo.o.o.#..oX..ooo#.o...Xo..#.o..oo.#",
-        "#..XXoXo#o.XXX#.ooXXX#oXXo.o#o#.o##oX.#",
-        "#.o.o.#.Xooo.ooooo..o.oooo.o#oXo..Xo.o#",
-        "#.#o#.X.#.###o#oo.o.X#.o#...#.XXo.oooo#",
-        "#ooo#.....ooo.Xooo#.X...ooXoX...o.o.Xo#",
-        "#oo#Xo#o#X#Xo.Xo.Xooo.#.XoX.oX#oo#o.Xo#",
-        "#.ooo.o...oo..#o.ooo.ooo..#..oX.Xo..X.#",
-        "#o#XXXXoX#XXX###X.###X##X.Xo#oo.XooXX.#",
-        "#.ooo.Xo....#Co.oo#o..o.X.oo#o#...X..o#",
-        "#oXX#.#XXX#.#.#..#X.oo#oXoX#X.o..o#.o.#",
-        "#.X...o..oXoXooo#...oo.o.o#ooo#o..X.oo#",
-        "#.#.oXXo#.#ooX#o#..oX.o#Xo#.ooo##o#.X.#",
-        "#.#.#o....oo.o.o.o#o#.o..oXo#o.o.oo.Xo#",
-        "#.o.#.o.oo#X#XX#XXX.Xo.o#oX.#.o.#o#.Xo#",
-        "#o#..o..#oo.#o...oX.#o#.o.o.Xoo.ooX...#",
-        "#o#X#oX#Xooo#.#.oo#oXo#.o.X.#.Xo#.XXo.#",
-        "#.o.o.o.o.Xo.oX.oo..#o..#...Xo#.......#",
-        "#o#o#.oo.#Xoooo.oooo#o#...XoXooo##oXo.#",
-        "#...o.Xoo.o..oXo.o.o..oooo#o..#..ooooo#",
-        "#o#oooX.#.#..oXXXX###.#ooo#o#X#.X#o.Xo#",
-        "#..oSo.o...o#..ooo.oooo.......o.o.Sooo#",
-        "#######################################"
+        "#######################",
+        "######...#####...######",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "##oooo.#.#####.#.oooo##",
+        "#.ooo#oXo.....oXo#ooo.#",
+        "#SoooooXXXXXXXXXoooooC#",
+        "#.ooo#oXo.....oXo#ooo.#",
+        "##oooo.#.#####.#.oooo##",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "######.#.#####.#.######",
+        "######...#####...######",
+        "#######################"
+    ]
+},
+{
+    name: 'Brewing Brouhaha - razcle', startMoney: 1500,
+    cols: 43, rows: 27,
+    map: [
+        "###########################################",
+        "######################oooooooooooooS#######",
+        "##############oX######ooooooooooooo########",
+        "##o...........oX######ooooooooooooo########",
+        "##.##########X.X######oo###ooo###oo########",
+        "##.#o...o...o#.X######oo#X#####X#oo########",
+        "##.#.###o###.X...#####oo###ooo###oo########",
+        "##.#.#..o..#.###ooooooooooooooooooooooooo##",
+        "##.#.#.#o#.#.###ooooooooooooooooooooooooo##",
+        "##.#.#.#o#.#.###ooo###oo###ooo###oo###ooo##",
+        "##.#o#.#.#.#o###ooo#X#oo####.####oo#X#oooS#",
+        "##.oo#.#.#.#oo##ooo###oo####.####oo###ooo##",
+        "##oooo.#.#.oooo#oooo#oooo###.###oooo#oooo##",
+        "#Eoooo..C..oooo#oooo#oooo...C...oooo#oooo##",
+        "##oooo.#.#.oooo#oooo#oooo###.###oooo#oooo##",
+        "##.oo#.#.#.#oo##ooo###oo####.####oo###ooo##",
+        "##.#o#.#.#.#o###ooo#X#oo####.####oo#X#oooS#",
+        "##.#.#.#o#.#.###ooo###oo###ooo###oo###ooo##",
+        "##.#.#.#o#.#.###ooooooooooooooooooooooooo##",
+        "##.#.#..o..#.###ooooooooooooooooooooooooo##",
+        "##.#.###o###.X...#####oo###ooo###oo########",
+        "##.#o...o...o#.X######oo#X#####X#oo########",
+        "##.##########X.X######oo###ooo###oo########",
+        "##o...........oX######ooooooooooooo########",
+        "##############oX######ooooooooooooo########",
+        "######################oooooooooooooS#######",
+        "###########################################"
     ]
 }
         ];
@@ -3202,7 +3704,8 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         // 普通地图的波数与开局资金按实际可通行格子数缩放。
         // '#' 岩壁和 'X' 炮台墙均不可通行，其余地图字符（包括 '.', '+', 'S', 'E', 'C', 'o'）计入。
         // 每次载入页面都会根据 LEVELS 中全部地图重新计算范围，新地图会自动参与。
-        // 最小可通行区域对应 20 波 / 500 金币，最大可通行区域对应 50 波 / 2000 金币。
+        // 最小可通行区域对应 20 波 / 500 金币，最大可通行区域对应 64 波 / 2600 金币。
+        const STORY_WAVE_MIN = 20, STORY_WAVE_MAX = 64;
         // 可通行格子数只算一次（关卡地图是常量，每帧多次调用会白烧 CPU）
         const _walkableCountCache = new WeakMap();
         function getLevelWalkableCellCount(lv) {
@@ -3238,14 +3741,14 @@ function makeDraftRng(seed, waveNo, kind, seq) {
         function storyWaveCount(levelIdx) {
             const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIdx | 0));
             const progress = getMapSizeProgress(LEVELS[idx]);
-            return Math.max(20, Math.min(50, Math.round(20 + progress * 30)));
+            // 波数随地图规模从 20 波拉到 64 波。原来硬夹在 50 波，大地图一碰到上限就被封死，玩法变短
+            return Math.round(STORY_WAVE_MIN + progress * (STORY_WAVE_MAX - STORY_WAVE_MIN));
         }
         function getMapStartMoney(lv) {
             const progress = getMapSizeProgress(lv);
-            // 资金按 50 为单位取整，保证范围严格落在 500～2000。
-            return Math.max(500, Math.min(2000,
-                Math.round((500 + progress * 1500) / 50) * 50
-            ));
+            // 开局资金随地图规模从 500 拉到 2600，按 50 为单位取整。原来上限 2000，大地图上提前到顶
+            const raw = 500 + progress * 2100;
+            return Math.max(500, Math.min(3000, Math.round(raw / 50) * 50));
         }
         function getWaveInterval(lv, waveIdx) {
             if (waveIdx > 0 && waveIdx % 10 === 0) return 25;
@@ -4184,7 +4687,13 @@ function makeSeededRng(seed) {
             const GRIND_WAVES = 99;
             const ENDLESS_WARMUP_GROWTH = 1.045;     // 无尽模式前 99 波沿用原节奏，不被研磨的数值牵连
             const ENDLESS_GROWTH = 1.055;            // 无尽模式 99 波之后血量增速进一步放大
-            const hpGrowth = (isGrind || isMill) ? GRIND_GROWTH : 1.090;
+            // 剧情/混乱的血量增速 1.090 是按 50 波设计的。波数拉长到 64 波后若原地沿用，
+            // 末波血量会指数暴涨到根本打不动；所以超过 50 波时按「末波强度锚定原设计」反推每波增速：
+            // 局变长、血量曲线变缓，但终点强度还是原来 50 波那一档。
+            const STORY_END_HP_50 = Math.pow(1.090, 49);
+            const hpGrowth = (isGrind || isMill) ? GRIND_GROWTH
+                : (isEndless ? 1.090
+                    : (waveCount > 50 ? Math.pow(STORY_END_HP_50, 1 / Math.max(1, waveCount - 1)) : 1.090));
             // —— 研磨 / 超级研磨 / 无尽：数量整体收紧，且波次带来的数量增长放缓 ——
             const GRIND_COUNT_SCALE = 0.62;          // 每波数量整体乘以此系数
             const GRIND_COUNT_GROWTH_DAMP = 0.55;    // 数量公式里的波次按此折算，增长更平缓
@@ -4328,10 +4837,13 @@ function makeSeededRng(seed) {
         let lostCores = 0, totalCores = 0;
         let distToBaseDir = [], distToActiveBaseDir = [], hasActiveBase = false, distToExitDir = [], distToStartDir = [];
         let wallGrid = [], buildableWall = [], noBuildGrid = [], straightGrid = [], starts = [], routes = [], bgCanvas = null, routeCanvas = null, arrowAnimTime = 0;
+        let _routeSig = '';   // 当前路线签名：路线没变就不重烘路线发光层
         let battleStats = null, gameResult = null, resultBtnHover = false, endlessBtnHover = false;
         let selectedEnemy = null;
         let lastClientX = 0, lastClientY = 0;
         let lastEnemyTipUpdate = 0;
+        // 路线显示开关（H 键）：关掉后不画路线发光带与箭头，用来现场判断掉帧是不是路线造成的
+        let showRouteOverlay = true;
         let globalAutoUpgrade = false;
         let autoUpgradeHover = false;
         // 地图美术风格：每个关卡指定一种地形风格，风景装饰每局随机
@@ -4349,13 +4861,13 @@ function makeSeededRng(seed) {
         function computeLayoutForMap(mapRows, mapCols) {
             ROWS = Math.max(1, mapRows);
             COLS = Math.max(1, mapCols);
-            const fitCell = Math.floor(Math.min(canvas.width / COLS, canvas.height / ROWS));
+            const fitCell = Math.floor(Math.min(VW / COLS, VH / ROWS));
             baseCellPx = Math.max(CELL_MIN, Math.min(CELL_MAX, fitCell));
             CELL = Math.max(CELL_MIN, Math.round(baseCellPx * zoom));
             TOWER_RADIUS = Math.max(9, Math.round(CELL * 0.375));
             const gridW = COLS * CELL, gridH = ROWS * CELL;
-            mapOffX = Math.round((canvas.width - gridW) / 2);
-            mapOffY = Math.round((canvas.height - gridH) / 2);
+            mapOffX = Math.round((VW - gridW) / 2);
+            mapOffY = Math.round((VH - gridH) / 2);
         }
 
         function setGameZoom(newZoom, anchorX, anchorY) {
@@ -4366,17 +4878,17 @@ function makeSeededRng(seed) {
             const anchorC = (anchorX - oldOffX) / oldCell;
             const anchorR = (anchorY - oldOffY) / oldCell;
             zoom = newZoom;
-            const fitCell = Math.floor(Math.min(canvas.width / COLS, canvas.height / ROWS));
+            const fitCell = Math.floor(Math.min(VW / COLS, VH / ROWS));
             baseCellPx = Math.max(CELL_MIN, Math.min(CELL_MAX, fitCell));
             CELL = Math.max(CELL_MIN, Math.round(baseCellPx * zoom));
             TOWER_RADIUS = Math.max(9, Math.round(CELL * 0.375));
             const gridW = COLS * CELL, gridH = ROWS * CELL;
             mapOffX = Math.round(anchorX - anchorC * CELL);
             mapOffY = Math.round(anchorY - anchorR * CELL);
-            if (gridW <= canvas.width) mapOffX = Math.round((canvas.width - gridW) / 2);
-            else mapOffX = Math.max(canvas.width - gridW, Math.min(0, mapOffX));
-            if (gridH <= canvas.height) mapOffY = Math.round((canvas.height - gridH) / 2);
-            else mapOffY = Math.max(canvas.height - gridH, Math.min(0, mapOffY));
+            if (gridW <= VW) mapOffX = Math.round((VW - gridW) / 2);
+            else mapOffX = Math.max(VW - gridW, Math.min(0, mapOffX));
+            if (gridH <= VH) mapOffY = Math.round((VH - gridH) / 2);
+            else mapOffY = Math.max(VH - gridH, Math.min(0, mapOffY));
             const k = CELL / oldCell;
             for (const e of enemies) { e.x = mapOffX + (e.x - oldOffX) * k; e.y = mapOffY + (e.y - oldOffY) * k; }
             for (const core of looseCores) { core.x = mapOffX + (core.x - oldOffX) * k; core.y = mapOffY + (core.y - oldOffY) * k; }
@@ -4385,16 +4897,17 @@ function makeSeededRng(seed) {
             selectedTower = null; hideSellButton();
             rebuildPaths();
             rebuildBackground();
+            buildRouteLayer(COLS * CELL, ROWS * CELL);   // 路线静态层提前烘好，别留到第一帧
         }
 
         function panMap(dx, dy) {
             const gridW = COLS * CELL, gridH = ROWS * CELL;
             const oldX = mapOffX, oldY = mapOffY;
             let nx = oldX + dx, ny = oldY + dy;
-            if (gridW <= canvas.width) nx = Math.round((canvas.width - gridW) / 2);
-            else nx = Math.max(canvas.width - gridW, Math.min(0, nx));
-            if (gridH <= canvas.height) ny = Math.round((canvas.height - gridH) / 2);
-            else ny = Math.max(canvas.height - gridH, Math.min(0, ny));
+            if (gridW <= VW) nx = Math.round((VW - gridW) / 2);
+            else nx = Math.max(VW - gridW, Math.min(0, nx));
+            if (gridH <= VH) ny = Math.round((VH - gridH) / 2);
+            else ny = Math.max(VH - gridH, Math.min(0, ny));
             const adx = nx - oldX, ady = ny - oldY;
             if (adx === 0 && ady === 0) return;
             mapOffX = nx; mapOffY = ny;
@@ -4418,13 +4931,13 @@ function makeSeededRng(seed) {
             if (screen !== 'game' || gameOver) return;
             if (!mouse.inside) return;
             const gridW = COLS * CELL, gridH = ROWS * CELL;
-            const canX = gridW > canvas.width + 0.5, canY = gridH > canvas.height + 0.5;
+            const canX = gridW > VW + 0.5, canY = gridH > VH + 0.5;
             if (!canX && !canY) return;
             let overX = 0, overY = 0;
             if (mouse.x < 0) overX = -mouse.x;
-            else if (mouse.x > canvas.width) overX = mouse.x - canvas.width;
+            else if (mouse.x > VW) overX = mouse.x - VW;
             if (mouse.y < 0) overY = -mouse.y;
-            else if (mouse.y > canvas.height) overY = mouse.y - canvas.height;
+            else if (mouse.y > VH) overY = mouse.y - VH;
             if (overX <= 0 && overY <= 0) return;
             let vx = 0, vy = 0;
             if (canX && overX > 0) { const k = Math.min(1, overX / EDGE_PAN_MAX_DIST); const mag = 0.35 + 0.65 * k; vx = (mouse.x < 0) ? mag : -mag; }
@@ -4544,35 +5057,62 @@ function makeSeededRng(seed) {
             }
         }
 
+        // ---- 寻路缓冲池 ----
+        // 大地图上每次重算路径都要新建十几张"四方向距离场"，队列里还要塞上万条记录。
+        // 原来每条记录都是新的 [c,r,d] 小数组，建一座塔就是几万次分配 → 年轻代 GC 卡顿。
+        // 现在：距离场按尺寸复用，队列改成一段连续 Int32Array，只推进下标。
+        const _dirFieldPool = [];
+        let _bfsQ = new Int32Array(3 * 4096);
+        let _bfsQHead = 0, _bfsQTail = 0;
+        function _bfsEnqueue(c, r, d) {
+            if (_bfsQTail + 3 > _bfsQ.length) {
+                const bigger = new Int32Array(_bfsQ.length * 2);
+                bigger.set(_bfsQ);
+                _bfsQ = bigger;
+            }
+            _bfsQ[_bfsQTail++] = c; _bfsQ[_bfsQTail++] = r; _bfsQ[_bfsQTail++] = d;
+        }
+        function releaseDirField(fieldDir) {
+            if (!fieldDir || fieldDir.length !== 4) return;
+            const f0 = fieldDir[0];
+            if (!f0 || f0.length !== ROWS || !f0[0] || f0[0].length !== COLS) return;  // 尺寸对不上就直接丢弃
+            for (let d = 0; d < 4; d++) if (_dirFieldPool.length < 48) _dirFieldPool.push(fieldDir[d]);
+        }
         function makeField() {
-            const f = [];
-            for (let r = 0; r < ROWS; r++) f.push(new Array(COLS).fill(Infinity));
-            return f;
+            while (_dirFieldPool.length) {
+                const f = _dirFieldPool.pop();
+                if (f.length === ROWS && f[0].length === COLS) {
+                    for (let r = 0; r < ROWS; r++) {
+                        const row = f[r];
+                        for (let c = 0; c < COLS; c++) row[c] = Infinity;
+                    }
+                    return f;
+                }
+            }
+            const g = [];
+            for (let r = 0; r < ROWS; r++) g.push(new Array(COLS).fill(Infinity));
+            return g;
         }
         function makeDirField() {
-            const fields = [];
-            for (let d = 0; d < 4; d++) fields.push(makeField());
-            return fields;
+            return [makeField(), makeField(), makeField(), makeField()];
         }
         function anyDirFinite(fieldDir, r, c) {
             for (let d = 0; d < 4; d++) if (isFinite(fieldDir[d][r][c])) return true;
             return false;
         }
         function bfsFromDir(fieldDir, sources, blocked) {
-            const q = [];
+            _bfsQHead = 0; _bfsQTail = 0;
             for (const s of sources) {
                 if (s.c < 0 || s.c >= COLS || s.r < 0 || s.r >= ROWS) continue;
                 if (blocked[s.r][s.c]) continue;
                 for (let d = 0; d < 4; d++) {
                     if (fieldDir[d][s.r][s.c] === 0) continue;
                     fieldDir[d][s.r][s.c] = 0;
-                    q.push([s.c, s.r, d]);
+                    _bfsEnqueue(s.c, s.r, d);
                 }
             }
-            let head = 0;
-            while (head < q.length) {
-                const cur = q[head++];
-                const c = cur[0], r = cur[1], dEnter = cur[2];
+            while (_bfsQHead < _bfsQTail) {
+                const c = _bfsQ[_bfsQHead++], r = _bfsQ[_bfsQHead++], dEnter = _bfsQ[_bfsQHead++];
                 const curD = fieldDir[dEnter][r][c];
                 for (let di = 0; di < 4; di++) {
                     if (straightGrid[r] && straightGrid[r][c] && di !== dEnter) continue;
@@ -4585,18 +5125,19 @@ function makeSeededRng(seed) {
                         const dIn = dOut;
                         if (fieldDir[dIn][pr][pc] > curD + 1) {
                             fieldDir[dIn][pr][pc] = curD + 1;
-                            q.push([pc, pr, dIn]);
+                            _bfsEnqueue(pc, pr, dIn);
                         }
                     } else {
                         for (let dIn = 0; dIn < 4; dIn++) {
                             if (fieldDir[dIn][pr][pc] > curD + 1) {
                                 fieldDir[dIn][pr][pc] = curD + 1;
-                                q.push([pc, pr, dIn]);
+                                _bfsEnqueue(pc, pr, dIn);
                             }
                         }
                     }
                 }
             }
+            _bfsQHead = 0; _bfsQTail = 0;   // 清空内容，缓冲留作下次复用
         }
         function findNextCellInDir(fieldDir, c, r, inDirC, inDirR) {
             const isStraight = straightGrid[r] && straightGrid[r][c];
@@ -4667,8 +5208,55 @@ function makeSeededRng(seed) {
             };
         }
 
+        // ---------- 进图加载遮罩 ----------
+        // 顺序：点关卡/选模式 → 立刻亮遮罩 → 烘焙底板·墙体·路线 → setScreen('game') → 撤遮罩。
+        // 也就是说"进战场"的时候地图已经烘好了，第一帧就是贴图，没有卡顿窗口。
+        // 遮罩只占真实烘焙时长：烘多久就显示多久，不做最短停留、也不做淡出补时。
+        let _loadMaskEl = null, _loadMaskPending = false;
+        function showLoadMask() {
+            if (!_loadMaskEl) {
+                const ov = document.createElement('div');
+                ov.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:none;align-items:center;'
+                    + 'justify-content:center;flex-direction:column;gap:16px;background:#04070e;'
+                    + 'color:#7ec8ff;font:600 20px "Microsoft YaHei",sans-serif;letter-spacing:3px;';
+                ov.innerHTML =
+                    '<div style="width:34px;height:34px;border-radius:50%;'
+                    + 'border:3px solid rgba(126,200,255,.22);border-top-color:#7ec8ff;'
+                    + 'animation:__lmSpin .9s linear infinite;will-change:transform"></div>'
+                    + '<div>正在加载地图…</div>'
+                    + '<div style="font:400 13px \'Microsoft YaHei\';color:#5b86a8;letter-spacing:1px">正在铺设地形与路线</div>';
+                document.body.appendChild(ov);
+                _loadMaskEl = ov;
+            }
+            if (!document.getElementById('__lmSpinKF')) {      // 纯 CSS 旋转：烘焙占住主线程时也能转（跑在合成线程）
+                const st = document.createElement('style');
+                st.id = '__lmSpinKF';
+                st.textContent = '@keyframes __lmSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}';
+                document.head.appendChild(st);
+            }
+            _loadMaskEl.style.display = 'flex';
+            _loadMaskEl.style.opacity = '1';
+        }
+        function hideLoadMask() {
+            if (!_loadMaskEl) return;
+            _loadMaskEl.style.transition = 'none';
+            _loadMaskEl.style.opacity = '0';
+            _loadMaskEl.style.display = 'none';                 // 烘完立刻撤，不再额外拖时间
+        }
+        // 遮罩必须在"真的被合成上屏"之后再开始烘焙，所以用两次 rAF 把烘焙推到下一帧之后
+        function loadLevelMasked(...args) {
+            if (_loadMaskPending) return;      // 加载中重复点击不再排队第二次进图
+            _loadMaskPending = true;
+            showLoadMask();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                try { loadLevel(...args); }
+                finally { hideLoadMask(); _loadMaskPending = false; }
+            }));
+        }
+
         function loadLevel(idx, modeKey, reverse, rogue, keptAffixes, reuseMudPits, chaos, keptDraftSeed) {
             closeBuildMenu(); closeTowerMenu();
+            _noBlurSticky = false;   // 新的一局重新判断画质档位
             gameResult = null; resultBtnHover = false; endlessBtnHover = false;
             battleStats = { kills: 0, leaked: 0, towersBuilt: 0, wavesCleared: 0,
                             builds: [], upgrades: [], drafts: [],
@@ -4693,6 +5281,7 @@ function makeSeededRng(seed) {
             gameTitle.textContent = `⚡ ${levelIndex + 1} ${lv.name} · ${mode.name}${(routeReverse && lv.map.some(row => row.indexOf('E') !== -1)) ? ' · 🔀 路线反转' : ''}${chaosEnabled ? ' · 混乱' : ''}${rogueEnabled ? ' · Roguelike' : ''}${selectedAscension > 0 ? ' · 进阶'+selectedAscension : ''} ⚡`;
             zoom = 1;
             computeLayoutForMap(mapRowCount(lv.map), mapColCount(lv.map));
+            routeCanvas = null; _routeSig = '';   // 换图后路线层必须重烘，避免拿到上一关的图层
             waves = generateWaves(levelDifficulty(lv), currentModeKey, mode.hpMul, levelIndex);
             money = getMapStartMoney(lv);
 
@@ -4867,6 +5456,8 @@ function makeSeededRng(seed) {
                 }
             }
             rebuildPaths();
+            buildRouteLayer(COLS * CELL, ROWS * CELL);   // 进图前把路线发光带烘好（原来是在第一帧里懒烘焙）
+            warmBuildMenuLayer();                        // 建造菜单面板也提前烘一次，免得第一次点格子时才现烘
             updateUI();
             if (rogueState) {
                 msgDisplay.textContent = `🧬 ${rogueState.affixes.map(a => a.name).join(' · ')} · 建造第一座塔后开始倒计时`;
@@ -4916,6 +5507,7 @@ function makeSeededRng(seed) {
                 const pts = tracePathDir(de, b.c, b.r, (c, r) => exits.some(x => x.c === c && x.r === r));
                 if (pts.length > 1) out.push({ pts, kind: 'out' });
             }
+            releaseDirField(db); releaseDirField(de);   // 还回缓冲池，下次直接用
             return out;
         }
 
@@ -4925,54 +5517,53 @@ function makeSeededRng(seed) {
 
         function isBuildPathChanged() {
             if (!buildMenu) return false;
-            const previewSig = routeSignature(buildMenu.previewRoutes || []);
-            const currentSig = routeSignature(routes);
-            let changed = previewSig !== currentSig;
-            if (!changed && routes.length > 0) {
-                const cx = cellCenterX(buildMenu.col);
-                const cy = cellCenterY(buildMenu.row);
-                outer:
-                for (const route of routes) {
-                    for (const p of route.pts) {
-                        if (Math.abs(p.x - cx) < 0.5 && Math.abs(p.y - cy) < 0.5) { changed = true; break outer; }
-                    }
-                }
-            }
-            return changed;
+            // 打开建造菜单时就把"会不会改路线"算好存进 buildMenu，
+            // 原来每帧都要把两条路线重新拼成字符串再比较，大地图上这是每帧都在做的白活。
+            return !!buildMenu.pathChanged;
         }
 
         function rebuildPaths() {
-            routeCanvas = null;   // 路线静态层失效，下次绘制时重新烘焙
             const blocked = getBlockedGrid();
+            releaseDirField(distToBaseDir);
+            releaseDirField(distToExitDir);
+            releaseDirField(distToStartDir);
             distToBaseDir = makeDirField();
             distToExitDir = makeDirField();
             distToStartDir = makeDirField();
             bfsFromDir(distToBaseDir, bases, blocked);
             bfsFromDir(distToExitDir, exits, blocked);
             bfsFromDir(distToStartDir, starts, blocked);
-            routes = [];
+            const newRoutes = [];
             for (const s of starts) {
                 if (!anyDirFinite(distToBaseDir, s.r, s.c)) continue;
                 const pts = tracePathDir(distToBaseDir, s.c, s.r, (c, r) => bases.some(b => b.c === c && b.r === r));
-                if (pts.length > 1) routes.push({ pts, kind: 'in' });
+                if (pts.length > 1) newRoutes.push({ pts, kind: 'in' });
             }
             for (const b of bases) {
                 if (!anyDirFinite(distToExitDir, b.r, b.c)) continue;
                 const pts = tracePathDir(distToExitDir, b.c, b.r, (c, r) => exits.some(x => x.c === c && x.r === r));
-                if (pts.length > 1) routes.push({ pts, kind: 'out' });
+                if (pts.length > 1) newRoutes.push({ pts, kind: 'out' });
             }
-                        if (battleStats && !battleStats.basePathLength) {
+            // 路线没变就不重烘整张路线发光层：建塔时经常只是原地重算，路线点一个都没动
+            const sig = routeSignature(newRoutes);
+            if (sig !== _routeSig) {
+                _routeSig = sig;
+                routeCanvas = null;   // 路线静态层失效，下次绘制时重新烘焙
+            }
+            routes = newRoutes;
+            if (battleStats && !battleStats.basePathLength) {
                 battleStats.basePathLength = routes.reduce((s, r) => s + Math.max(0, r.pts.length - 1), 0);
             }
-            rebuildActiveBaseField();
+            rebuildActiveBaseField(blocked);
         }
 
-        function rebuildActiveBaseField() {
+        function rebuildActiveBaseField(blockedArg) {
             const activeBases = bases.filter(b => b.cores > 0);
             hasActiveBase = activeBases.length > 0;
+            releaseDirField(distToActiveBaseDir);
             distToActiveBaseDir = makeDirField();
             if (!hasActiveBase) return;
-            const blocked = getBlockedGrid();
+            const blocked = blockedArg || getBlockedGrid();
             bfsFromDir(distToActiveBaseDir, activeBases, blocked);
         }
 
@@ -5013,27 +5604,39 @@ function makeSeededRng(seed) {
                     for (const a of setA) {
                         const f = makeDirField();
                         bfsFromDir(f, [a], blocked);
-                        for (const b of setB) if (!anyDirFinite(f, b.r, b.c)) return false;
+                        let ok = true;
+                        for (const b of setB) if (!anyDirFinite(f, b.r, b.c)) { ok = false; break; }
+                        releaseDirField(f);   // 用完就还回池子，别让每次建塔都新建距离场
+                        if (!ok) return false;
                     }
                 } else {
                     for (const b of setB) {
                         const f = makeDirField();
                         bfsFromDir(f, [b], blocked);
-                        for (const a of setA) if (!anyDirFinite(f, a.r, a.c)) return false;
+                        let ok = true;
+                        for (const a of setA) if (!anyDirFinite(f, a.r, a.c)) { ok = false; break; }
+                        releaseDirField(f);
+                        if (!ok) return false;
                     }
                 }
                 return true;
             };
             if (!bipartiteConnected(starts, bases)) return false;
             if (!bipartiteConnected(bases, exits)) return false;
+            // 场上没有敌人也没有散落核心时，这两张距离场根本没人用，直接跳过
+            if (enemies.length === 0 && looseCores.length === 0) return true;
             const db = makeDirField(), de = makeDirField();
             bfsFromDir(db, bases, blocked); bfsFromDir(de, exits, blocked);
+            let reachable = true;
             for (const e of enemies) {
                 const f = (e.state === 'toExit') ? de : db;
-                if (!anyDirFinite(f, e.cellR, e.cellC)) return false;
+                if (!anyDirFinite(f, e.cellR, e.cellC)) { reachable = false; break; }
             }
-            for (const core of looseCores) if (!anyDirFinite(db, core.cellR, core.cellC)) return false;
-            return true;
+            if (reachable) {
+                for (const core of looseCores) if (!anyDirFinite(db, core.cellR, core.cellC)) { reachable = false; break; }
+            }
+            releaseDirField(db); releaseDirField(de);
+            return reachable;
         }
 
         function startNextWave() {
@@ -5568,19 +6171,45 @@ function pickSummonType(selfType, waveId) {
         function hideTip() { tipEl.classList.add('hidden'); }
 
         function getBuildMenuHeight() { return BUILD_MENU_ORDER.length * BUILD_ITEM_H + BUILD_MENU_PAD * 2; }
+        // 当前路线里是否经过这一格的格心（用于判断"在这里建塔会不会改路"）
+        function routeUsesCell(col, row) {
+            if (!routes || routes.length === 0) return false;
+            const ccx = cellCenterX(col), ccy = cellCenterY(row);
+            for (const route of routes) {
+                const pts = route.pts;
+                if (!pts) continue;
+                for (let i = 0; i < pts.length; i++) {
+                    if (Math.abs(pts[i].x - ccx) < 0.5 && Math.abs(pts[i].y - ccy) < 0.5) return true;
+                }
+            }
+            return false;
+        }
+
         function openBuildMenu(col, row) {
             closeTowerMenu();
             const totalH = getBuildMenuHeight();
             const cellX = cellLeft(col), cellY = cellTop(row);
             let x = cellX + CELL + 6;
-            if (x + BUILD_MENU_W > canvas.width - 4) x = cellX - BUILD_MENU_W - 6;
+            if (x + BUILD_MENU_W > VW - 4) x = cellX - BUILD_MENU_W - 6;
             if (x < 4) x = 4;
             let y = cellY - (totalH - CELL) / 2;
             if (y < 4) y = 4;
-            if (y + totalH > canvas.height - 4) y = canvas.height - totalH - 4;
-            const previewRoutes = computeRoutesWithExtraBlock(col, row);
-            const pathChanged = routeSignature(previewRoutes) !== routeSignature(routes);
-            buildMenu = { col, row, x, y, w: BUILD_MENU_W, h: totalH, hover: -1, previewRoutes, pathChanged };
+            if (y + totalH > VH - 4) y = VH - totalH - 4;
+            // 只有「压在现有路线上」或「拆掉可建造岩壁」的格子才可能改变敌军路线。
+            // 其余格子（也就是绝大多数点击）连 2 次全图 BFS + 两次长签名拼接都省掉。
+            let previewRoutes = null, pathChanged = false;
+            const onRoute = routeUsesCell(col, row);
+            const breaksWall = !!(buildableWall[row] && buildableWall[row][col]);
+            if (onRoute || breaksWall) {
+                previewRoutes = computeRoutesWithExtraBlock(col, row);
+                pathChanged = onRoute || routeSignature(previewRoutes) !== _routeSig;
+            }
+            buildMenu = {
+                col, row, x, y, w: BUILD_MENU_W, h: totalH, hover: -1,
+                previewRoutes, pathChanged,
+                previewCanvas: pathChanged ? buildPreviewLayer(previewRoutes) : null,
+                layer: null, layerMask: -1, costs: null, costWave: -1
+            };
             hideTip();
             canvas.style.cursor = 'crosshair';
         }
@@ -5654,8 +6283,8 @@ function pickSummonType(selfType, waveId) {
             const touch = (navigator.maxTouchPoints > 0) || ('ontouchstart' in window);
             if (!touch) return 1;
             const rect = canvas.getBoundingClientRect();
-            const cssW = (rect && rect.width > 0) ? rect.width : canvas.width;
-            const k = canvas.width / cssW;      // 每个 CSS 像素对应多少内部像素
+            const cssW = (rect && rect.width > 0) ? rect.width : VW;
+            const k = VW / cssW;      // 每个 CSS 像素对应多少内部像素
             // 目标：菜单在屏幕上约 250 × 132 CSS px
             const s = Math.max(250 * k / TOWER_MENU_W, 132 * k / TOWER_MENU_H);
             return Math.max(1.2, Math.min(3.5, s));
@@ -5667,11 +6296,11 @@ function pickSummonType(selfType, waveId) {
             const w = Math.round(TOWER_MENU_W * s), h = Math.round(TOWER_MENU_H * s);
             const cellX = cellLeft(col), cellY = cellTop(row);
             let x = cellX + CELL + 6;
-            if (x + w > canvas.width - 4) x = cellX - w - 6;
+            if (x + w > VW - 4) x = cellX - w - 6;
             if (x < 4) x = 4;
             let y = cellY - (h - CELL) / 2;
             if (y < 4) y = 4;
-            if (y + h > canvas.height - 4) y = canvas.height - h - 4;
+            if (y + h > VH - 4) y = VH - h - 4;
             towerMenu = { col, row, x, y, w, h, s, hoverCheck: false, hoverSell: false };
             hideTip();
         }
@@ -6574,6 +7203,9 @@ function aiPlanStrategy() {
             if (exits.some(x => x.c === c && x.r === r)) return false;
             if (starts.some(s => s.c === c && s.r === r)) return false;
             if (towers.some(t => t.col === c && t.row === r)) return false;
+            // 断路判定交给后面的「模拟建造」：computeRoutesWithExtraBlock 返回空就说明建了就断路。
+            // 这里不再跑 canBuildAt 里的 4 次全图 BFS（大地图上这一项就是上百毫秒的来源）。
+            if (routes.length) return true;
             try { return canBuildAt(c, r); } catch (e) { return false; }
         };
 
@@ -6617,6 +7249,12 @@ function aiPlanStrategy() {
         for (const ck of candidateSet) {
             const c = ck % COLS, r = Math.floor(ck / COLS);
             if (!isCellUsable(c, r)) continue;
+            // 不在现有路线上的格子：建成后路线完全不变，增益必然是 0，
+            // 也就不必再跑 2 次全图 BFS 去"模拟建造"。这类格子在大地图上占绝大多数。
+            if (!routeUsesCell(c, r)) {
+                evaluated.push({ c, r, gain: 0, turnGain: 0, selfCover: 0, rawScore: 0 });
+                continue;
+            }
             try {
                 const newRoutes = computeRoutesWithExtraBlock(c, r);
                 if (!newRoutes || !newRoutes.length) continue;
@@ -8497,6 +9135,11 @@ for (const type of bestTypes) {
         });
 
         function draw() {
+            if (screen !== 'game') {
+                // 非战斗界面不叠在静态层上，先铺一层底再画，保证不透出下面的地图
+                ctx.fillStyle = '#05080f';
+                ctx.fillRect(0, 0, VW, VH);
+            }
             if (screen === 'menu') drawMainMenu();
             else if (screen === 'levels') drawLevelSelect();
             else if (screen === 'stats') drawStatsScreen();
@@ -8522,22 +9165,22 @@ for (const type of bestTypes) {
         }
 
         function drawBackdrop() {
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const grad = ctx.createLinearGradient(0, 0, 0, VH);
             grad.addColorStop(0, '#0a0f1e');
             grad.addColorStop(1, '#1a2540');
             ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, VW, VH);
             ctx.strokeStyle = 'rgba(80, 140, 210, 0.10)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 43; i++) {
                 const y = 20 + i * 16;
-                ctx.beginPath(); ctx.moveTo(24, y); ctx.lineTo(canvas.width - 24, y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(24, y); ctx.lineTo(VW - 24, y); ctx.stroke();
             }
         }
 
         function drawScrollbar(top, viewH) {
             if (maxScroll <= 0) return;
-            const x = canvas.width - 11;
+            const x = VW - 11;
             ctx.fillStyle = 'rgba(60, 100, 150, 0.22)';
             roundRect(ctx, x, top, 5, viewH, 3); ctx.fill();
             const totalH = viewH + maxScroll;
@@ -8586,7 +9229,7 @@ for (const type of bestTypes) {
             const rogue = Math.random() < 0.5;
             pendingLevel = -1; pendingReverse = false; pendingRogue = false; pendingChaos = false;
             hoveredLevel = -1; hoveredMode = -1; hoveredReverse = false; hoveredRogue = false; hoveredChaos = false;
-            loadLevel(lvIdx, modeKey, rev, rogue, undefined, undefined, chaos);
+            loadLevelMasked(lvIdx, modeKey, rev, rogue, undefined, undefined, chaos);
             if (msgDisplay) {
                 const modeName = (MODES[modeKey] || MODES.story).name;
                 msgDisplay.textContent = `🎲 随机：${LEVELS[lvIdx].name} · ${modeName}`
@@ -8599,15 +9242,15 @@ for (const type of bestTypes) {
         function getMainBtnRect(i) {
             const bw = 420, bh = 58, gap = 14, count = MAIN_BTN_COUNT;
             const totalH = count * bh + (count - 1) * gap;
-            const startY = canvas.height - 64 - totalH;
-            return { x: (canvas.width - bw) / 2, y: startY + i * (bh + gap), w: bw, h: bh };
+            const startY = VH - 64 - totalH;
+            return { x: (VW - bw) / 2, y: startY + i * (bh + gap), w: bw, h: bh };
         }
 
         function drawMenuDecor() {
             const keys = Object.keys(TOWER_TYPES);
-            const cw = Math.max(58, Math.min(96, (canvas.width - 60) / keys.length));
+            const cw = Math.max(58, Math.min(96, (VW - 60) / keys.length));
             const totalW = keys.length * cw;
-            const startX = (canvas.width - totalW) / 2 + cw / 2;
+            const startX = (VW - totalW) / 2 + cw / 2;
             const now = Date.now() / 1000;
             const radius = Math.min(32, cw * 0.36);
             for (let i = 0; i < keys.length; i++) {
@@ -8629,11 +9272,11 @@ for (const type of bestTypes) {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 56px "Microsoft YaHei"';
             ctx.fillStyle = '#7ec8ff'; ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 32;
-            ctx.fillText('⚡ 防御阵型 ⚡', canvas.width / 2, 170);
+            ctx.fillText('⚡ 防御阵型 ⚡', VW / 2, 170);
             ctx.shadowBlur = 0;
             ctx.font = '26px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText('致敬经典塔防游戏《防御阵型 · 觉醒》', canvas.width / 2, 232);
-            ctx.fillText('作者：NonComtGr，代码由DeepSeek生成', canvas.width / 2, 268);
+            ctx.fillText('致敬经典塔防游戏《防御阵型 · 觉醒》', VW / 2, 232);
+            ctx.fillText('作者：NonComtGr，代码由DeepSeek生成', VW / 2, 268);
             drawMenuDecor();
             const labels = ['▶  开始游戏', '📖  玩法简介', '👾  怪物图鉴', '🏰  防御塔图鉴', '🧩  塔增强', '📊  统计数据'];
             const colors = ['#4a9eff', '#4affd0', '#66ff99', '#ffaa44', '#ffd966', '#bd91ff'];
@@ -8665,13 +9308,13 @@ for (const type of bestTypes) {
         function getEnhTowerChipRect(i) {
             const n = enhTowerList().length;
             const marginX = 26, gap = 8;
-            const w = (canvas.width - marginX * 2 - gap * (n - 1)) / n;
+            const w = (VW - marginX * 2 - gap * (n - 1)) / n;
             return { x: marginX + i * (w + gap), y: 104, w: w, h: 52 };
         }
 
         function getEnhCardRect(i) {
             const marginX = 26, gapX = 14, gapY = 12, top = 214, h = 128;
-            const w = (canvas.width - marginX * 2 - gapX) / 2;
+            const w = (VW - marginX * 2 - gapX) / 2;
             const col = i % 2, row = Math.floor(i / 2);
             return { x: marginX + col * (w + gapX), y: top + row * (h + gapY), w: w, h: h };
         }
@@ -8697,10 +9340,10 @@ for (const type of bestTypes) {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 34px "Microsoft YaHei"';
             ctx.fillStyle = '#7ec8ff'; ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 22;
-            ctx.fillText('🧩 防御塔增强', canvas.width / 2, 44);
+            ctx.fillText('🧩 防御塔增强', VW / 2, 44);
             ctx.shadowBlur = 0;
             ctx.font = '15px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`已解锁 ${enhancementUnlockedTotal()} / ${enhancementTotalCount()} · 累计金牌 ${enhancementState.goldCount} 枚 · 每关每模式首次金牌解锁 1 个增强（重复金牌不再解锁）`, canvas.width / 2, 80);
+            ctx.fillText(`已解锁 ${enhancementUnlockedTotal()} / ${enhancementTotalCount()} · 累计金牌 ${enhancementState.goldCount} 枚 · 每关每模式首次金牌解锁 1 个增强（重复金牌不再解锁）`, VW / 2, 80);
 
             const list = enhTowerList();
             for (let i = 0; i < list.length; i++) {
@@ -8737,7 +9380,7 @@ for (const type of bestTypes) {
             ctx.fillStyle = selEnh ? '#8fffd8' : '#7a9ac0';
             ctx.fillText(selEnh
                 ? `当前启用：${selEnh.name} — ${enhancementModDesc(selEnh.mods, selType)}`
-                : '当前未启用增强 · 点击已解锁选项启用，再次点击已启用项可关闭', canvas.width - 26, 190);
+                : '当前未启用增强 · 点击已解锁选项启用，再次点击已启用项可关闭', VW - 26, 190);
 
             for (let i = 0; i < ENHANCEMENT_COUNT_PER_TOWER; i++) {
                 const r = getEnhCardRect(i);
@@ -8799,7 +9442,7 @@ for (const type of bestTypes) {
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.font = 'bold 15px "Microsoft YaHei"';
                 ctx.fillStyle = '#ffaa44';
-                ctx.fillText(enhScreenNotice, canvas.width / 2, 942);
+                ctx.fillText(enhScreenNotice, VW / 2, 942);
             }
         }
 
@@ -8812,7 +9455,7 @@ for (const type of bestTypes) {
         function getStatsTabRect(i) {
             const w = 210, h = 46, gap = 16;
             const total = GAME_STATS_TAB_LIST.length * w + (GAME_STATS_TAB_LIST.length - 1) * gap;
-            return { x: (canvas.width - total) / 2 + i * (w + gap), y: 76, w, h };
+            return { x: (VW - total) / 2 + i * (w + gap), y: 76, w, h };
         }
         function drawStatsTab(i) {
             const r = getStatsTabRect(i), active = statsTab === GAME_STATS_TAB_LIST[i].id;
@@ -8870,12 +9513,12 @@ for (const type of bestTypes) {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 26px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 18;
-            ctx.fillText('统 计 数 据', canvas.width / 2, 36); ctx.shadowBlur = 0;
+            ctx.fillText('统 计 数 据', VW / 2, 36); ctx.shadowBlur = 0;
             drawBackBtn();
             for (let i = 0; i < GAME_STATS_TAB_LIST.length; i++) drawStatsTab(i);
 
             const d = GAME_STATS.getData();
-            const top = 148, viewH = canvas.height - top - 18;
+            const top = 148, viewH = VH - top - 18;
             let contentBottom = top + viewH;
             if (statsTab === 'overview') contentBottom = 700;
             else if (statsTab === 'towers') contentBottom = 214 + Math.max(0, Object.keys(TOWER_TYPES).length - 1) * 46 + 96;
@@ -8885,7 +9528,7 @@ for (const type of bestTypes) {
             scrollY = Math.max(0, Math.min(maxScroll, scrollY));
 
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, top, canvas.width, viewH); ctx.clip();
+            ctx.beginPath(); ctx.rect(0, top, VW, viewH); ctx.clip();
             ctx.translate(0, -scrollY);
 
             if (statsTab === 'overview') {
@@ -8896,7 +9539,7 @@ for (const type of bestTypes) {
                     ['失败', formatLifetimeStat(d.losses), '核心耗尽', '#ff8866'],
                     ['Roguelike', formatLifetimeStat(d.rogueStarts), '启用 Roguelike 的开局次数', '#bd91ff']
                 ];
-                const gap = 16, w = (canvas.width - 100 - gap * 4) / 5;
+                const gap = 16, w = (VW - 100 - gap * 4) / 5;
                 for (let i = 0; i < cards.length; i++) drawStatsCard(50 + i * (w + gap), 172, w, 126, cards[i][0], cards[i][1], cards[i][2], cards[i][3]);
 
                 // 第二行：奖牌次数 + 重开 / 关卡选择
@@ -8919,7 +9562,7 @@ for (const type of bestTypes) {
                     ['累计伤害', formatLifetimeStat(totalDamage), '炮塔造成的有效伤害'],
                     ['永久丢失核心', formatLifetimeStat(totalCoresLost), '被敌人带出地图的核心']
                 ];
-                const w2 = (canvas.width - 100 - 3 * 18) / 4;
+                const w2 = (VW - 100 - 3 * 18) / 4;
                 for (let i = 0; i < more.length; i++) drawStatsCard(50 + i * (w2 + 18), 476, w2, 126, more[i][0], more[i][1], more[i][2], '#355779');
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                 ctx.font = '14px "Microsoft YaHei"'; ctx.fillStyle = '#7898bd';
@@ -9050,19 +9693,19 @@ for (const type of bestTypes) {
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 24px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 18;
-            ctx.fillText('玩 法 简 介', canvas.width / 2, 36);
+            ctx.fillText('玩 法 简 介', VW / 2, 36);
             ctx.shadowBlur = 0;
             ctx.font = '12px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText('鼠标滚轮上下滑动', canvas.width / 2, 60);
+            ctx.fillText('鼠标滚轮上下滑动', VW / 2, 60);
             drawBackBtn();
 
             // 卡片横向铺满界面：左右各留 20px 边距
             const sideMargin = 20;
-            const cardW = canvas.width - sideMargin * 2;
+            const cardW = VW - sideMargin * 2;
             const gapY = 14;
             const startX = sideMargin;
             const top = 78;
-            const viewH = canvas.height - top - 12;
+            const viewH = VH - top - 12;
             const lineH = 17;
 
             ctx.font = '12.5px "Microsoft YaHei"';
@@ -9081,12 +9724,12 @@ for (const type of bestTypes) {
             scrollY = Math.max(0, Math.min(maxScroll, scrollY));
 
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, top, canvas.width, viewH); ctx.clip();
+            ctx.beginPath(); ctx.rect(0, top, VW, viewH); ctx.clip();
             ctx.translate(0, -scrollY);
             let cy = top;
             for (let i = 0; i < INTRO_ITEMS.length; i++) {
                 const cardH = cardHeights[i];
-                if (cy - scrollY > canvas.height + 120 || cy - scrollY + cardH < top - 120) {
+                if (cy - scrollY > VH + 120 || cy - scrollY + cardH < top - 120) {
                     cy += cardH + gapY;
                     continue;
                 }
@@ -9515,27 +10158,27 @@ jammer:   '高速重型单位，会持续干扰附近防御塔，使其暂时失
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 24px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 18;
-            ctx.fillText('怪 物 图 鉴', canvas.width / 2, 36);
+            ctx.fillText('怪 物 图 鉴', VW / 2, 36);
             ctx.shadowBlur = 0;
             ctx.font = '12px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`共 ${BESTIARY_ORDER.length} 种敌人 · 属性随难度与波数指数提升 · 鼠标滚轮上下滑动`, canvas.width / 2, 60);
+            ctx.fillText(`共 ${BESTIARY_ORDER.length} 种敌人 · 属性随难度与波数指数提升 · 鼠标滚轮上下滑动`, VW / 2, 60);
             drawBackBtn();
             const cardW = 704, cardH = 150, gapX = 24, gapY = 16;
-            const startX = (canvas.width - (2 * cardW + gapX)) / 2;
+            const startX = (VW - (2 * cardW + gapX)) / 2;
             const top = 78;
-            const viewH = canvas.height - top - 12;
+            const viewH = VH - top - 12;
             const rows = Math.ceil(BESTIARY_ORDER.length / 2);
             const contentH = rows * (cardH + gapY) - gapY;
             maxScroll = Math.max(0, contentH - viewH + 12);
             scrollY = Math.max(0, Math.min(maxScroll, scrollY));
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, top, canvas.width, viewH); ctx.clip();
+            ctx.beginPath(); ctx.rect(0, top, VW, viewH); ctx.clip();
             ctx.translate(0, -scrollY);
             for (let i = 0; i < BESTIARY_ORDER.length; i++) {
                 const c = i % 2, r = Math.floor(i / 2);
                 const x = startX + c * (cardW + gapX);
                 const y = top + r * (cardH + gapY);
-                if (y - scrollY > canvas.height + 100 || y - scrollY + cardH < top - 100) continue;
+                if (y - scrollY > VH + 100 || y - scrollY + cardH < top - 100) continue;
                 drawEnemyCard(x, y, cardW, cardH, BESTIARY_ORDER[i]);
             }
             ctx.restore();
@@ -9683,28 +10326,28 @@ const ty = y + 150 + (featLines.length - 1) * featLineH;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 24px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 18;
-            ctx.fillText('防 御 塔 图 鉴', canvas.width / 2, 36);
+            ctx.fillText('防 御 塔 图 鉴', VW / 2, 36);
             ctx.shadowBlur = 0;
             ctx.font = '12px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`共 ${Object.keys(TOWER_TYPES).length} 种防御塔 · 1→6 级属性一览 · 满级解锁特殊特性 · 鼠标滚轮上下滑动`, canvas.width / 2, 60);
+            ctx.fillText(`共 ${Object.keys(TOWER_TYPES).length} 种防御塔 · 1→6 级属性一览 · 满级解锁特殊特性 · 鼠标滚轮上下滑动`, VW / 2, 60);
             drawBackBtn();
             const keys = Object.keys(TOWER_TYPES);
-            // 原： const cardW = canvas.width - 48, cardH = 380, gapY = 20;
+            // 原： const cardW = VW - 48, cardH = 380, gapY = 20;
 const keys2 = Object.keys(TOWER_TYPES);
 const maxFeatLines = Math.max(...keys2.map(k => MAX_LEVEL_FEATURES[k].split('\n').length));
-const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 20;
+const cardW = VW - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 20;
             const startX = 24;
             const top = 78;
-            const viewH = canvas.height - top - 12;
+            const viewH = VH - top - 12;
             const contentH = keys.length * (cardH + gapY) - gapY;
             maxScroll = Math.max(0, contentH - viewH + 12);
             scrollY = Math.max(0, Math.min(maxScroll, scrollY));
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, top, canvas.width, viewH); ctx.clip();
+            ctx.beginPath(); ctx.rect(0, top, VW, viewH); ctx.clip();
             ctx.translate(0, -scrollY);
             for (let i = 0; i < keys.length; i++) {
                 const y = top + i * (cardH + gapY);
-                if (y - scrollY > canvas.height + 120 || y - scrollY + cardH < top - 120) continue;
+                if (y - scrollY > VH + 120 || y - scrollY + cardH < top - 120) continue;
                 drawTowerCard(startX, y, cardW, cardH, keys[i]);
             }
             ctx.restore();
@@ -9713,14 +10356,14 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
 
         function getLevelCardRect(i, scroll) {
             const totalW = LV_COLS * LV_CARD_W + (LV_COLS - 1) * LV_GAP_X;
-            const startX = Math.max(340, (canvas.width - totalW) / 2 + 60);
+            const startX = Math.max(340, (VW - totalW) / 2 + 60);
             const c = i % LV_COLS, r = Math.floor(i / LV_COLS);
             return { x: startX + c * (LV_CARD_W + LV_GAP_X), y: LEVELS_TOP + r * (LV_CARD_H + LV_GAP_Y) - scroll, w: LV_CARD_W, h: LV_CARD_H };
         }
         function levelCardAt(mx, my) {
-            if (my < LEVELS_TOP || my > canvas.height) return -1;
+            if (my < LEVELS_TOP || my > VH) return -1;
             const totalW = LV_COLS * LV_CARD_W + (LV_COLS - 1) * LV_GAP_X;
-            const startX = Math.max(340, (canvas.width - totalW) / 2 + 60);
+            const startX = Math.max(340, (VW - totalW) / 2 + 60);
             const lx = mx - startX;
             if (lx < 0) return -1;
             const c = Math.floor(lx / (LV_CARD_W + LV_GAP_X));
@@ -9785,7 +10428,7 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
 
 
         function getAscPanelRect() {
-            return { x: ASC_PANEL_X, y: ASC_PANEL_Y, w: ASC_PANEL_W, h: canvas.height - ASC_PANEL_Y - 20 };
+            return { x: ASC_PANEL_X, y: ASC_PANEL_Y, w: ASC_PANEL_W, h: VH - ASC_PANEL_Y - 20 };
         }
         function getAscArrowRect(dir) {
             const P = getAscPanelRect();
@@ -9990,25 +10633,25 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 24px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 18;
-            ctx.fillText('选 择 关 卡', canvas.width / 2, 36);
+            ctx.fillText('选 择 关 卡', VW / 2, 36);
             ctx.shadowBlur = 0;
             drawBackBtn();
             drawRandomBtn();
-            const viewH = canvas.height - LEVELS_TOP - 14;
+            const viewH = VH - LEVELS_TOP - 14;
             const rows = Math.ceil(LEVELS.length / LV_COLS);
             const contentH = rows * (LV_CARD_H + LV_GAP_Y) - LV_GAP_Y;
             maxScroll = Math.max(0, contentH - viewH + 16);
             scrollY = Math.max(0, Math.min(maxScroll, scrollY));
             ctx.save();
-            ctx.beginPath(); ctx.rect(0, LEVELS_TOP, canvas.width, viewH); ctx.clip();
+            ctx.beginPath(); ctx.rect(0, LEVELS_TOP, VW, viewH); ctx.clip();
             for (let i = 0; i < LEVELS.length; i++) {
                 const r = getLevelCardRect(i, scrollY);
-                if (r.y + r.h < LEVELS_TOP - 40 || r.y > canvas.height + 40) continue;
+                if (r.y + r.h < LEVELS_TOP - 40 || r.y > VH + 40) continue;
                 drawLevelCard(r, i);
             }
             ctx.restore();
             drawScrollbar(LEVELS_TOP, viewH);
-            pumpLevelThumbnails(levelThumbCache.size === 0 ? 12 : 3);
+            pumpLevelThumbnails(levelThumbCache.size === 0 ? 3 : 2);
             if (pendingLevel >= 0) {
                 drawModeSelector();
             } else {
@@ -10022,7 +10665,7 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
         function getModePanelLayout() {
             const w = MODE_PANEL_PAD * 2 + MODE_CARD_W + 16 + MODE_BOX_W;
             const h = 96 + MODE_KEYS_ACTIVE.length * MODE_ROW_H + 10 + 64 + 10 + 64 + 10 + 64 + 16;
-            return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
+            return { x: (VW - w) / 2, y: (VH - h) / 2, w, h };
         }
         // 模式条目：更高、内边距更大
         function getModeRect(i) {
@@ -10093,7 +10736,7 @@ const cardW = canvas.width - 48, cardH = 380 + (maxFeatLines - 1) * 18, gapY = 2
         // 每帧最多补两张缩略图，优先当前视口内的卡片——滚动时不再一帧连画多张
         function pumpLevelThumbnails(budget) {
             if (levelThumbPending.size === 0) return;
-            const viewTop = scrollY, viewBot = scrollY + (canvas.height - LEVELS_TOP);
+            const viewTop = scrollY, viewBot = scrollY + (VH - LEVELS_TOP);
             const near = [], far = [];
             for (const idx of levelThumbPending) {
                 const rowY = Math.floor(idx / LV_COLS) * (LV_CARD_H + LV_GAP_Y);
@@ -10537,17 +11180,17 @@ function drawRogueToggle() {
 
         function drawModeSelector() {
             ctx.fillStyle = 'rgba(4, 8, 16, 0.78)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, VW, VH);
             const L = getModePanelLayout();
             ctx.fillStyle = '#131c2b'; ctx.strokeStyle = '#3a6a9a'; ctx.lineWidth = 2;
             roundRect(ctx, L.x, L.y, L.w, L.h, 14); ctx.fill(); ctx.stroke();
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = 'bold 24px "Microsoft YaHei"'; ctx.fillStyle = '#7ec8ff';
             ctx.shadowColor = '#2a6fdb'; ctx.shadowBlur = 14;
-            ctx.fillText(LEVELS[pendingLevel].name, canvas.width / 2, L.y + 36);
+            ctx.fillText(LEVELS[pendingLevel].name, VW / 2, L.y + 36);
             ctx.shadowBlur = 0;
             ctx.font = '13px "Microsoft YaHei"'; ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(`#${pendingLevel + 1} · 选择游戏模式`, canvas.width / 2, L.y + 68);
+            ctx.fillText(`#${pendingLevel + 1} · 选择游戏模式`, VW / 2, L.y + 68);
             for (let i = 0; i < MODE_KEYS_ACTIVE.length; i++) {
                 const key = MODE_KEYS_ACTIVE[i];
                 const m = MODES[key];
@@ -10599,7 +11242,37 @@ function drawRogueToggle() {
         // ============================================================
         // 塔图标绘制
         // ============================================================
+        // 塔图标同样是每帧重画的矢量（一座塔几十条路径，11 座就是几百条）。
+        // 它只跟「类型 + 等级 + 颜色 + 缩放」有关，朝向只是旋转，所以按这四者烘成贴图，
+        // 运行时旋转贴图即可，每帧只剩一次小图 drawImage。
+        const _towerLogoCache = new Map();
+        const LOGO_ROTATABLE = { gun: 1, cannon: 1, missile: 1, sniper: 1, railgun: 1, flak: 1, laser: 1 };
+        function getTowerLogoSprite(type, lv, color, sf) {
+            const k = _spriteScale();
+            const key = type + '|' + lv + '|' + (color || '#ffffff') + '|' + sf.toFixed(3) + '|' + k.toFixed(2);
+            const hit = _towerLogoCache.get(key);
+            if (hit) return hit;
+            const lg = Math.max(16, Math.round((TOWER_RADIUS * 3.2) * sf));
+            const spr = document.createElement('canvas');
+            spr.width = Math.round(lg * k); spr.height = Math.round(lg * k);
+            const g = spr.getContext('2d');
+            g.setTransform(k, 0, 0, k, 0, 0);
+            drawTowerLogoVector(g, type, lv, lg / 2, lg / 2, null, color, sf);
+            spr._lg = lg;
+            _towerLogoCache.set(key, spr);
+            return spr;
+        }
         function drawTowerLogo(c, type, lv, px, py, angle, color, scale) {
+            const sf = (typeof scale === 'number' && scale > 0) ? scale : 1;
+            const spr = getTowerLogoSprite(type, lv, color, sf);
+            const lg = spr._lg;
+            c.save();
+            c.translate(px, py);
+            if (typeof angle === 'number' && LOGO_ROTATABLE[type]) c.rotate(angle + Math.PI / 2);
+            c.drawImage(spr, -lg / 2, -lg / 2, lg, lg);
+            c.restore();
+        }
+        function drawTowerLogoVector(c, type, lv, px, py, angle, color, scale) {
             const plainWhite = !color || color === '#ffffff';
             color = color || '#ffffff';
             // 纯白（建造菜单 / 图鉴 / 1 级塔）改用钢灰本体，白底渐变才不会被冲成一片白
@@ -11177,6 +11850,58 @@ function drawRogueToggle() {
             c.beginPath(); c.arc(8.6, -6.2, 0.6, 0, Math.PI * 2); c.fill();
         }
 
+        // ---------- 建造菜单：整块面板预烘成一张图，每帧只贴图 + 只重画悬停项 ----------
+        // 关键：战斗里金钱几乎每帧都在涨，所以不能"钱一变就重烘"，而是只看
+        // "这 16 个塔里哪些买得起"的位掩码 —— 通常整局只变几次。画布也只建一次，靠尺寸复用。
+        const BUILD_MENU_PAD_S = 24;   // 给阴影模糊留的边距
+        let _menuLayerCanvas = null, _menuLayerCtx = null;
+
+        function buildBuildMenuLayer(m, mask) {
+            const pad = BUILD_MENU_PAD_S;
+            const w = Math.max(1, Math.round(m.w + pad * 2));
+            const h = Math.max(1, Math.round(m.h + pad * 2));
+            if (!_menuLayerCanvas) {
+                _menuLayerCanvas = document.createElement('canvas');
+                _menuLayerCtx = _menuLayerCanvas.getContext('2d');
+            }
+            if (_menuLayerCanvas.width !== w || _menuLayerCanvas.height !== h) {
+                _menuLayerCanvas.width = w; _menuLayerCanvas.height = h;
+            }
+            const g = _menuLayerCtx;
+            g.clearRect(0, 0, w, h);
+            g.save();
+            g.shadowColor = 'rgba(60, 140, 220, 0.45)'; g.shadowBlur = 20;
+            g.fillStyle = 'rgba(10, 17, 30, 0.97)';
+            roundRect(g, pad, pad, m.w, m.h, 10); g.fill();
+            g.shadowBlur = 0; g.strokeStyle = '#3a6a9a'; g.lineWidth = 1.5; g.stroke();
+            g.restore();
+            const costs = m.costs;
+            for (let i = 0; i < BUILD_MENU_ORDER.length; i++) {
+                const type = BUILD_MENU_ORDER[i];
+                const cost = costs[i];
+                const affordable = ((mask >> i) & 1) === 1;
+                const ix = pad + BUILD_MENU_PAD;
+                const iy = pad + BUILD_MENU_PAD + i * BUILD_ITEM_H;
+                const iw = m.w - BUILD_MENU_PAD * 2;
+                g.globalAlpha = affordable ? 1 : 0.38;
+                drawTowerLogo(g, type, 1, ix + 18, iy + BUILD_ITEM_H / 2 + 1);
+                g.globalAlpha = 1;
+                g.font = 'bold 13px "Microsoft YaHei"';
+                g.textAlign = 'right'; g.textBaseline = 'middle';
+                g.fillStyle = affordable ? '#ffd966' : '#ff6666';
+                g.fillText(String(cost), ix + iw - 7, iy + BUILD_ITEM_H / 2 + 1);
+            }
+            return _menuLayerCanvas;
+        }
+
+        // 进图时先把菜单面板烘一次（走一遍字形/阴影/矢量缓存），首次点格子就不会有冷启动的那一下
+        function warmBuildMenuLayer() {
+            try {
+                const costs = BUILD_MENU_ORDER.map(t => getBuildCost(t, 0, 0));
+                buildBuildMenuLayer({ col: 0, row: 0, w: BUILD_MENU_W, h: getBuildMenuHeight(), costs: costs }, 0);
+            } catch (e) { /* 预热失败不影响游戏 */ }
+        }
+
         function drawBuildMenu() {
             if (!buildMenu) return;
             const m = buildMenu;
@@ -11185,32 +11910,41 @@ function drawRogueToggle() {
             ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
             ctx.strokeRect(cellLeft(m.col) + 3, cellTop(m.row) + 3, CELL - 6, CELL - 6);
             ctx.setLineDash([]); ctx.restore();
-            ctx.save();
-            ctx.shadowColor = 'rgba(60, 140, 220, 0.45)'; ctx.shadowBlur = 20;
-            ctx.fillStyle = 'rgba(10, 17, 30, 0.97)';
-            roundRect(ctx, m.x, m.y, m.w, m.h, 10); ctx.fill();
-            ctx.shadowBlur = 0; ctx.strokeStyle = '#3a6a9a'; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.restore();
-            for (let i = 0; i < BUILD_MENU_ORDER.length; i++) {
-                const type = BUILD_MENU_ORDER[i];
-                const d = TOWER_TYPES[type];
-                const cost = getBuildCost(type, buildMenu.col, buildMenu.row);
-                const r = getBuildItemRect(i);
+            const mul = getPriceMul();
+            if (!m.costs || m.costWave !== waveIndex || m.layerMul !== mul) {
+                // 造价只在换波（通胀）或价格倍率变化时才需要重算
+                m.costs = BUILD_MENU_ORDER.map(t => getBuildCost(t, m.col, m.row));
+                m.costWave = waveIndex; m.layerMask = -1;
+            }
+            let mask = 0;
+            for (let i = 0; i < m.costs.length; i++) if (money >= m.costs[i]) mask |= (1 << i);
+            if (!m.layer || m.layerMask !== mask) {
+                m.layer = buildBuildMenuLayer(m, mask);
+                m.layerMask = mask;
+            }
+            m.layerMul = mul;
+            const pad = BUILD_MENU_PAD_S;
+            ctx.drawImage(m.layer, Math.round(m.x - pad), Math.round(m.y - pad));
+            const hi = m.hover;
+            if (hi >= 0 && hi < BUILD_MENU_ORDER.length) {
+                // 悬停项：底色遮掉烘好的图标，再把这一项的图标/价格重画在上面（和原实现逐帧绘制效果一致）
+                const type = BUILD_MENU_ORDER[hi];
+                const cost = m.costs[hi];
+                const r = getBuildItemRect(hi);
                 const affordable = money >= cost;
-                const hovered = m.hover === i;
-                if (hovered) {
-                    ctx.fillStyle = affordable ? 'rgba(42, 95, 138, 0.85)' : 'rgba(90, 45, 45, 0.8)';
-                    roundRect(ctx, r.x, r.y, r.w, r.h, 8); ctx.fill();
-                    ctx.strokeStyle = affordable ? '#7ec8ff' : '#a05a5a';
-                    ctx.lineWidth = 1.2; ctx.stroke();
-                }
+                ctx.save();
+                ctx.fillStyle = affordable ? 'rgba(42, 95, 138, 0.9)' : 'rgba(90, 45, 45, 0.86)';
+                roundRect(ctx, r.x, r.y, r.w, r.h, 8); ctx.fill();
+                ctx.strokeStyle = affordable ? '#7ec8ff' : '#a05a5a';
+                ctx.lineWidth = 1.2; ctx.stroke();
                 ctx.globalAlpha = affordable ? 1 : 0.38;
                 drawTowerLogo(ctx, type, 1, r.x + 18, r.y + r.h / 2 + 1);
+                ctx.globalAlpha = 1;
                 ctx.font = 'bold 13px "Microsoft YaHei"';
                 ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
                 ctx.fillStyle = affordable ? '#ffd966' : '#ff6666';
                 ctx.fillText(String(cost), r.x + r.w - 7, r.y + r.h / 2 + 1);
-                ctx.globalAlpha = 1;
+                ctx.restore();
             }
         }
 
@@ -11508,10 +12242,10 @@ function drawRogueToggle() {
             towerUpPanelRect = null;
             enemyModPanelRect = null;
             if (!rogueState) return;
-            if (canvas.width < 1000) return;
+            if (VW < 1000) return;
 
             const w = ASC_GAME_W;
-            const x = canvas.width - w - 10;
+            const x = VW - w - 10;
             const rowH = 34, hdrH = ROGUE_PANEL_HDR_H, padB = 8;
             let y = 56;
 
@@ -11527,7 +12261,7 @@ function drawRogueToggle() {
             const listB = getAggregatedEnemyMods();
             if (listA.length === 0 && listB.length === 0) return;
 
-            const availH = canvas.height - y - 14;
+            const availH = VH - y - 14;
             const fixedA = listA.length ? hdrH + padB : 0;
             const fixedB = listB.length ? hdrH + padB : 0;
             const gap = (listA.length && listB.length) ? 10 : 0;
@@ -11647,9 +12381,9 @@ function drawRogueToggle() {
             const n = (draftPanel && draftPanel.choices) ? draftPanel.choices.length : 3;
             const cardW = 240, cardH = 280, gap = 20;
             const totalW = cardW * n + gap * Math.max(0, n - 1);
-            const startX = (canvas.width - totalW) / 2;
+            const startX = (VW - totalW) / 2;
             const panelH = 460;
-            const panelY = (canvas.height - panelH) / 2;
+            const panelY = (VH - panelH) / 2;
             return { x: startX + i * (cardW + gap), y: panelY + 120, w: cardW, h: cardH };
         }
 
@@ -11825,11 +12559,11 @@ function drawRogueToggle() {
             const fade = Math.min(1, elapsed * 4);
 
             ctx.fillStyle = `rgba(4, 8, 16, ${0.82 * fade})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, VW, VH);
 
             const panelW = 820, panelH = 460;
-            const px = (canvas.width - panelW) / 2;
-            const py = (canvas.height - panelH) / 2;
+            const px = (VW - panelW) / 2;
+            const py = (VH - panelH) / 2;
 
             // 主题色
             const glowColor  = isEnemy ? 'rgba(220, 80, 80, 0.55)'
@@ -11871,12 +12605,12 @@ function drawRogueToggle() {
             ctx.fillStyle = titleColor;
             ctx.shadowColor = titleGlow;
             ctx.shadowBlur = 20;
-            ctx.fillText(titleText, canvas.width / 2, py + 50);
+            ctx.fillText(titleText, VW / 2, py + 50);
             ctx.shadowBlur = 0;
 
             ctx.font = '13px "Microsoft YaHei"';
             ctx.fillStyle = '#7a9ac0';
-            ctx.fillText(subText, canvas.width / 2, py + 84);
+            ctx.fillText(subText, VW / 2, py + 84);
 
             for (let i = 0; i < d.choices.length; i++) {
                 const up = d.choices[i];
@@ -11980,7 +12714,7 @@ if (up.id === 'synBoost' && rogueState) {
                     ? '选中的联动会作为本局初始构筑，后续每 6 波仍有概率抽到联动'
                     : `已获得 ${rogueState.upgrades.length} 张塔强化`;
                 const autoTip = pendingAutoEnemyBoost ? ' · 选完后将自动应用 1 次怪物强化' : '';
-                ctx.fillText(extra + autoTip + ' · 累计效果见右侧面板', canvas.width / 2, py + panelH - 26);
+                ctx.fillText(extra + autoTip + ' · 累计效果见右侧面板', VW / 2, py + panelH - 26);
             }
         }
 
@@ -11991,7 +12725,7 @@ if (up.id === 'synBoost' && rogueState) {
             const extra = ((gameResult && gameResult.rogue) ? 26 : 0) +
                           ((gameResult && (gameResult.enhancementUnlock || gameResult.goldRepeat)) ? 34 : 0);
             const w = 440, h = 470 + extra;
-            return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
+            return { x: (VW - w) / 2, y: (VH - h) / 2, w, h };
         }
         function getResultBtnRect() {
             const L = getResultLayout();
@@ -12197,7 +12931,7 @@ if (up.id === 'synBoost' && rogueState) {
             const L = getResultLayout();
             const cx = L.x + L.w / 2;
             ctx.fillStyle = 'rgba(2, 6, 14, 0.84)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, VW, VH);
             ctx.save();
             ctx.shadowColor = 'rgba(60, 140, 220, 0.45)'; ctx.shadowBlur = 28;
             ctx.fillStyle = '#131c2b';
@@ -13061,6 +13795,46 @@ if (up.id === 'synBoost' && rogueState) {
             g.fillRect(0, 0, COLS * CELL, ROWS * CELL);
         }
 
+        // ---------- 墙体贴图缓存 ----------
+        // 每块墙原来的画法都带 shadowBlur + 渐变，一张大地图上就是上千次模糊：
+        // 同一风格、同一格尺寸下墙体只有"随机细节"不同，所以预烘 6 个变体小图，
+        // 之后每格只需一次 drawImage。这是开局烘焙里最贵的一块（实测占八成以上）。
+        const WALL_TILE_VARIANTS = 6;
+        const _wallTileCache = new Map();
+        function getWallTile(kind, size, ms, variant) {
+            const sz = Math.max(2, Math.round(size));
+            const key = kind + '|' + ms.key + '|' + sz + '|' + variant;
+            let tile = _wallTileCache.get(key);
+            if (tile) return tile;
+            const pad = Math.max(4, Math.round(sz * 0.3));
+            tile = document.createElement('canvas');
+            tile.width = sz + pad * 2;
+            tile.height = sz + pad * 2;
+            const tg = tile.getContext('2d');
+            // 用变体号代替格子坐标喂给 hash，得到 6 套固定的随机细节
+            const vc = 1013 + variant * 131, vr = 733 + variant * 217;
+            if (kind === 'armor') paintArmorWallTile(tg, pad, pad, sz, vc, vr, tileNoiseHash, ms);
+            else paintRockWallTile(tg, pad, pad, sz, vc, vr, tileNoiseHash, ms);
+            tile.__pad = pad;
+            if (_wallTileCache.size > 1200) _wallTileCache.clear();
+            _wallTileCache.set(key, tile);
+            return tile;
+        }
+        function drawRockWall(g, x, y, size, c, r, hash, msArg) {
+            const ms = msArg || currentMapStyle();
+            const v = Math.min(WALL_TILE_VARIANTS - 1, Math.floor(hash(c * 31 + 17, r * 47 + 3) * WALL_TILE_VARIANTS));
+            const tile = getWallTile('rock', size, ms, v);
+            const pad = tile.__pad;
+            g.drawImage(tile, x - pad, y - pad, size + pad * 2, size + pad * 2);
+        }
+        function drawArmorWall(g, x, y, size, c, r, hash, msArg) {
+            const ms = msArg || currentMapStyle();
+            const v = Math.min(WALL_TILE_VARIANTS - 1, Math.floor(hash(c * 37 + 5, r * 53 + 11) * WALL_TILE_VARIANTS));
+            const tile = getWallTile('armor', size, ms, v);
+            const pad = tile.__pad;
+            g.drawImage(tile, x - pad, y - pad, size + pad * 2, size + pad * 2);
+        }
+
         function rebuildBackground() {
             const ms = currentMapStyle();
             const gridW = COLS * CELL, gridH = ROWS * CELL;
@@ -13118,6 +13892,7 @@ if (up.id === 'synBoost' && rogueState) {
             g.strokeStyle = ms.border;
             g.lineWidth = 2;
             g.strokeRect(0.5, 0.5, gridW - 1, gridH - 1);
+            _staticDirty = true;            // 底图内容变了，下次 drawGame 会重画静态层
         }
 
         // 确定性噪声：让同一格在任意缩放下纹理一致
@@ -13128,7 +13903,53 @@ if (up.id === 'synBoost' && rogueState) {
             return ((h >>> 0) % 10000) / 10000;
         }
 
+        // 同一风格、同一格子尺寸下，底板横向/纵向渐变的几何完全一致。
+        // 用"局部坐标 + 逐格 translate"的方式只建一次渐变对象，之后每格复用：
+        // 内存里既少了几百上千个 CanvasGradient，也少了对应的着色器对象创建。
+        const _cellGradCache = new Map();
+        let _cellGradCtxSeq = 0;
+        function cachedCellGrad(g, key, x0, y0, x1, y1, stops) {
+            if (!g.__cellGradId) g.__cellGradId = ++_cellGradCtxSeq;
+            const fullKey = g.__cellGradId + '|' + key;
+            let gr = _cellGradCache.get(fullKey);
+            if (!gr) {
+                gr = g.createLinearGradient(x0, y0, x1, y1);
+                for (let i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+                _cellGradCache.set(fullKey, gr);
+            }
+            return gr;
+        }
+
         // 基础地板：渐变底 + 逐格噪点 + 网格线（游戏内与缩略图共用）
+        // 地板噪点：预生成一张 37×37 的随机小点贴图，用 pattern 平铺整块地板。
+        // 原来每一格都要画 2~4 个小方块（最大关 1813 格 ≈ 5000 次 fillRect），现在 1 次。
+        const _floorNoisePatCache = new Map();
+        function getFloorNoisePattern(g, msArg) {
+            const ms = msArg || currentMapStyle();
+            const key = ms.key;
+            let pat = _floorNoisePatCache.get(key);
+            if (pat) return pat;
+            const N = 37, DOTS = 6;
+            const tile = document.createElement('canvas');
+            tile.width = N; tile.height = N;
+            const tg = tile.getContext('2d');
+            for (let i = 0; i < DOTS; i++) {
+                const h1 = tileNoiseHash(i * 17 + 3, i * 29 + 11);
+                const h2 = tileNoiseHash(i * 41 + 7, i * 53 + 19);
+                const h3 = tileNoiseHash(i * 67 + 1, i * 71 + 23);
+                const px = Math.floor(h1 * (N - 2)), py = Math.floor(h2 * (N - 2));
+                const sz = 1 + (h3 > 0.62 ? 1 : 0);
+                tg.fillStyle = h3 > 0.5
+                    ? `rgba(${ms.dotL[0]}, ${ms.dotL[1]}, ${ms.dotL[2]}, ${0.035 + h1 * 0.04})`
+                    : `rgba(0, 0, 0, ${0.13 + h2 * 0.12})`;
+                tg.fillRect(px, py, sz, sz);
+            }
+            pat = g.createPattern(tile, 'repeat');
+            if (_floorNoisePatCache.size > 40) _floorNoisePatCache.clear();
+            _floorNoisePatCache.set(key, pat);
+            return pat;
+        }
+
         function paintFloorBase(g, cols, rows, cell, offX, offY, msArg) {
             const ms = msArg || currentMapStyle();
             const gridW = cols * cell, gridH = rows * cell;
@@ -13143,46 +13964,70 @@ if (up.id === 'synBoost' && rogueState) {
             // 小尺寸（缩略图）时省略噪点，避免糊成一片
             const detail = cell >= 10;
             const tr = ms.tile[0], tg = ms.tile[1], tb = ms.tile[2];
+            // 调色板：底色与噪点评分档后预先拼好 rgba 字符串。
+            // 原来每一格都要现拼 1 条底色 + 2~4 条噪点字符串，每次 fillStyle 赋值都要走一遍 CSS 颜色解析，
+            // 大地图上这是上万次字符串构造；现在只有几十个常量字符串。
+            const tonePal = [];
+            for (let i = 0; i < 16; i++) {
+                const k = 0.94 + ((i + 0.5) / 16) * 0.12;
+                tonePal.push(`rgba(${Math.round(tr * k)}, ${Math.round(tg * k)}, ${Math.round(tb * k)}, ${ms.tileA})`);
+            }
+            const dotLPal = [], dotDPal = [];
+            for (let i = 0; i < 8; i++) {
+                dotLPal.push(`rgba(${ms.dotL[0]}, ${ms.dotL[1]}, ${ms.dotL[2]}, ${0.03 + ((i + 0.5) / 8) * 0.04})`);
+                dotDPal.push(`rgba(0, 0, 0, ${0.13 + ((i + 0.5) / 8) * 0.12})`);
+            }
+            let lastFill = null;   // 赋同一个颜色字符串仍会重新解析，重复的就直接跳过
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     const x = offX + c * cell, y = offY + r * cell;
                     const base = tileNoiseHash(c * 7 + 1, r * 13 + 2);
                     const tone = base * 0.5 + 0.5;
-                    const k = 0.94 + tone * 0.12;
-                    g.fillStyle = `rgba(${Math.round(tr * k)}, ${Math.round(tg * k)}, ${Math.round(tb * k)}, ${ms.tileA})`;
+                    const baseStyle = tonePal[Math.min(15, Math.floor(tone * 16))];
+                    if (baseStyle !== lastFill) { g.fillStyle = baseStyle; lastFill = baseStyle; }
                     g.fillRect(x, y, cell, cell);
-                    if (!detail) continue;
-                    const dotCount = 2 + Math.floor(base * 3);
-                    for (let k2 = 0; k2 < dotCount; k2++) {
-                        const h1 = tileNoiseHash(c * 11 + k2 * 3, r * 17 + k2 * 7);
-                        const h2 = tileNoiseHash(c * 23 + k2 * 5, r * 29 + k2 * 11);
-                        const dx = h1 * (cell - 2) + 1;
-                        const dy = h2 * (cell - 2) + 1;
-                        const sz = 1 + h2 * 1.2;
-                        const bright = h1 > 0.5;
-                        const col = bright ? ms.dotL : ms.dotD;
-                        g.fillStyle = bright
-                            ? `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${0.03 + h1 * 0.04})`
-                            : `rgba(0, 0, 0, ${0.13 + h2 * 0.12})`;
-                        g.fillRect(x + dx, y + dy, sz, sz);
-                    }
                 }
             }
 
+            // 噪点整块 pattern 平铺：原来每格要 2~4 次 fillRect（大地图约 5000 次），现在只 1 次
+            if (detail) {
+                const noisePat = getFloorNoisePattern(g, ms);
+                if (noisePat) { g.fillStyle = noisePat; g.fillRect(offX, offY, gridW, gridH); }
+            }
+
             if (cell >= 8) {
+                // 网格线合成一条路径、一次描边：原来每行每列都要 beginPath + stroke 一遍（大地图上百次调用）
                 g.strokeStyle = ms.grid;
                 g.lineWidth = 1;
+                g.beginPath();
                 for (let i = 1; i < cols; i++) {
-                    g.beginPath(); g.moveTo(offX + i * cell + 0.5, offY); g.lineTo(offX + i * cell + 0.5, offY + gridH); g.stroke();
+                    g.moveTo(offX + i * cell + 0.5, offY); g.lineTo(offX + i * cell + 0.5, offY + gridH);
                 }
                 for (let i = 1; i < rows; i++) {
-                    g.beginPath(); g.moveTo(offX, offY + i * cell + 0.5); g.lineTo(offX + gridW, offY + i * cell + 0.5); g.stroke();
+                    g.moveTo(offX, offY + i * cell + 0.5); g.lineTo(offX + gridW, offY + i * cell + 0.5);
                 }
+                g.stroke();
             }
         }
 
         // 可建造空地的中心加号标记（与 X 炮台墙的加号呼应，但更淡）
+        // 可建造空地的加号标记：整格一模一样，预烘一张贴图直接贴
+        const _floorMarkCache = new Map();
         function drawBuildableFloorMark(g, x, y, size, msArg) {
+            const ms = msArg || currentMapStyle();
+            const szr = Math.max(2, Math.round(size));
+            const key = ms.key + '|' + szr;
+            let tile = _floorMarkCache.get(key);
+            if (!tile) {
+                tile = document.createElement('canvas');
+                tile.width = szr; tile.height = szr;
+                paintBuildableFloorMark(tile.getContext('2d'), 0, 0, szr, ms);
+                if (_floorMarkCache.size > 300) _floorMarkCache.clear();
+                _floorMarkCache.set(key, tile);
+            }
+            g.drawImage(tile, x, y, size, size);
+        }
+        function paintBuildableFloorMark(g, x, y, size, msArg) {
             const ms = msArg || currentMapStyle();
             const cx = x + size / 2, cy = y + size / 2;
             const sz = Math.max(2, size * 0.14);
@@ -13207,15 +14052,15 @@ if (up.id === 'synBoost' && rogueState) {
 
         function drawCrossJunction(g, x, y, size, msArg) {
             const ms = msArg || currentMapStyle();
-            const cx = x + size / 2, cy = y + size / 2;
             const pad = Math.max(1, size * 0.04);
-            const bx = x + pad, by = y + pad, bw = size - pad * 2, bh = size - pad * 2;
+            const cx = size / 2, cy = size / 2;
+            const bx = pad, by = pad, bw = size - pad * 2, bh = size - pad * 2;
+            g.save();
+            g.translate(x, y);   // 改在局部坐标下绘制，渐变按 风格+尺寸 只建一次
 
-            // 与普通地板一致的地板底（跟 drawNoBuildFloor 同款渐变）
-            const grad = g.createLinearGradient(bx, by, bx, by + bh);
-            grad.addColorStop(0, ms.path[0]);
-            grad.addColorStop(0.5, ms.path[1]);
-            grad.addColorStop(1, ms.path[2]);
+            // 与普通地板一致的地板底（跟 drawNoBuildFloor 同款渐变，复用同一份缓存）
+            const grad = cachedCellGrad(g, 'path|' + ms.key + '|' + size, bx, by, bx, by + bh,
+                [[0, ms.path[0]], [0.5, ms.path[1]], [1, ms.path[2]]]);
             g.fillStyle = grad;
             g.fillRect(bx, by, bw, bh);
 
@@ -13258,22 +14103,23 @@ if (up.id === 'synBoost' && rogueState) {
                 }
             }
             g.restore();
+            g.restore();   // 关闭顶部为局部坐标加的 translate
         }
         // 可通行但禁止建造的地板渲染
         function drawNoBuildFloor(g, x, y, size, c, r, hash, msArg) {
             const ms = msArg || currentMapStyle();
             const pad = Math.max(1, size * 0.04);
-            const bx = x + pad, by = y + pad, bw = size - pad * 2, bh = size - pad * 2;
-            const grad = g.createLinearGradient(bx, by, bx, by + bh);
-            grad.addColorStop(0, ms.path[0]);
-            grad.addColorStop(0.5, ms.path[1]);
-            grad.addColorStop(1, ms.path[2]);
+            g.save();
+            g.translate(x, y);   // 同上：局部坐标 + 共用渐变
+            const grad = cachedCellGrad(g, 'path|' + ms.key + '|' + size, pad, pad, pad, size - pad,
+                [[0, ms.path[0]], [0.5, ms.path[1]], [1, ms.path[2]]]);
             g.fillStyle = grad;
-            g.fillRect(bx, by, bw, bh);
+            g.fillRect(pad, pad, size - pad * 2, size - pad * 2);
+            g.restore();
         }
 
         // 不可通行的岩体/墙体：几何形态随风格变化（不是只换颜色）
-        function drawRockWall(g, x, y, size, c, r, hash, msArg) {
+        function paintRockWallTile(g, x, y, size, c, r, hash, msArg) {
             const ms = msArg || currentMapStyle();
             const pad = Math.max(1, size * 0.03);
             const bx = x + pad, by = y + pad, bw = size - pad * 2, bh = size - pad * 2;
@@ -13517,7 +14363,7 @@ if (up.id === 'synBoost' && rogueState) {
             }
         }
 
-        function drawArmorWall(g, x, y, size, c, r, hash, msArg) {
+        function paintArmorWallTile(g, x, y, size, c, r, hash, msArg) {
             const ms = msArg || currentMapStyle();
             const pad = Math.max(1.5, size * 0.04);
             const radius = Math.min(Math.max(2, size * 0.08), Math.max(0.5, (size - pad * 2) / 2));
@@ -13745,7 +14591,7 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.font = 'bold 12px "Microsoft YaHei"';
             const w = ctx.measureText(label).width + 28;
             const h = 26;
-            const x = 10, y = canvas.height - h - 10;
+            const x = 10, y = VH - h - 10;
             ctx.fillStyle = 'rgba(8, 14, 24, 0.88)';
             ctx.strokeStyle = 'rgba(255, 217, 102, 0.75)';
             ctx.lineWidth = 1.2;
@@ -13764,7 +14610,7 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.font = 'bold 12px "Microsoft YaHei"';
             const w = ctx.measureText(label).width + 26;
             const h = 26;
-            const x = canvas.width - w - 10, y = canvas.height - h - 10;
+            const x = VW - w - 10, y = VH - h - 10;
             ctx.fillStyle = 'rgba(8, 14, 24, 0.88)';
             ctx.strokeStyle = 'rgba(126, 200, 255, 0.75)';
             ctx.lineWidth = 1.2;
@@ -13787,7 +14633,7 @@ if (up.id === 'synBoost' && rogueState) {
             const tw = ctx.measureText('防御塔自动升级').width;
             ctx.restore();
             const w = Math.ceil(padX * 2 + bs + gap1 + tw);
-            return { x: (canvas.width - w) / 2, y: canvas.height - h - 10, w, h };
+            return { x: (VW - w) / 2, y: VH - h - 10, w, h };
         }
 
         function toggleGlobalAutoUpgrade() {
@@ -13968,7 +14814,7 @@ if (up.id === 'synBoost' && rogueState) {
             grad.addColorStop(0, 'rgba(10, 18, 30, 0.96)');
             grad.addColorStop(1, 'rgba(6, 10, 18, 0.92)');
             ctx.fillStyle = grad;
-            ctx.fillRect(0, barY, canvas.width, barH);
+            ctx.fillRect(0, barY, VW, barH);
 
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
             const waveLabel = currentModeKey === 'endless' ? `♾ ${waveIndex}` : `${waveIndex}/${totalWaves}`;
@@ -13993,25 +14839,25 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.save();
             ctx.strokeStyle = 'rgba(80, 140, 200, 0.12)';
             ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(clipLeft, centerY); ctx.lineTo(canvas.width, centerY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(clipLeft, centerY); ctx.lineTo(VW, centerY); ctx.stroke();
             ctx.restore();
             const entries = getPipelineEntries();
             const now = gameClock;
             const blockH = 30;
             const blockY = barY + (barH - blockH) / 2;
             ctx.save();
-            ctx.beginPath(); ctx.rect(clipLeft, barY, canvas.width - clipLeft, barH); ctx.clip();
+            ctx.beginPath(); ctx.rect(clipLeft, barY, VW - clipLeft, barH); ctx.clip();
             if (entries.length === 0) {
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.font = '13px "Microsoft YaHei"'; ctx.fillStyle = '#5a7fa8';
                 const msg = (waveIndex >= totalWaves) ? '—— 全部波次已结束 ——' : '—— 准备迎敌 ——';
-                ctx.fillText(msg, (clipLeft + canvas.width) / 2, centerY);
+                ctx.fillText(msg, (clipLeft + VW) / 2, centerY);
             } else {
                 const FADE_ZONE = 120;
                 for (const e of entries) {
                     const bw = e.w || PIPE_BLOCK_W;
                     const x = lineX + (e.time - now) * PIPE_SPEED;
-                    if (x > canvas.width + 10) continue;
+                    if (x > VW + 10) continue;
                     const right = x + bw;
                     if (right < clipLeft) continue;
                     let alpha = 1;
@@ -14050,7 +14896,7 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.strokeStyle = 'rgba(80, 160, 230, 0.6)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(0, barY + barH - 0.5); ctx.lineTo(canvas.width, barY + barH - 0.5);
+            ctx.moveTo(0, barY + barH - 0.5); ctx.lineTo(VW, barY + barH - 0.5);
             ctx.stroke();
             ctx.restore();
         }
@@ -14097,15 +14943,9 @@ if (up.id === 'synBoost' && rogueState) {
 
         // 路线发光带是静态的（只有箭头在动）：烘焙到离屏图层，每帧只贴一张图，
         // 避免每帧重新描两条贯穿全图的大宽度描边。
-        function buildRouteLayer(gridW, gridH) {
-            routeCanvas = null;
-            if (!routes || routes.length === 0) return;
-            const cv = document.createElement('canvas');
-            cv.width = Math.max(1, gridW);
-            cv.height = Math.max(1, gridH);
-            const g = cv.getContext('2d');
+        function paintRouteLayers(g, list) {
             g.lineCap = 'round'; g.lineJoin = 'round';
-            for (const route of routes) {
+            for (const route of list) {
                 if (!route.pts || route.pts.length < 2) continue;
                 const pts = route.pts;
                 g.beginPath();
@@ -14118,7 +14958,38 @@ if (up.id === 'synBoost' && rogueState) {
                 g.lineWidth = 2;
                 g.stroke();
             }
-            routeCanvas = cv;
+        }
+        // 路线发光带是柔和光晕，用一半分辨率烘焙再放大几乎看不出差别，
+        // 但每帧要混合的像素从整张降到 1/4（最大关 1480×1000 → 740×500），这是 drawGame 里最大的一笔开销
+        const ROUTE_LAYER_SCALE = 0.5;
+        function buildRouteLayer(gridW, gridH) {
+            if (!routes || routes.length === 0) { routeCanvas = null; _staticDirty = true; return; }
+            const w = Math.max(1, Math.round(gridW * ROUTE_LAYER_SCALE));
+            const h = Math.max(1, Math.round(gridH * ROUTE_LAYER_SCALE));
+            // 复用同一张离屏画布：原来每次建塔都新建 canvas，等于每次都重新分配显存纹理
+            if (!routeCanvas || routeCanvas.width !== w || routeCanvas.height !== h) {
+                routeCanvas = document.createElement('canvas');
+                routeCanvas.width = w;
+                routeCanvas.height = h;
+                routeCanvas.__ctx = routeCanvas.getContext('2d');
+            }
+            const g = routeCanvas.__ctx;
+            g.setTransform(1, 0, 0, 1, 0, 0);
+            g.clearRect(0, 0, w, h);
+            g.setTransform(ROUTE_LAYER_SCALE, 0, 0, ROUTE_LAYER_SCALE, 0, 0);
+            paintRouteLayers(g, routes);
+            g.setTransform(1, 0, 0, 1, 0, 0);
+            _staticDirty = true;            // 路线发光带内容变了，静态层随之重画
+        }
+        // 建造菜单的"路线预览"也烘成一张静态图层，避免预览时每帧重描两条大宽度路线
+        function buildPreviewLayer(list) {
+            const cv = document.createElement('canvas');
+            cv.width = Math.max(1, Math.round(COLS * CELL * ROUTE_LAYER_SCALE));
+            cv.height = Math.max(1, Math.round(ROWS * CELL * ROUTE_LAYER_SCALE));
+            const pg = cv.getContext('2d');
+            pg.scale(ROUTE_LAYER_SCALE, ROUTE_LAYER_SCALE);
+            paintRouteLayers(pg, list);
+            return cv;
         }
 
         function drawRouteArrows(route, routeIdx) {
@@ -14126,7 +14997,7 @@ if (up.id === 'synBoost' && rogueState) {
             if (pts.length < 2) return;
             const segLen = CELL;
             const totalLen = (pts.length - 1) * segLen;
-            const spacing = Math.max(CELL * 1.5, 26);
+            const spacing = Math.max(CELL * 2.0, 34) * (perfLevel >= 2 ? 1.6 : 1);   // 箭头是每帧重画的动态元素，间距放宽一半数量
             const phase = (routeIdx || 0) * 0.37;
             const speed = CELL * 0.85;
             const offset = ((arrowAnimTime + phase) * speed) % spacing;
@@ -14138,7 +15009,7 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.fillStyle = color;
             // 视口裁剪：大地图放大后整条路线都在遍历，屏幕外的箭头白画
             const pad = size * 3 + 8;
-            const vw = canvas.width, vh = canvas.height;
+            const vw = VW, vh = VH;
             for (let d = offset; d < totalLen; d += spacing) {
                 let segIdx = Math.floor(d / segLen);
                 if (segIdx >= pts.length - 1) segIdx = pts.length - 2;
@@ -14199,25 +15070,34 @@ if (up.id === 'synBoost' && rogueState) {
         // 游戏主绘制
         // ============================================================
         function drawGame() {
-            if (!bgGradient) {
-                bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                bgGradient.addColorStop(0, '#04070e');
-                bgGradient.addColorStop(0.5, '#060a14');
-                bgGradient.addColorStop(1, '#03060c');
-            }
-            ctx.fillStyle = bgGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            if (bgCanvas) ctx.drawImage(bgCanvas, mapOffX, mapOffY);
-
             const previewChanged = buildMenu && !gameOver && buildMenu.previewRoutes && isBuildPathChanged();
             const routesToDraw = previewChanged ? buildMenu.previewRoutes : routes;
-            if (!previewChanged) {
-                // 常规路线：贴烘焙好的静态发光带，只实时画流动箭头
-                if (!routeCanvas) buildRouteLayer(COLS * CELL, ROWS * CELL);
-                if (routeCanvas) ctx.drawImage(routeCanvas, mapOffX, mapOffY);
+            if (!previewChanged && showRouteOverlay) {
+                // 常规路线：路线发光带是烘好的静态层（半分辨率）
+                const needW = Math.max(1, Math.round(COLS * CELL * ROUTE_LAYER_SCALE));
+                const needH = Math.max(1, Math.round(ROWS * CELL * ROUTE_LAYER_SCALE));
+                if (!routeCanvas || routeCanvas.width !== needW || routeCanvas.height !== needH) buildRouteLayer(COLS * CELL, ROWS * CELL);
+            }
+            // 背景、地板、路线发光带都在下层静态画布上（只在进图 / 平移 / 换档位时重画一次），
+            // 这里只清空动态层——每帧那两次全屏大图贴合的填充量就此消掉
+            ensureStaticLayer(previewChanged);
+            ctx.clearRect(0, 0, VW, VH);
+            if (showRouteOverlay && previewChanged) {
+                if (buildMenu.previewCanvas) ctx.drawImage(buildMenu.previewCanvas, mapOffX, mapOffY, COLS * CELL, ROWS * CELL);
+                else if (routeCanvas) ctx.drawImage(routeCanvas, mapOffX, mapOffY, COLS * CELL, ROWS * CELL);   // 兜底：没预览层就用现有路线，绝不裸着不画
+            }
+            if (!showRouteOverlay) {
+                // 路线显示已手动关闭（H 键）：发光带与箭头都不画，只留地图与炮台
+            } else if (!previewChanged) {
                 for (let ri = 0; ri < routes.length; ri++) {
                     if (routes[ri].pts.length < 2) continue;
                     drawRouteArrows(routes[ri], ri);
+                }
+            } else if (buildMenu.previewCanvas) {
+                // 建造预览：静态发光带也是烘好的，每帧只贴一张图（原来每帧都要重描两条大宽度路线）
+                for (let ri = 0; ri < routesToDraw.length; ri++) {
+                    if (routesToDraw[ri].pts.length < 2) continue;
+                    drawRouteArrows(routesToDraw[ri], ri);
                 }
             } else {
             for (let ri = 0; ri < routesToDraw.length; ri++) {
@@ -14359,7 +15239,7 @@ if (up.id === 'synBoost' && rogueState) {
             }
             for (const e of enemies) {
                 // 视口裁剪：整只怪都在画面外就不画（大量单位涌出时省掉整段绘制）
-                if (e.x < -64 || e.y < -64 || e.x > canvas.width + 64 || e.y > canvas.height + 64) continue;
+                if (e.x < -64 || e.y < -64 || e.x > VW + 64 || e.y > VH + 64) continue;
                 drawEnemy(e);
                 if (selectedEnemy === e) {
                     const sf2 = CELL / baseCellPx;
@@ -14501,76 +15381,107 @@ if (up.id === 'synBoost' && rogueState) {
             if (draftPanel) drawDraftPanel();
         }
 
-        function drawTowerBase(px, py, t, typeDef) {
+        // 塔底每帧都要建 4 个渐变、画几十条路径，11 座塔就是几百次绘制；
+        // 但它的外形只跟「等级颜色 + 格子尺寸」有关，与塔的类型和朝向完全无关。
+        // 所以按等级烘成小图，每帧只剩一次 drawImage。
+        const _towerBaseCache = new Map();
+        function paintTowerBaseSprite(g, px, py, level) {
             const R = TOWER_RADIUS;
-            const lvColor = LEVEL_COLORS[Math.min(t.level, MAX_LEVEL) - 1];
+            const lvColor = LEVEL_COLORS[Math.min(level, MAX_LEVEL) - 1];
             const sides = 8, rot = Math.PI / sides;
             const baseR = R + Math.max(2, R * 0.14);
             const sideOffset = Math.max(2, R * 0.22);
             const shadowCY = py + R * 0.55;
-            const shadowGrad = ctx.createRadialGradient(px, shadowCY, 0, px, shadowCY, R * 1.25);
+            const shadowGrad = g.createRadialGradient(px, shadowCY, 0, px, shadowCY, R * 1.25);
             shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
             shadowGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.18)');
             shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = shadowGrad;
-            ctx.beginPath(); ctx.ellipse(px, shadowCY, R * 1.25, R * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath();
+            g.fillStyle = shadowGrad;
+            g.beginPath(); g.ellipse(px, shadowCY, R * 1.25, R * 0.6, 0, 0, Math.PI * 2); g.fill();
+            g.beginPath();
             for (let i = 0; i < sides; i++) {
                 const a = (i / sides) * Math.PI * 2 + rot;
                 const x = px + Math.cos(a) * baseR;
                 const y = py + Math.sin(a) * baseR + sideOffset;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
             }
-            ctx.closePath();
-            const sideGrad = ctx.createLinearGradient(px, py, px, py + baseR + sideOffset);
+            g.closePath();
+            const sideGrad = g.createLinearGradient(px, py, px, py + baseR + sideOffset);
             sideGrad.addColorStop(0, '#22334a');
             sideGrad.addColorStop(0.55, '#101a2a');
             sideGrad.addColorStop(1, '#03060c');
-            ctx.fillStyle = sideGrad; ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)'; ctx.lineWidth = 1; ctx.stroke();
-            ctx.beginPath();
+            g.fillStyle = sideGrad; g.fill();
+            g.strokeStyle = 'rgba(0, 0, 0, 0.75)'; g.lineWidth = 1; g.stroke();
+            g.beginPath();
             for (let i = 0; i < sides; i++) {
                 const a = (i / sides) * Math.PI * 2 + rot;
                 const x = px + Math.cos(a) * baseR;
                 const y = py + Math.sin(a) * baseR;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
             }
-            ctx.closePath();
-            const topGrad = ctx.createRadialGradient(px - baseR * 0.4, py - baseR * 0.4, baseR * 0.1, px, py, baseR * 1.1);
+            g.closePath();
+            const topGrad = g.createRadialGradient(px - baseR * 0.4, py - baseR * 0.4, baseR * 0.1, px, py, baseR * 1.1);
             topGrad.addColorStop(0, '#4a6288');
             topGrad.addColorStop(0.4, '#2a3e5a');
             topGrad.addColorStop(0.82, '#141f30');
             topGrad.addColorStop(1, '#080e18');
-            ctx.fillStyle = topGrad; ctx.fill();
-            ctx.strokeStyle = 'rgba(120, 170, 220, 0.55)'; ctx.lineWidth = Math.max(1, R * 0.05); ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(px - baseR * 0.12, py - baseR * 0.12, baseR * 0.78, Math.PI * 1.05, Math.PI * 1.42);
-            ctx.strokeStyle = 'rgba(200, 230, 255, 0.35)'; ctx.lineWidth = Math.max(1, R * 0.06); ctx.stroke();
+            g.fillStyle = topGrad; g.fill();
+            g.strokeStyle = 'rgba(120, 170, 220, 0.55)'; g.lineWidth = Math.max(1, R * 0.05); g.stroke();
+            g.beginPath();
+            g.arc(px - baseR * 0.12, py - baseR * 0.12, baseR * 0.78, Math.PI * 1.05, Math.PI * 1.42);
+            g.strokeStyle = 'rgba(200, 230, 255, 0.35)'; g.lineWidth = Math.max(1, R * 0.06); g.stroke();
             const innerR = R * 0.82;
-            const innerGrad = ctx.createRadialGradient(px - innerR * 0.35, py - innerR * 0.35, 0, px, py, innerR);
+            const innerGrad = g.createRadialGradient(px - innerR * 0.35, py - innerR * 0.35, 0, px, py, innerR);
             innerGrad.addColorStop(0, '#0d1726');
             innerGrad.addColorStop(1, '#010205');
-            ctx.beginPath(); ctx.arc(px, py, innerR, 0, Math.PI * 2);
-            ctx.fillStyle = innerGrad; ctx.fill();
-            ctx.beginPath();
-            ctx.arc(px, py, innerR, Math.PI * 1.08, Math.PI * 1.92);
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; ctx.lineWidth = Math.max(1, R * 0.06); ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(px, py, innerR, Math.PI * 0.15, Math.PI * 0.85);
-            ctx.strokeStyle = 'rgba(95, 135, 175, 0.5)'; ctx.lineWidth = Math.max(1, R * 0.05); ctx.stroke();
-            ctx.beginPath(); ctx.arc(px, py, baseR * 0.93, 0, Math.PI * 2);
-            ctx.strokeStyle = lvColor + '66'; ctx.lineWidth = Math.max(1, R * 0.05); ctx.stroke();
+            g.beginPath(); g.arc(px, py, innerR, 0, Math.PI * 2);
+            g.fillStyle = innerGrad; g.fill();
+            g.beginPath();
+            g.arc(px, py, innerR, Math.PI * 1.08, Math.PI * 1.92);
+            g.strokeStyle = 'rgba(0, 0, 0, 0.8)'; g.lineWidth = Math.max(1, R * 0.06); g.stroke();
+            g.beginPath();
+            g.arc(px, py, innerR, Math.PI * 0.15, Math.PI * 0.85);
+            g.strokeStyle = 'rgba(95, 135, 175, 0.5)'; g.lineWidth = Math.max(1, R * 0.05); g.stroke();
+            g.beginPath(); g.arc(px, py, baseR * 0.93, 0, Math.PI * 2);
+            g.strokeStyle = lvColor + '66'; g.lineWidth = Math.max(1, R * 0.05); g.stroke();
             const dots = 4;
             const dotR = Math.max(1, R * 0.07);
             for (let i = 0; i < dots; i++) {
                 const a = (i / dots) * Math.PI * 2 + Math.PI / 4;
                 const dx = px + Math.cos(a) * baseR * 0.93;
                 const dy = py + Math.sin(a) * baseR * 0.93;
-                ctx.beginPath(); ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
-                ctx.fillStyle = lvColor;
-                ctx.shadowColor = lvColor; ctx.shadowBlur = Math.max(3, R * 0.25);
-                ctx.fill(); ctx.shadowBlur = 0;
+                g.beginPath(); g.arc(dx, dy, dotR, 0, Math.PI * 2);
+                g.fillStyle = lvColor;
+                g.shadowColor = lvColor; g.shadowBlur = Math.max(3, R * 0.25);
+                g.fill(); g.shadowBlur = 0;
             }
+        }
+        // 贴图按「画布物理像素/逻辑像素」的倍率烘焙，避开放大糊
+        function _spriteScale() {
+            const k = canvas.width / VW;
+            return Math.min(2, Math.max(1, k));
+        }
+        function getTowerBaseSprite(level) {
+            const k = _spriteScale();
+            const key = level + '|' + Math.round(TOWER_RADIUS * 100) + '|' + k.toFixed(2);
+            const hit = _towerBaseCache.get(key);
+            if (hit) return hit;
+            const lg = Math.max(24, Math.ceil(TOWER_RADIUS * 5));
+            const spr = document.createElement('canvas');
+            spr.width = Math.round(lg * k); spr.height = Math.round(lg * k);
+            const g = spr.getContext('2d');
+            g.setTransform(k, 0, 0, k, 0, 0);
+            paintTowerBaseSprite(g, lg / 2, lg / 2, level);
+            spr._lg = lg;
+            _towerBaseCache.set(key, spr);
+            return spr;
+        }
+
+        function drawTowerBase(px, py, t, typeDef) {
+            const level = Math.min(Math.max(1, t.level), MAX_LEVEL);
+            const spr = getTowerBaseSprite(level);
+            const lg = spr._lg;
+            ctx.drawImage(spr, Math.round(px - lg / 2), Math.round(py - lg / 2), lg, lg);
         }
 
         function enemyRevealed(e) {
@@ -14601,8 +15512,8 @@ if (up.id === 'synBoost' && rogueState) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'; ctx.fill();
             }
             
-            // 进阶难度机制12：精英光环
-            if (e.isElite) {
+            // 进阶难度机制12：精英光环（降档到 2 档后省掉）
+            if (e.isElite && perfLevel < 2) {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, size + 6 * sf, 0, Math.PI * 2);
                 ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
@@ -14613,6 +15524,8 @@ if (up.id === 'synBoost' && rogueState) {
             const barW = Math.max(28 * sf, size * 2.5);
             const hpPercent = Math.max(e.hp / e.maxHp, 0);
             const barH = Math.max(2, 3 * sf);
+            // 血量条/护盾条是每只敌人每帧 4 次 fillRect；掉帧时先省这个，功能不受影响（点开敌人仍能看到血量）
+            if (perfLevel < 2) {
             if (e.maxShield > 0 && e.shield > 0) {
                 const sp = e.shield / e.maxShield;
                 ctx.fillStyle = '#1a2a4a';
@@ -14624,11 +15537,12 @@ if (up.id === 'synBoost' && rogueState) {
             ctx.fillRect(e.x - barW / 2, e.y - size - 12 * sf, barW, barH);
             ctx.fillStyle = hpPercent > 0.5 ? '#4aff4a' : (hpPercent > 0.25 ? '#ffaa00' : '#ff4444');
             ctx.fillRect(e.x - barW / 2, e.y - size - 12 * sf, barW * hpPercent, barH);
+            }
             ctx.save();
             ctx.translate(e.x, e.y);
             ctx.fillStyle = color;
             // 怪很多时逐只 shadowBlur 是最大的绘制开销：按场上数量分档降级
-            const glowBlur = enemies.length > 90 ? 0 : (enemies.length > 55 ? 5 : 12);
+            const glowBlur = (perfLevel >= 1 || enemies.length > 90) ? 0 : (enemies.length > 55 ? 5 : 12);
             if (glowBlur > 0) { ctx.shadowColor = color; ctx.shadowBlur = glowBlur; }
             if (e.type === 'runner') {
                 ctx.beginPath();
@@ -16189,10 +17103,156 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
         // ============================================================
         // 主循环
         // ============================================================
+        // ---------- 帧时监控 + 自适应降级 ----------
+        // 目标：宁可临时少画一点发光和箭头，也不让画面卡住；稳定后自动升回满画质。
+        var perfLevel = 0;                 // 0 = 满画质；1 = 关敌人发光；2 = 再抽稀箭头
+        var _perfAvgMs = 16.7, _perfBad = 0, _perfGood = 0;
+        var _perfClock = 0, _perfLockAt = 0;   // 换档冷却：刚变过档后的几秒内不再变，避免在阈值上反复横跳
+        function perfTick(rawDt) {
+            if (screen !== 'game') {
+                _perfAvgMs = 16.7; _perfBad = 0; _perfGood = 0; perfLevel = 0;
+                _perfClock = 0; _perfLockAt = 0; _noBlurSticky = false;
+                return;
+            }
+            const ms = rawDt * 1000;
+            if (!(ms > 0) || ms > 200) return;          // 切后台 / 断点造成的大跳帧不计入
+            if (ms > _diagMaxMs) _diagMaxMs = ms;       // 记录 1 秒内最差的一帧，用来区分"持续慢"和"偶发尖峰"
+            _perfAvgMs = _perfAvgMs * 0.88 + ms * 0.12;
+            _perfClock += rawDt;
+            if (_perfClock < _perfLockAt) return;       // 刚换过档：锁 4 秒，避免在阈值边缘反复跳档（反复开关模糊会闪成一跳一跳的）
+            if (_perfAvgMs > 24) {                       // 低于 ~41fps 就开始降档
+                _perfGood = 0;
+                if (++_perfBad >= 3 && perfLevel < 3) {
+                    perfLevel++; _perfBad = 0;
+                    if (perfLevel >= 2) _noBlurSticky = true;   // 模糊一旦关掉，本局不再恢复，杜绝图标忽明忽暗
+                    _perfLockAt = _perfClock + 4;
+                }
+            } else if (_perfAvgMs < 18) {                // 只有真正稳定才考虑回升（原来 15.5 太贴近抖动区）
+                _perfBad = 0;
+                _perfGood += rawDt;
+                if (_perfGood > 2.5 && perfLevel > 0) {
+                    perfLevel--; _perfGood = 0;
+                    _perfLockAt = _perfClock + 4;
+                }
+            } else {
+                _perfBad = 0; _perfGood = 0;
+            }
+
+            // 动态分辨率：帧时撑不住就缩位图（只作用于"像素对齐"档，手动档位不受影响）。
+            // 位图变小、显示尺寸不变 → 画面略软但立刻变顺；稳下来后再慢慢补回清晰度。
+            if (resMode === 'auto') {
+                if (_perfAvgMs > 19 && drScale > 0.52) {
+                    if (++_drBad >= 6) {                       // 约 0.1 秒的持续超时
+                        _drBad = 0; _drGood = 0;
+                        drScale = Math.max(0.5, Math.round((drScale - 0.1) * 100) / 100);
+                        applyPixelPerfect();
+                        _perfLockAt = _perfClock + 2.5;
+                        return;
+                    }
+                } else if (_perfAvgMs < 12 && drScale < 1) {
+                    _drBad = 0;
+                    if (++_drGood >= 240) {                    // 约 4 秒稳定后才升一档
+                        _drGood = 0;
+                        drScale = Math.min(1, Math.round((drScale + 0.1) * 100) / 100);
+                        applyPixelPerfect();
+                        _perfLockAt = _perfClock + 2.5;
+                        return;
+                    }
+                } else {
+                    _drBad = 0; _drGood = 0;
+                }
+            }
+        }
+
+        // ===== 性能诊断：?diag=1 或游戏内按 P 键开启，正常游玩完全不受影响 =====
+        let DIAG = /[?&]diag=1/.test(location.search);
+        const DIAG_AUTO = DIAG && /[?&]auto=1/.test(location.search);
+        const DIAG_LEVEL = Math.max(0, Math.min(LEVELS.length - 1, Number(new URLSearchParams(location.search).get('lvl')) || 0));
+        if (DIAG) window.__diagLevels = LEVELS.map((lv, i) => ({
+            i, name: lv.name, rows: lv.map.length,
+            cols: Math.max.apply(null, lv.map.map(r => r.length))
+        }));
+        let _diagFrames = 0, _diagT0 = 0, _diagEl = null;
+        let _diagUpdateMs = 0, _diagDrawMs = 0;   // 每帧「更新逻辑」与「绘制」各自的耗时（面板用）
+        let _diagMaxMs = 0;                        // 每秒内最大的单帧间隔（抓 GC / 偶发尖峰）
+        if (DIAG_AUTO) setTimeout(() => {
+            try {
+                loadLevelMasked(DIAG_LEVEL, 'story', false, false);
+                setTimeout(() => {
+                    let made = 0;
+                    for (let r = 0; r < ROWS && made < 30; r++) {
+                        for (let c = 0; c < COLS && made < 30; c++) {
+                            if (!canBuildAt(c, r)) continue;
+                            addTower(c, r, 'gun', false); made++;
+                        }
+                    }
+                    waveCountdownStarted = true;
+                    nextWaveAt = Math.min(nextWaveAt, 2);
+                    console.log('[diag-auto] towers=' + made);
+                }, 1200);
+            } catch (e) { console.error('[diag-auto]', e); }
+        }, 300);
+        if (DIAG && 'PerformanceObserver' in window) {
+            try {
+                const po = new PerformanceObserver(list => {
+                    for (const e of list.getEntries()) {
+                        if (e.duration > 50) console.warn('[diag-longtask]',
+                            Math.round(e.duration) + 'ms', 't=' + (e.startTime / 1000).toFixed(1) + 's');
+                    }
+                });
+                po.observe({ entryTypes: ['longtask'] });
+            } catch (e) { /* 浏览器不支持就跳过 */ }
+        }
+        function diagTick(timestamp) {
+            if (!DIAG) return;
+            if (!_diagT0) _diagT0 = timestamp;
+            _diagFrames++;
+            const elapsed = timestamp - _diagT0;
+            if (elapsed < 1000) return;
+            const fps = Math.round(_diagFrames * 1000 / elapsed);
+            const snap = {
+                t: +(timestamp / 1000).toFixed(1), fps, avgMs: +_perfAvgMs.toFixed(1),
+                perfLevel, enemies: enemies.length, towers: towers.length,
+                projectiles: projectiles.length, screen,
+                wallTiles: _wallTileCache.size, cellGrads: _cellGradCache.size,
+                floorMarks: _floorMarkCache.size, noisePats: _floorNoisePatCache.size
+            };
+            console.log('[diag]', snap);
+            if (!_diagEl) {
+                _diagEl = document.createElement('div');
+                _diagEl.style.cssText = 'position:fixed;left:6px;top:6px;z-index:2147483500;'
+                    + 'padding:6px 8px;background:rgba(4,7,14,.82);color:#8fe3ff;'
+                    + 'font:12px/1.5 Consolas,monospace;pointer-events:none;white-space:pre;';
+                document.body.appendChild(_diagEl);
+            }
+            const rawMs = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(1) + 'M' : '-';
+            // 画布后备像素与屏幕上真正显示的尺寸差多少：差值越大，每帧的缩放采样成本越高
+            let dispInfo = '';
+            try {
+                const rect = canvas.getBoundingClientRect();
+                dispInfo = 'cv ' + canvas.width + 'x' + canvas.height + ' @' + renderScale.toFixed(2)
+                    + '  disp ' + Math.round(rect.width) + 'x' + Math.round(rect.height)
+                    + '  dpr ' + (window.devicePixelRatio || 1);
+            } catch (e) { dispInfo = 'cv ?'; }
+            _diagEl.textContent =
+                'FPS ' + snap.fps + '  avg ' + snap.avgMs + 'ms  max ' + _diagMaxMs.toFixed(0) + 'ms  lvl ' + snap.perfLevel + '\n'
+              + 'u ' + _diagUpdateMs.toFixed(1) + '  d ' + _diagDrawMs.toFixed(1) + '  heap ' + rawMs + '\n'
+              + 'E ' + snap.enemies + '  T ' + snap.towers + '  P ' + snap.projectiles + '  ' + snap.screen + '\n'
+              + dispInfo + '\n'
+              + 'tiles ' + snap.wallTiles + '  grad ' + snap.cellGrads + '  mark ' + snap.floorMarks;
+            _diagMaxMs = 0;
+            _diagFrames = 0; _diagT0 = timestamp;
+        }
+
         function gameLoop(timestamp) {
             if (!lastTime) lastTime = timestamp;
             let rawDt = (timestamp - lastTime) / 1000;
             rawDt = Math.min(rawDt, 0.05);
+            perfTick(rawDt);
+            _noBlur = _noBlurSticky || (perfLevel >= 2);   // 模糊粘住不恢复；档位到 2 起也一律按 0 处理
+            // 每帧起手把绘制坐标统一拉回 1480×1000 的设计空间（位图本身是 renderScale 倍大小）
+            if (ctx.setTransform) ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+            diagTick(timestamp);
             const dt = rawDt * (screen === 'game' && !paused && !draftPanel ? speedMultiplier : 1);
             lastTime = timestamp;
 
@@ -16220,6 +17280,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             if (gameOver && buildMenu) closeBuildMenu();
             if (gameOver && towerMenu) closeTowerMenu();
             if (screen === 'game' && !gameOver) { refreshAurasIfDirty(); }
+            const __u0 = performance.now();
             if (screen === 'game' && !gameOver && !paused && !draftPanel) {
                 arrowAnimTime += dt;
                 updateSpawn(dt);
@@ -16235,6 +17296,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             } else if (screen === 'game') {
                 if (!paused) updateProjectiles(dt);
             }
+            _diagUpdateMs = _diagUpdateMs * 0.6 + (performance.now() - __u0) * 0.4;
             // 独立于战斗更新阶段运行：允许 AI 在敌人存在或 Roguelike 选卡暂停时继续决策。
             if (screen === 'game' && !gameOver && aiAutoMode && !paused) {
     try {
@@ -16255,12 +17317,12 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     if (now - lastEnemyTipUpdate > 120) {
                         lastEnemyTipUpdate = now;
                         const insideCanvas = mouse.inside
-                            && mouse.x >= 0 && mouse.x <= canvas.width
-                            && mouse.y >= 0 && mouse.y <= canvas.height;
+                            && mouse.x >= 0 && mouse.x <= VW
+                            && mouse.y >= 0 && mouse.y <= VH;
                         if (insideCanvas) {
                             const rect = canvas.getBoundingClientRect();
-                            const scaleX = rect.width ? canvas.width / rect.width : 1;
-                            const scaleY = rect.height ? canvas.height / rect.height : 1;
+                            const scaleX = rect.width ? VW / rect.width : 1;
+                            const scaleY = rect.height ? VH / rect.height : 1;
                             const cx = rect.left + mouse.x / scaleX;
                             const cy = rect.top + mouse.y / scaleY;
                             showTipHTML(cx, cy, buildEnemyInfoHTML(selectedEnemy));
@@ -16271,6 +17333,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
 
             // 先排下一帧再绘制：即使某帧绘制抛异常，主循环也不会死掉（否则界面会整屏冻住）
             requestAnimationFrame(gameLoop);
+            const __d0 = performance.now();
             try {
                 draw();
             } catch (err) {
@@ -16280,12 +17343,13 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                     console.error('绘制异常：', err);
                 }
             }
+            _diagDrawMs = _diagDrawMs * 0.6 + (performance.now() - __d0) * 0.4;
         }
 
         function getCanvasCoords(e) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const scaleX = VW / rect.width;
+            const scaleY = VH / rect.height;
             return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
         }
         function getGridFromMouse(e) {
@@ -16493,11 +17557,11 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
             if (screen === 'levels' || screen === 'bestiary' || screen === 'towerdex' || screen === 'intro' || screen === 'stats') {
                 e.preventDefault();
                 // 行/页滚动模式统一换算成像素：不同设备一格滚轮可能是 3 行而不是 100px
-                const unit = e.deltaMode === 1 ? 18 : (e.deltaMode === 2 ? canvas.height : 1);
+                const unit = e.deltaMode === 1 ? 18 : (e.deltaMode === 2 ? VH : 1);
                 const dy = e.deltaY * unit;
                 if (screen === 'levels') {
                     // 现算一次上限，避免刚切到选关页时 maxScroll 还是上个界面的 0，导致滚不动
-                    const viewH = canvas.height - LEVELS_TOP - 14;
+                    const viewH = VH - LEVELS_TOP - 14;
                     const rows = Math.ceil(LEVELS.length / LV_COLS);
                     const contentH = rows * (LV_CARD_H + LV_GAP_Y) - LV_GAP_Y;
                     maxScroll = Math.max(0, contentH - viewH + 16);
@@ -16646,7 +17710,7 @@ const scale = (rogueState && rogueState.bonus && typeof rogueState.bonus.synergy
                             const lvIdx = pendingLevel, rev = pendingReverse, rog = pendingRogue, cha = pendingChaos;
                             pendingLevel = -1; pendingReverse = false; pendingRogue = false; pendingChaos = false;
                             hoveredMode = -1; hoveredReverse = false; hoveredRogue = false; hoveredChaos = false;
-                            loadLevel(lvIdx, MODE_KEYS_ACTIVE[i], rev, rog, undefined, undefined, cha);
+                            loadLevelMasked(lvIdx, MODE_KEYS_ACTIVE[i], rev, rog, undefined, undefined, cha);
                             return;
                         }
                     }
@@ -16853,7 +17917,7 @@ nextWaveBtn.addEventListener('click', callNextWave);
             GAME_STATS.recordRestart();
             const kept = (rogueState && rogueState.affixes && rogueState.affixes.length)
                 ? rogueState.affixes.slice() : null;
-            loadLevel(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true, chaosEnabled,
+            loadLevelMasked(levelIndex, currentModeKey, routeReverse, rogueEnabled, kept, true, chaosEnabled,
                       rogueEnabled ? rogueDraftSeed : 0);
         });
         document.getElementById('saveBtn').addEventListener('click', saveGame);
@@ -16947,6 +18011,21 @@ nextWaveBtn.addEventListener('click', callNextWave);
             if ((e.code === 'KeyF' || e.key === 'f' || e.key === 'F') && !e.repeat && !hasModifier && !isTypingTarget && screen === 'game') {
                 e.preventDefault();
                 toggleGameSpeed();
+            }
+            // P：开关性能诊断面板（FPS / 帧时 / 降档档位 / 敌人·塔·子弹数量）
+            if ((e.code === 'KeyP' || e.key === 'p' || e.key === 'P') && !e.repeat && !hasModifier && !isTypingTarget) {
+                e.preventDefault();
+                DIAG = !DIAG;
+                if (!DIAG && _diagEl) { _diagEl.remove(); _diagEl = null; }
+                if (msgDisplay) msgDisplay.textContent = DIAG ? '性能面板：开（左上角）' : '性能面板：关';
+            }
+            // H：开关路线显示（发光带 + 箭头），用来对比掉帧是否与路线绘制有关
+            if ((e.code === 'KeyH' || e.key === 'h' || e.key === 'H') && !e.repeat && !hasModifier && !isTypingTarget && screen === 'game') {
+                e.preventDefault();
+                showRouteOverlay = !showRouteOverlay;
+                if (msgDisplay) {
+                    msgDisplay.textContent = showRouteOverlay ? '路线显示：已开启' : '路线显示：已关闭（对比帧率用）';
+                }
             }
             // Backspace：回档到 3 波之前（战斗中可用，退格键不再触发浏览器返回上一页）
             if ((e.code === 'Backspace' || e.key === 'Backspace') && !isTypingTarget && !hasModifier) {
